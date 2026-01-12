@@ -1,0 +1,24 @@
+*.py[co]
+.project
+.pydevproject
+.settings
+src/config.ini
+__pycache__
+.idea
+venv/
+.venv/
+*.egg-info/
+.ropeproject
+.vscode/
+*.sqlite
+*.sqlite3
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+instance/config.py
+
+# Coverage reports
+.coverage
+htmlcov/

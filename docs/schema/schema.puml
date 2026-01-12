@@ -1,0 +1,117 @@
+@startuml
+' Simple ER-style diagram for schema.sql
+hide circle
+skinparam linetype ortho
+
+entity "User" as U {
+  * id : SERIAL <<PK>>
+  --
+  name : VARCHAR(255)
+  email : VARCHAR(255) <<UNIQUE>>
+  hash_pass : VARCHAR(128)
+  is_teacher : BOOLEAN
+}
+
+entity "Course" as C {
+  * id : SERIAL <<PK>>
+  --
+  teacherID : INT <<FK User.id>>
+  name : VARCHAR(255)
+}
+
+entity "Assignment" as A {
+  * id : SERIAL <<PK>>
+  --
+  courseID : INT <<FK Course.id>>
+  name : VARCHAR(255)
+  rubric : VARCHAR(255)
+  due_date : DATE
+}
+
+entity "CourseGroup" as CG {
+  * id : SERIAL <<PK>>
+  --
+  name : VARCHAR(255)
+  assignmentID : INT <<FK Assignment.id>>
+}
+
+entity "Submission" as S {
+  * id : SERIAL <<PK>>
+  --
+  path : VARCHAR(255)
+  studentID : INT <<FK User.id>>
+  assignmentID : INT <<FK Assignment.id>>
+}
+
+entity "Group_Members" as GM {
+  * (userID, groupID) <<PK>>
+  --
+  groupID : INT <<FK CourseGroup.id>>
+  userID  : INT <<FK User.id>>
+  assignmentID : INT <<FK Assignment.id>>
+}
+
+entity "User_Courses" as UC {
+  * (userID, courseID) <<PK>>
+  --
+  courseID : INT <<FK Course.id>>
+  userID   : INT <<FK User.id>>
+}
+
+entity "Review" as R {
+  * id : SERIAL <<PK>>
+  --
+  assignmentID : INT <<FK Assignment.id>>
+  reviewerID   : INT <<FK User.id>>
+  revieweeID   : INT <<FK User.id>>
+}
+
+entity "Criterion" as CR {
+  * id : SERIAL <<PK>>
+  --
+  reviewID : INT <<FK Review.id>>
+  criterionRowID : INT <<FK Criteria_Description.id>>
+  grade : INT
+  comments : VARCHAR(255)
+}
+
+entity "Rubric" as RB {
+  * id : SERIAL <<PK>>
+  --
+  assignmentID : INT <<FK Assignment.id>>
+  canComment : BOOLEAN
+}
+
+entity "Criteria_Description" as CD {
+  * id : SERIAL <<PK>>
+  --
+  rubricID : INT <<FK Rubric.id>>
+  question : VARCHAR(255)
+  scoreMax : INT
+  hasScore : BOOLEAN
+}
+
+' Relationships (FK -> PK)
+U ||--o{ C    : teaches (teacherID)
+C ||--o{ A    : has (courseID)
+A ||--o{ CG   : has (assignmentID)
+A ||--o{ S    : has (assignmentID)
+U ||--o{ S    : submits (studentID)
+
+CG ||--o{ GM  : contains (groupID)
+U ||--o{ GM   : member (userID)
+
+C ||--o{ UC  : enrollment (courseID)
+U ||--o{ UC  : enrolled (userID)
+
+A ||--o{ R   : has (assignmentID)
+U ||--o{ R   : reviewer (reviewerID)
+U ||--o{ R   : reviewee (revieweeID)
+
+R ||--o{ CR  : contains (reviewID)
+CD ||--o{ CR : referenced_by (criterionRowID)
+
+A ||--o{ RB  : may_have (assignmentID)
+RB ||--o{ CD : describes (rubricID)
+
+@enduml

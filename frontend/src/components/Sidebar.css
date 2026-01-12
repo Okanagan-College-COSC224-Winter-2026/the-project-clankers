@@ -1,0 +1,58 @@
+.Sidebar {
+  width: 200px;
+  min-width: 200px;
+  height: 100vh;
+  background-color: var(--background-secondary);
+
+  display: flex;
+  flex-direction: column;
+}
+
+.SidebarLogo {
+  width: 100%;
+  height: 100px;
+
+  display: flex;
+  justify-content: center;
+
+  margin-top: 1rem;
+}
+
+.SidebarLogo img {
+  width: 90px;
+  height: 90px;
+}
+
+.SidebarTop {
+  display: flex;
+  flex-direction: column;
+  
+  width: 100%;
+  height: 100%;
+}
+
+.SidebarBottom {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  
+  width: 100%;
+  height: 100%;
+}
+
+.SidebarRow {
+  display: flex;
+  flex-direction: column;
+
+  padding: 0.25rem 0;
+}
+
+.SidebarRow a {
+  text-decoration: none;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.SidebarRow.selected {
+  background-color: var(--background-tertiary);
+}

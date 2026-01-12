@@ -1,0 +1,64 @@
+.RegisterPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  height: 100vh;
+  width: 100%;
+
+  background-color: #fff;
+}
+
+.RegisterPage h1 {
+  margin: 16px;
+}
+
+.RegisterBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+
+  margin: 8px;
+  padding-bottom: 16px;
+
+  height: 50%;
+  width: 30%;
+
+  background-color: #fff;
+
+  min-height: 300px;
+  max-height: 400px;
+}
+
+.RegisterInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  height: 100%;
+}
+
+.RegisterButton {
+  margin-bottom: 16px;
+}
+
+.RegisterInputs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  margin-bottom: 12px;
+
+  width: 100%;
+}
+
+.RegisterInputChunk {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+
+  margin: 12px;
+}

@@ -1,0 +1,16 @@
+.App {
+  display: flex;
+  flex-direction: row;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+
+  width: 100%;
+}
+
+h2 {
+  margin: 4px 0;
+}

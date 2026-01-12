@@ -1,0 +1,39 @@
+.Home {
+  margin: 1rem;
+  width: 100%;
+}
+
+.Home h1 {
+  border-bottom: 1px solid var(--background-secondary);
+}
+
+.Classes {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+
+  gap: 1rem;
+}
+
+.ClassCreateButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  width: 360px;
+  height: 240px;
+
+  background: var(--background-secondary);
+  color: var(--text-secondary);
+
+  border-radius: 6px;
+  border: 1px dashed var(--text-secondary);
+
+  transition: all 0.1s ease-in-out;
+}
+
+.ClassCreateButton:hover {
+  filter: brightness(0.8);
+  cursor: pointer;
+}

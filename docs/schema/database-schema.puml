@@ -1,0 +1,131 @@
+@startuml
+hide circle
+skinparam Ranksep 100
+skinparam nodesep 60
+skinparam Shadowing true
+skinparam Linetype ortho
+skinparam classAttributeIconSize 0
+left to right direction
+
+package "Actors" {
+class User {
+  +id: Integer
+  +name: String
+  +email: String
+  +hash_pass: String
+  +role: String <<student|teacher|admin>>
+}
+}
+
+package "Courses" {
+class Course {
+  +id: Integer
+  +teacherID: Integer
+  +name: String
+}
+
+class Assignment {
+  +id: Integer
+  +courseID: Integer
+  +name: String
+  +rubric_text: String
+  +due_date: DateTime (nullable)
+}
+
+class CourseGroup {
+  +id: Integer
+  +name: String
+  +assignmentID: Integer
+}
+}
+
+package "Work" {
+class Submission {
+  +id: Integer
+  +path: String
+  +studentID: Integer
+  +assignmentID: Integer
+}
+
+class Group_Members {
+  +userID: Integer
+  +groupID: Integer
+  +assignmentID: Integer
+}
+
+class User_Course {
+  +userID: Integer
+  +courseID: Integer
+}
+
+class Review {
+  +id: Integer
+  +assignmentID: Integer
+  +reviewerID: Integer
+  +revieweeID: Integer
+}
+
+class Criterion {
+  +id: Integer
+  +reviewID: Integer
+  +criterionRowID: Integer
+  +grade: Integer
+  +comments: String
+}
+}
+
+package "Rubrics" {
+class Rubric {
+  +id: Integer
+  +assignmentID: Integer
+  +canComment: Boolean <<default TRUE>>
+}
+
+class CriteriaDescription {
+  +id: Integer
+  +rubricID: Integer
+  +question: String
+  +scoreMax: Integer
+  +hasScore: Boolean <<default TRUE>>
+}
+}
+
+' Hidden layout hints to keep columns separated
+User -[hidden]-> Course
+Course -[hidden]-> Assignment
+Assignment -[hidden]-> Submission
+Submission -[hidden]-> Review
+Review -[hidden]-> Rubric
+Rubric -[hidden]-> CriteriaDescription
+User_Course -[hidden]- Group_Members
+
+' Teaching & enrollment relationships
+User "1" --> "0..*" Course : teaches
+User "1" o-- "0..*" User_Course : enrollments
+Course "1" o-- "0..*" User_Course : student links
+
+' Course & assignment structure
+Course "1" --> "0..*" Assignment : assignments
+Assignment "1" --> "0..*" CourseGroup : groups
+
+' Group membership bridge
+CourseGroup "1" o-- "0..*" Group_Members : members
+User "1" o-- "0..*" Group_Members : memberships
+Assignment "1" o-- "0..*" Group_Members : context
+
+' Submissions
+User "1" --> "0..*" Submission : submissions
+Assignment "1" --> "0..*" Submission : collects
+
+' Peer review flow
+Assignment "1" --> "0..*" Review : reviews
+User "1" --> "0..*" Review : reviewer
+User "1" <-- "0..*" Review : reviewee
+Review "1" --> "0..*" Criterion : criteria
+
+' Rubrics and criteria
+Assignment "1" --> "0..*" Rubric : rubrics
+Rubric "1" --> "0..*" CriteriaDescription : questions
+CriteriaDescription "1" --> "0..*" Criterion : responses
+
+@enduml

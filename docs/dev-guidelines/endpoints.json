@@ -1,0 +1,258 @@
+{
+  "generatedAt": "2025-10-24T00:00:00Z",
+  "note": "Machine-readable list of backend endpoints. Use for test generation or client scaffolding. Types are best-effort derived from route handlers.",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/assignment/:class_id",
+      "params": { "class_id": "number" },
+      "query": null,
+      "body": null,
+      "response": "Array<Assignment> (Sequelize findAll result)",
+      "authRequired": true,
+      "notes": "Returns all assignments for a course (courseID stored as string param)."
+    },
+    {
+      "method": "POST",
+      "path": "/classes/members",
+      "params": null,
+      "query": null,
+      "body": { "id": "number (course id)" },
+      "response": "Array<User { id, name, email }>",
+      "authRequired": true,
+      "notes": "Does not return password/hash. Uses User_Course to lookup members."
+    },
+    {
+      "method": "GET",
+      "path": "/classes",
+      "params": null,
+      "query": null,
+      "body": null,
+      "response": "Array<Course>",
+      "authRequired": true,
+      "notes": "Currently returns all classes; TODO in code: filter by student membership."
+    },
+    {
+      "method": "POST",
+      "path": "/create_assignment",
+      "params": null,
+      "query": null,
+      "body": { "courseID": "number", "name": "string" },
+      "response": { "message": "string", "id": "number" },
+      "authRequired": true,
+      "notes": "Creates assignment and returns created id."
+    },
+    {
+      "method": "POST",
+      "path": "/create_class",
+      "params": null,
+      "query": null,
+      "body": { "name": "string" },
+      "response": "201 { message: 'Class created', id } or 400 { message: 'Class already exists' }",
+      "authRequired": true,
+      "notes": "Creates course with teacherID hardcoded to 0 (TODO: use session)."
+    },
+    {
+      "method": "POST",
+      "path": "/create_criteria",
+      "params": null,
+      "query": null,
+      "body": { "id": "number", "rubricID": "number", "question": "string", "scoreMax": "number", "hasScore": "boolean" },
+      "response": { "message": "string", "id": "number" },
+      "authRequired": true,
+      "notes": "Creates a Criteria_Description row. Field `id` is taken from body."
+    },
+    {
+      "method": "POST",
+      "path": "/create_criterion",
+      "params": null,
+      "query": null,
+      "body": { "reviewID": "number", "criterionRowID": "number", "grade": "number", "comments": "string" },
+      "response": { "message": "string", "id": "number" },
+      "authRequired": true,
+      "notes": "Creates one Criterion (row within a Review)."
+    },
+    {
+      "method": "POST",
+      "path": "/create_group",
+      "params": null,
+      "query": null,
+      "body": { "id": "number", "name": "string", "assignmentID": "number" },
+      "response": { "message": "string", "id": "number" },
+      "authRequired": true,
+      "notes": "Creates CourseGroup; route swallows DB errors and logs them."
+    },
+    {
+      "method": "POST",
+      "path": "/create_review",
+      "params": null,
+      "query": null,
+      "body": { "assignmentID": "number", "reviewerID": "number", "revieweeID": "number" },
+      "response": { "message": "string", "id": "number" },
+      "authRequired": true,
+      "notes": "Creates Review row linking reviewer/reviewee for an assignment."
+    },
+    {
+      "method": "POST",
+      "path": "/create_rubric",
+      "params": null,
+      "query": null,
+      "body": { "id": "number", "assignmentID": "number", "canComment": "boolean" },
+      "response": { "message": "string", "id": "number" },
+      "authRequired": true,
+      "notes": "Destroys existing rubric with same id before creating new one."
+    },
+    {
+      "method": "GET",
+      "path": "/criteria",
+      "params": null,
+      "query": { "rubricID": "string (number expected)" },
+      "body": null,
+      "response": "400 if missing rubricID; else Array<Criteria_Description>",
+      "authRequired": true,
+      "notes": "Query param parsed with parseInt before DB lookup."
+    },
+    {
+      "method": "POST",
+      "path": "/delete_group",
+      "params": null,
+      "query": null,
+      "body": { "groupID": "number" },
+      "response": { "message": "string", "id": "number", "groupMembers": "update result" },
+      "authRequired": true,
+      "notes": "Sets group members' groupID to -1 then destroys the CourseGroup."
+    },
+    {
+      "method": "GET",
+      "path": "/get_className/:classID",
+      "params": { "classID": "number" },
+      "query": null,
+      "body": null,
+      "response": "404 if not found; else { className: string }",
+      "authRequired": true,
+      "notes": "Finds Course by id and returns its name."
+    },
+    {
+      "method": "GET",
+      "path": "/review",
+      "params": null,
+      "query": { "assignmentID": "string", "reviewerID": "string", "revieweeID": "string" },
+      "body": null,
+      "response": "400 if missing params; 404 if review not found; else { grades: number[] }",
+      "authRequired": true,
+      "notes": "Aggregates grade fields from Criterion rows for the found Review."
+    },
+    {
+      "method": "GET",
+      "path": "/rubric",
+      "params": null,
+      "query": { "rubricID": "string" },
+      "body": null,
+      "response": "400 if missing; 404 if not found; else { id, assignmentID, canComment }",
+      "authRequired": true,
+      "notes": "Returns a simplified rubric object."
+    },
+    {
+      "method": "GET",
+      "path": "/list_all_groups/:assignmentID",
+      "params": { "assignmentID": "number" },
+      "query": null,
+      "body": null,
+      "response": "Array<CourseGroup>",
+      "authRequired": true,
+      "notes": "Finds all CourseGroup rows where assignmentID matches."
+    },
+    {
+      "method": "GET",
+      "path": "/list_group_members/:assignmentID/:groupID",
+      "params": { "assignmentID": "number", "groupID": "string" },
+      "query": null,
+      "body": null,
+      "response": "Array<Group_Member> for the group",
+      "authRequired": true,
+      "notes": "groupID is treated as string in route typing."
+    },
+    {
+      "method": "GET",
+      "path": "/list_stu_groups/:assignmentID/:studentID",
+      "params": { "assignmentID": "number", "studentID": "number" },
+      "query": null,
+      "body": null,
+      "response": "300 + { msg: 'student has no group' } if no group; else Array<Group_Member>",
+      "authRequired": true,
+      "notes": "Returns peers in the student's group for an assignment."
+    },
+    {
+      "method": "GET",
+      "path": "/list_ua_groups/:assignmentID",
+      "params": { "assignmentID": "number" },
+      "query": null,
+      "body": null,
+      "response": "Array<Group_Member> where groupID === -1",
+      "authRequired": true,
+      "notes": "Unassigned students for an assignment."
+    },
+    {
+      "method": "GET",
+      "path": "/login",
+      "params": null,
+      "query": null,
+      "body": null,
+      "headers": { "Authorization": "Basic base64(user:pass)" },
+      "response": "400 if missing header; 401 if invalid; 200 { token, isTeacher }",
+      "authRequired": false,
+      "notes": "On success stores session in-memory at app.session[token]. Tests bypass this by setting DANGEROUS_DISABLE_ALL_AUTH=true."
+    },
+    {
+      "method": "GET",
+      "path": "/next_groupid",
+      "params": null,
+      "query": null,
+      "body": null,
+      "response": "Number (count of groups with id > 0)",
+      "authRequired": true,
+      "notes": "Uses Sequelize count with Op.gt to count groups."
+    },
+    {
+      "method": "GET",
+      "path": "/ping",
+      "params": null,
+      "query": null,
+      "body": null,
+      "response": "{ message: 'pong!' }",
+      "authRequired": false,
+      "notes": "Lightweight healthcheck."
+    },
+    {
+      "method": "POST",
+      "path": "/save_groups",
+      "params": null,
+      "query": null,
+      "body": { "groupID": "number", "userID": "number", "assignmentID": "number" },
+      "response": "{ message: 'successful DB post!' } or 401",
+      "authRequired": true,
+      "notes": "Updates Group_Member rows to set groupID for a user in an assignment."
+    },
+    {
+      "method": "POST",
+      "path": "/class/enroll_students",
+      "params": null,
+      "query": null,
+      "body": { "students": "string (CSV)", "courseID": "number" },
+      "response": "400 if missing course; 200 { message: '<n> students added to course <name>' } or 500 on failure",
+      "authRequired": true,
+      "notes": "Parses CSV, creates User and User_Course rows. See `backend/src/util/csv.ts`."
+    },
+    {
+      "method": "GET",
+      "path": "/user_id",
+      "params": null,
+      "query": null,
+      "body": null,
+      "headers": { "Authorization": "Bearer <token>" },
+      "response": "numeric user id (reads app.session[token].id)",
+      "authRequired": true,
+      "notes": "Handler assumes app.session contains token; no explicit 401 check in code."
+    }
+  ]
+}

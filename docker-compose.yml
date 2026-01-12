@@ -1,0 +1,133 @@
+# Docker Compose for Peer Evaluation App - Full Stack
+# Coordinates frontend (React + Nginx), Flask backend, and PostgreSQL database
+#
+# Usage:
+#   Development: docker-compose up --build
+#   Stop:        docker-compose down
+#   Clean:       docker-compose down -v  (removes volumes)
+#   Logs:        docker-compose logs -f [service_name]
+#
+# Services:
+#   - postgres: PostgreSQL 15 database (can be swapped out for any other DB since the app uses SQLAlchemy ORM)
+#   - flask_backend: Python Flask API server (port 5000)
+#   - frontend: React app served via Nginx (port 80)
+#
+# Network:
+#   All services communicate via internal Docker network
+#   Frontend can optionally proxy API requests to flask_backend via Nginx config (currently disabled)
+#   Current setup: Frontend makes direct HTTP requests to backend via CORS
+# Security Notes:
+#   - Never commit real secrets to this file
+#   - Use .env file (git-ignored) for local overrides
+#   - For production, use cloud provider's secret management
+
+services:
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: peereval-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-peereval}
+      POSTGRES_USER: ${POSTGRES_USER:-peereval_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_change_in_prod}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-peereval_user} -d ${POSTGRES_DB:-peereval}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - peereval-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Flask Backend API
+  # ============================================================================
+  flask_backend:
+    build:
+      context: ./flask_backend
+      dockerfile: Dockerfile
+    container_name: peereval-flask
+    ports:
+      - "5000:5000"
+    environment:
+      # Flask configuration
+      FLASK_APP: api
+      FLASK_ENV: ${FLASK_ENV:-production}
+      # To enable development mode, set FLASK_ENV=development in your .env file or environment.
+      
+      # Security secrets (override via .env file or environment)
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-prod}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-prod}
+      
+      # Database connection (uses environment variables to avoid hardcoded credentials)
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://${POSTGRES_USER:-peereval_user}:${POSTGRES_PASSWORD:-dev_password_change_in_prod}@postgres:5432/${POSTGRES_DB:-peereval}}
+      
+      # CORS configuration (allow frontend origin)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000}
+      
+      # Optional: JWT cookie domain for cross-subdomain authentication (production)
+      # Set to .yourdomain.com in production for subdomain cookie sharing
+      JWT_COOKIE_DOMAIN: ${JWT_COOKIE_DOMAIN:-}
+      
+      # Gunicorn worker configuration
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+      # Default admin bootstrap (consumed by run_gunicorn.sh)
+      DEFAULT_ADMIN_NAME: ${DEFAULT_ADMIN_NAME:-}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - peereval-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/hello').read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================================================
+  # Frontend (React + Vite + Nginx)
+  # ============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: peereval-frontend
+    ports:
+      - "80:80"
+    # No environment variables needed for Nginx proxying unless templating is added
+    depends_on:
+      - flask_backend
+    networks:
+      - peereval-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  peereval-network:
+    driver: bridge

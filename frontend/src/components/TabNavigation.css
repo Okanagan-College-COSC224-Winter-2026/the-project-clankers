@@ -1,0 +1,29 @@
+.TabNav {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+
+  width: 100%;
+  padding: 12px;
+}
+
+.TabNav .Tab {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+
+  padding: 20px 6px;
+  margin: 0px 20px;
+
+  border-bottom: 2px solid transparent;
+}
+
+.TabNav .Tab:hover {
+  cursor: pointer;
+}
+
+.TabNav .Tab.active {
+  border-bottom: 2px solid black;
+}
