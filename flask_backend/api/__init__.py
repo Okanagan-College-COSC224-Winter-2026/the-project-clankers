@@ -108,5 +108,6 @@ def create_app(test_config=None):
     app.register_blueprint(class_controller.bp)
     app.register_blueprint(assignment_controller.bp)
     app.register_blueprint(fake_api_controller.fake)
+    app.register_blueprint(fake_api_controller.practice)
 
     return app

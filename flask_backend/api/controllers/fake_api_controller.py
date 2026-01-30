@@ -37,6 +37,14 @@ def get_scanner():
             200,
         )
 
+practice = Blueprint("practice", __name__, url_prefix="/practice")
+
+@practice.route("/test", methods=["GET"])
+def practice_test():
+    return jsonify({
+        "course": "cosc 224"
+    }), 200
+
 
 @fake.route("/scanner/update", methods=("POST",))
 def update_scanner():
