@@ -141,3 +141,17 @@ def check_result_md5(md5):
             ),
             200,
         )
+    
+practice = Blueprint("practice", __name__, url_prefix="/practice")
+
+@practice.route("/test", methods=["GET"])
+def practice_test():
+    if request.method == "GET":
+        return (
+            jsonify(
+                {
+                    "course": "cosc 224"
+                }
+            ),
+            200,
+        )
