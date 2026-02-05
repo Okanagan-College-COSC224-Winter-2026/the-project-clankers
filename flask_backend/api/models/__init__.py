@@ -15,6 +15,7 @@ from .schemas import (
     CriteriaDescriptionSchema,
     CriterionSchema,
     GroupMembersSchema,
+    ReviewListSchema,
     ReviewSchema,
     RubricSchema,
     SubmissionSchema,
@@ -27,6 +28,38 @@ from .schemas import (
 from .submission_model import Submission
 from .user_course_model import User_Course
 from .user_model import User
+
+__all__ = [
+    "Assignment",
+    "Course",
+    "CourseGroup",
+    "CriteriaDescription",
+    "Criterion",
+    "Group_Members",
+    "Review",
+    "Rubric",
+    "Submission",
+    "User",
+    "User_Course",
+    "db",
+    "ma",
+    "AssignmentSchema",
+    "CourseGroupSchema",
+    "CourseListSchema",
+    "CourseSchema",
+    "CriteriaDescriptionSchema",
+    "CriterionSchema",
+    "GroupMembersSchema",
+    "ReviewListSchema",
+    "ReviewSchema",
+    "RubricSchema",
+    "SubmissionSchema",
+    "UserCourseSchema",
+    "UserListSchema",
+    "UserLoginSchema",
+    "UserRegistrationSchema",
+    "UserSchema",
+]
 
 __all__ = [
     "db",

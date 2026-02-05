@@ -77,6 +77,12 @@ class Assignment(db.Model):
         now = self._get_current_utc_time()
         return (due is None) or (now < due)
 
+    def is_review_window_open(self):
+        """Check if the review window is still open (deadline not passed)."""
+        due = self._ensure_timezone_aware(self.due_date)
+        now = self._get_current_utc_time()
+        return (due is None) or (now < due)
+
     def update(self):
         """Update assignment in the database"""
         db.session.commit()
