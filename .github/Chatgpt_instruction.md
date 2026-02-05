@@ -1,182 +1,107 @@
 ```txt
-Suggested 5-Person Split
-1️⃣ Backend – Assignment & Permission Logic
+# Work Breakdown – Peer Review User Story
 
-Focus: “What can this student see and open?”
+## Overview
+This work breakdown outlines how responsibilities for implementing the peer review user story were divided among a five-person team. Tasks are grouped by backend logic, frontend user interface, and integration/testing to ensure clear ownership and alignment with acceptance criteria.
 
-Responsibilities
+---
 
-Endpoint to fetch assigned peer reviews for a student
+## 1. Backend Developer – Assignment & Permission Logic
 
-Ensure:
+**Focus:** Determining what peer reviews a student can see and access.
 
-Student is enrolled in class
+### Responsibilities
+- Implement backend endpoint to retrieve peer reviews assigned to a student
+- Validate that the user:
+  - Is authenticated
+  - Is enrolled in the course
+  - Has been assigned peer reviews for the assignment
+- Restrict access to unassigned submissions
+- Return appropriate authorization and error responses
 
-Assignment exists
+### Acceptance Criteria Covered
+- Student can view a list of peer assignments to review
+- Number of visible assignments matches what was assigned
+- Student cannot open unassigned submissions
 
-Peer review is assigned to this student
+---
 
-Prevent access to:
+## 2. Backend Developer – Review Submission & Time Window Enforcement
 
-Unassigned submissions
+**Focus:** Controlling when and how peer review feedback can be submitted.
 
-Submissions outside the review window
+### Responsibilities
+- Implement endpoint for submitting peer review feedback
+- Validate that:
+  - The peer review is assigned to the student
+  - The review window is currently open
+  - The review has not already been completed
+- Persist feedback and mark review as completed
+- Prevent submissions after the review period ends and return clear error messages
 
-Acceptance Criteria Covered
+### Acceptance Criteria Covered
+- Submitted feedback marks that review as complete
+- If the review period has ended, the student cannot submit feedback and is notified
 
-Student can view a list of peer assignments to review
+---
 
-Number of visible assignments matches what was assigned
+## 3. Frontend Developer – Peer Review List Interface
 
-Student cannot open unassigned submissions
+**Focus:** Displaying assigned peer reviews to the student.
 
-Typical Tasks
+### Responsibilities
+- Create a peer review list page for students
+- Fetch assigned peer reviews from backend API
+- Display:
+  - Assignment titles
+  - Review status (Pending / Completed)
+  - Review deadlines
+- Handle loading, empty, and error states
 
-API route: GET /peer-reviews
+### Acceptance Criteria Covered
+- Student can view a list of peer assignments to review
+- Number of visible assignments matches backend data
 
-Authorization checks
+---
 
-Backend filtering logic
+## 4. Frontend Developer – Review Detail & Submission Interface
 
-Error responses (403, 404)
+**Focus:** Allowing students to view submissions and submit feedback.
 
-2️⃣ Backend – Review Submission & Time Window
+### Responsibilities
+- Display assigned submission content
+- Build peer review form (comments, rubric, or feedback fields)
+- Submit feedback to backend API
+- Disable submission functionality when review window is closed
+- Display notification when review period has ended
 
-Focus: “Can they submit feedback right now?”
+### Acceptance Criteria Covered
+- Opening an assigned submission shows the content and review interface
+- If the review period has ended, the student cannot submit feedback and is notified
 
-Responsibilities
+---
 
-Endpoint to submit peer review feedback
+## 5. Integration, Testing & Documentation Lead
 
-Validate:
+**Focus:** Ensuring system cohesion, correctness, and completeness.
 
-Review window is open
+### Responsibilities
+- Coordinate frontend and backend integration
+- Verify API request/response contracts
+- Perform end-to-end testing of peer review workflow
+- Test edge cases:
+  - Unauthorized access
+  - Unassigned review access
+  - Expired review window
+- Document system behavior and team contributions
+- Assist with demo preparation
 
-Review is assigned
+### Acceptance Criteria Covered
+- All acceptance criteria are validated through integration and testing
 
-Review not already completed
+---
 
-Mark review as complete in DB
+## Summary
+Responsibilities were divided by functional area to minimize overlap and ensure accountability. This structure aligns backend logic, frontend experience, and system integration directly with the defined acceptance criteria.
 
-Acceptance Criteria Covered
-
-Submitted feedback marks that review as complete
-
-If review period ended, student cannot submit feedback
-
-Typical Tasks
-
-API route: POST /peer-reviews/:id/submit
-
-Time window validation
-
-DB updates
-
-Clear error messages
-
-3️⃣ Frontend – Review List Page
-
-Focus: “What the student sees when they log in”
-
-Responsibilities
-
-Page showing list of assigned peer reviews
-
-Display:
-
-Assignment title
-
-Status (Pending / Completed)
-
-Review deadline
-
-Disable or hide unassigned / unavailable items
-
-Acceptance Criteria Covered
-
-Student can view a list of peer assignments
-
-Number of visible assignments matches backend data
-
-Typical Tasks
-
-API integration
-
-UI states (loading / empty / error)
-
-Basic styling
-
-4️⃣ Frontend – Review Detail & Submission UI
-
-Focus: “Actually doing the review”
-
-Responsibilities
-
-Page for opening an assigned submission
-
-Display:
-
-Submission content
-
-Review form (rubric, comments, etc.)
-
-Handle:
-
-Submit feedback
-
-Locked state if review period ended
-
-Acceptance Criteria Covered
-
-Opening assigned submission shows content + review interface
-
-If review period ended, student is notified and blocked
-
-Typical Tasks
-
-Form validation
-
-Error handling
-
-UX messaging (“Review window closed”)
-
-5️⃣ Integration, Testing & Documentation (Glue Person)
-
-Focus: “Make it all work together”
-
-Responsibilities
-
-Coordinate frontend ↔ backend contracts
-
-Write:
-
-API documentation
-
-User story traceability
-
-End-to-end testing:
-
-Happy path
-
-Edge cases (expired window, unauthorized access)
-
-Demo prep
-
-Acceptance Criteria Covered
-
-Verifies all acceptance criteria are met
-
-Typical Tasks
-
-Test scripts
-
-Bug tracking
-
-Merge conflict resolution
-
-README / submission notes
-
-```txt
-
-
-
+txt
