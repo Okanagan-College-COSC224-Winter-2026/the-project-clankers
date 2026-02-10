@@ -17,14 +17,23 @@ interface RosterUploadResult {
   }>;
 }
 
-export const importCSV = (id: string | number, onSuccess?: (data: RosterUploadResult) => void, onError?: (error: unknown) => void) => {
+export const importCSV = (
+  id: string | number, 
+  onSuccess?: (data: RosterUploadResult) => void, 
+  onError?: (error: unknown) => void,
+  onCancel?: () => void
+) => {
   // Prompt the user to select a file
   const input = document.createElement("input");
   input.setAttribute("type", "file");
   input.setAttribute("accept", ".csv");
 
+  // Handle cancel/close without selection
+  let fileSelected = false;
+
   // Handle the file selection event
   input.addEventListener("change", async () => {
+    fileSelected = true;
     const file = input.files?.[0];
     const reader = new FileReader();
 
@@ -41,17 +50,55 @@ export const importCSV = (id: string | number, onSuccess?: (data: RosterUploadRe
         return;
       }
 
+      // Validate CSV format - check headers
+      const lines = text.trim().split('\n');
+      if (lines.length === 0) {
+        const error = "CSV file is empty. Please provide a valid roster file.";
+        if (onError) {
+          onError(error);
+        } else {
+          alert(error);
+        }
+        return;
+      }
+
+      // Check first line for required headers
+      const headerLine = lines[0].trim();
+      const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
+      const requiredHeaders = ['id', 'name', 'email'];
+      const missingHeaders = requiredHeaders.filter(required => !headers.includes(required));
+
+      if (missingHeaders.length > 0) {
+        const error = `Invalid CSV format. Missing required headers: ${missingHeaders.join(', ')}\n\n` +
+                     "The first line must contain exactly these headers: id, name, email\n\n" +
+                     "Example format:\n" +
+                     "id,name,email\n" +
+                     "123456,John Doe,john.doe@example.com";
+        if (onError) {
+          onError(error);
+        } else {
+          alert(error);
+        }
+        return;
+      }
+
+      // Check if CSV has at least one data row
+      if (lines.length < 2) {
+        const error = "CSV file must contain at least one student record after the header row.";
+        if (onError) {
+          onError(error);
+        } else {
+          alert(error);
+        }
+        return;
+      }
+
       try {
-        console.log('CSV Upload - Course ID:', id);
-        console.log('CSV Upload - Text length:', text?.length);
-        console.log('CSV Upload - First 100 chars:', text?.substring(0, 100));
         const result = await importStudentsForCourse(Number(id), text);
-        console.log('CSV Upload - Result:', result);
         if (onSuccess) {
           onSuccess(result);
         }
       } catch (error) {
-        console.error('CSV Upload - Error:', error);
         if (onError) {
           onError(error);
         } else {
@@ -72,6 +119,17 @@ export const importCSV = (id: string | number, onSuccess?: (data: RosterUploadRe
 
     reader.readAsText(file);
   });
+
+  // Detect when file picker is closed without selecting a file
+  window.addEventListener('focus', () => {
+    setTimeout(() => {
+      if (!fileSelected && onCancel) {
+        onCancel();
+      }
+      // Clean up the input element
+      input.remove();
+    }, 300);
+  }, { once: true });
 
   input.click();
 };

@@ -10,6 +10,7 @@ import Textbox from "../components/Textbox";
 import StatusMessage from "../components/StatusMessage";
 import { isTeacher } from "../util/login";
 import RosterUploadResult from "../components/RosterUploadResult";
+import ErrorModal from "../components/ErrorModal";
 
 interface RosterUploadResultData {
   message: string;
@@ -37,6 +38,8 @@ export default function ClassHome() {
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
   const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingRoster, setIsUploadingRoster] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -70,15 +73,29 @@ export default function ClassHome() {
     };
 
     const handleRosterUpload = () => {
+      if (isUploadingRoster) return; // Prevent multiple clicks
+      
+      setIsUploadingRoster(true);
+      setStatusMessage('Opening file picker...');
+      setStatusType('success');
+      
       importCSV(
         id as string,
         (result) => {
-          // Show the result modal with passwords
+          setIsUploadingRoster(false);
+          setStatusMessage('');
           setRosterResult(result);
         },
         (error) => {
-          setStatusType('error');
-          setStatusMessage(`Error uploading roster: ${error}`);
+          setIsUploadingRoster(false);
+          setStatusMessage('');
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          setUploadError(errorMessage);
+        },
+        () => {
+          // onCancel callback - user closed file picker without selecting
+          setIsUploadingRoster(false);
+          setStatusMessage('');
         }
       );
     };
@@ -92,8 +109,8 @@ export default function ClassHome() {
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
-            <Button onClick={handleRosterUpload}>
-              Add Students via CSV
+            <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
+              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
             </Button>
           ) : null}
         </div>
@@ -158,6 +175,14 @@ export default function ClassHome() {
           </div>
         ) : null}
       </div>
+
+      {uploadError && (
+        <ErrorModal
+          title="Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
+        />
+      )}
     </>
   );
 }
