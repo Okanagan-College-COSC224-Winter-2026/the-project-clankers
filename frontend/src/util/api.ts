@@ -124,6 +124,8 @@ export const importStudentsForCourse = async (courseID: number, students: string
   if (!response.ok) {
     throw new Error(`Response status: ${response.status}`);
   }
+
+  return await response.json();
 }
 
 export const listAssignments = async (classId: string) => {
@@ -196,7 +198,7 @@ export const listUnassignedGroups = async (assignmentId : number) => {
 }
 
 export const listCourseMembers = async (classId: string) => {
-  const resp = await fetch(`${BASE_URL}/classes/members`, {
+  const resp = await fetch(`${BASE_URL}/class/members`, {
     method: 'POST',
     body: JSON.stringify({
       id: classId,

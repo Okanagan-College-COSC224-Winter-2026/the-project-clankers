@@ -9,6 +9,7 @@ import { importCSV } from "../util/csv";
 import Textbox from "../components/Textbox";
 import StatusMessage from "../components/StatusMessage";
 import { isTeacher } from "../util/login";
+import RosterUploadResult from "../components/RosterUploadResult";
 
 export default function ClassHome() {
   const { id } = useParams();
@@ -18,6 +19,7 @@ export default function ClassHome() {
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
+  const [rosterResult, setRosterResult] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -49,6 +51,20 @@ export default function ClassHome() {
         setStatusMessage('Error creating assignment.');
       }
     };
+
+    const handleRosterUpload = () => {
+      importCSV(
+        id as string,
+        (result) => {
+          // Show the result modal with passwords
+          setRosterResult(result);
+        },
+        (error) => {
+          setStatusType('error');
+          setStatusMessage(`Error uploading roster: ${error}`);
+        }
+      );
+    };
     
     return (
       <>
@@ -59,7 +75,7 @@ export default function ClassHome() {
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
-            <Button onClick={() => importCSV(id as string)}>
+            <Button onClick={handleRosterUpload}>
               Add Students via CSV
             </Button>
           ) : null}
@@ -80,6 +96,15 @@ export default function ClassHome() {
       />
 
       <StatusMessage message={statusMessage} type={statusType} />
+
+      {rosterResult && (
+        <RosterUploadResult
+          enrolledCount={rosterResult.enrolled_count}
+          createdCount={rosterResult.created_count}
+          newStudents={rosterResult.new_students}
+          onClose={() => setRosterResult(null)}
+        />
+      )}
 
       <div className="Class">
         <div className="Assignments">

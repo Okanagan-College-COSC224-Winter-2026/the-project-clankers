@@ -304,7 +304,7 @@ def test_enroll_in_class_missing_data(test_client, make_admin):
         headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 400
-    assert response.json["msg"] == "Class ID and student emails are required"
+    assert response.json["msg"] == "Class ID and student roster are required"
 
 def test_enroll_in_class_not_found(test_client, make_admin):
     """
@@ -428,7 +428,7 @@ def test_enroll_in_class_empty_csv(test_client, make_admin):
         headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 400
-    assert response.json["msg"] == "Class ID and student emails are required"
+    assert response.json["msg"] == "Class ID and student roster are required"
 
 def test_enroll_in_class_malformed_csv(test_client, make_admin):
     """

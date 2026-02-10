@@ -13,6 +13,7 @@ class User(db.Model):
     __tablename__ = "User"
 
     id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(50), nullable=True, unique=True, index=True)
     name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True, index=True)
     hash_pass = db.Column(db.String(255), nullable=False)
@@ -50,7 +51,7 @@ class User(db.Model):
         "Group_Members", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, name, email, hash_pass, role="student", must_change_password=False):
+    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None):
         valid_roles = ["student", "teacher", "admin"]
         if role not in valid_roles:
             raise ValueError(f"Invalid role '{role}'. Must be one of: {', '.join(valid_roles)}")
@@ -59,6 +60,7 @@ class User(db.Model):
         self.hash_pass = hash_pass
         self.role = role
         self.must_change_password = must_change_password
+        self.student_id = student_id
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"
@@ -71,6 +73,11 @@ class User(db.Model):
     def get_by_email(cls, email):
         """Get user by email"""
         return cls.query.filter_by(email=email).first()
+
+    @classmethod
+    def get_by_student_id(cls, student_id):
+        """Get user by student_id"""
+        return cls.query.filter_by(student_id=student_id).first()
 
     @classmethod
     def create_user(cls, user):
