@@ -5,6 +5,7 @@ import Button from "../components/Button";
 import { importCSV } from "../util/csv";
 import { listCourseMembers, listClasses } from "../util/api";
 import RosterUploadResult from "../components/RosterUploadResult";
+import ErrorModal from "../components/ErrorModal";
 
 import './ClassMembers.css'
 import { isTeacher } from "../util/login";
@@ -31,6 +32,8 @@ export default function ClassMembers() {
   const [members, setMembers] = useState<User[]>([])
   const [className, setClassName] = useState<string | null>(null);
   const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingRoster, setIsUploadingRoster] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const loadMembers = useCallback(async () => {
     const members = await listCourseMembers(id as string)
@@ -45,16 +48,25 @@ export default function ClassMembers() {
   }, [loadMembers])
 
   const handleRosterUpload = () => {
+    if (isUploadingRoster) return;
+    
+    setIsUploadingRoster(true);
     importCSV(
       id as string,
       (result) => {
+        setIsUploadingRoster(false);
         // Show the result modal with passwords
         setRosterResult(result);
         // Reload members list to show newly added students
         loadMembers();
       },
       (error) => {
-        alert(`Error uploading roster: ${error}`);
+        setIsUploadingRoster(false);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setUploadError(errorMessage);
+      },
+      () => {
+        setIsUploadingRoster(false);
       }
     );
   };
@@ -68,7 +80,9 @@ export default function ClassMembers() {
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
-            <Button onClick={handleRosterUpload}>Add Students via CSV</Button>
+            <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
+              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
+            </Button>
           ) : null}
         </div>
       </div>
@@ -137,6 +151,14 @@ export default function ClassMembers() {
           })
         )}
       </div>
+
+      {uploadError && (
+        <ErrorModal
+          title="CSV Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
+        />
+      )}
     </>
   );
 }

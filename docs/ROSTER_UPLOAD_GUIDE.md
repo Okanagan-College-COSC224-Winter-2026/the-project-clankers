@@ -129,10 +129,43 @@ aB3d5F7g9H
 
 ## Troubleshooting
 
-### Upload Failed
-- **Check CSV format**: Must have `id,name,email` headers
+### Upload Failed - Invalid CSV Format
+
+**Error Message**: "Invalid CSV format. The first line must contain the headers: id, name, email"
+
+**Cause**: Your CSV file doesn't have the required headers in the first row.
+
+**Solution**:
+1. Open your CSV file in a text editor or spreadsheet program
+2. Make sure the **first line** contains exactly: `id,name,email`
+3. Check for common issues:
+   - ❌ Wrong headers: `student_id,full_name,contact_email` (must be exact matches)
+   - ❌ Partial matches don't work: `contact_email` will NOT match `email`
+   - ❌ Missing header: `id,name` (missing email)
+   - ❌ Extra spaces in data rows are OK, but headers must be exact
+   - ✅ Correct format: `id,name,email` (case-insensitive)
+4. Headers are case-insensitive: `ID,Name,Email` works too
+5. Save and try uploading again
+
+**Example of Correct Format**:
+```csv
+id,name,email
+300111222,Alice Johnson,alice@university.edu
+300111223,Bob Wilson,bob@university.edu
+```
+
+### Upload Failed - Empty File
+
+**Error Message**: "CSV file must contain at least one student record after the header row."
+
+**Solution**: Add at least one student row after the header line.
+
+### Upload Failed - Other Issues
+
+- **Check CSV format**: Must have `id,name,email` headers (exact spelling, all lowercase)
 - **Verify emails**: Must be valid format (name@domain.tld)
 - **Check authorization**: Only course teacher can upload roster
+- **File encoding**: Save CSV as UTF-8 if special characters cause issues
 
 ### Student Can't Log In
 - **Verify credentials**: Check for typos in email/password

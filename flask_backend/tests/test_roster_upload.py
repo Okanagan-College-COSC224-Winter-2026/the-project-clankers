@@ -223,7 +223,7 @@ John Doe,john@example.com"""
             headers=auth_headers_teacher,
         )
         assert response.status_code == 400
-        assert "Missing required headers" in response.get_json()["errors"][0]
+        assert "Missing required headers" in response.get_json()["msg"]
 
     def test_invalid_email_format(self, test_client, auth_headers_teacher):
         """Test that invalid email format returns error"""

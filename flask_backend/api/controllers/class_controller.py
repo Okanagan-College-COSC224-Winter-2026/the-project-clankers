@@ -146,7 +146,10 @@ def csv_to_list(csv_text):
     print(f"DEBUG: Parsed headers: {headers}")
     missing = REQUIRED_HEADERS - headers
     if missing:
-        errors.append(f"Missing required headers: {', '.join(sorted(missing))}")
+        errors.append(
+            f"Invalid CSV format. Missing required headers: {', '.join(sorted(missing))}. "
+            f"Your CSV must have these headers in the first row: id, name, email"
+        )
         return rows, errors
     
     for line_num, row in enumerate(reader, start=2):
@@ -205,7 +208,8 @@ def enroll_students():
 
     students, parse_errors = csv_to_list(student_emails_csv)
     if parse_errors:
-        return jsonify({"msg": "Errors in CSV", "errors": parse_errors}), 400
+        error_message = "\n".join(parse_errors)
+        return jsonify({"msg": error_message}), 400
 
     enrolled_students = []
     created_students = []

@@ -463,7 +463,7 @@ def test_enroll_in_class_malformed_csv(test_client, make_admin):
         headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 400
-    assert response.json["msg"] == "Errors in CSV"
+    assert "Line 2: Missing required fields" in response.json["msg"]
 
 def test_enroll_in_class_existing_student(test_client, make_admin):
     """

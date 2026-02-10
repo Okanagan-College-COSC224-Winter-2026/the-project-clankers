@@ -142,7 +142,56 @@ All 8 tests passing:
 - All existing students: Shows "no changes" message + existing students table
 - Mixed (partial roster): Shows both tables - passwords for new students, info for existing ones
 
-### 5. Member Listing Endpoint
+### 5. Error Modal (ErrorModal)
+**Location**: [frontend/src/components/ErrorModal.tsx](../frontend/src/components/ErrorModal.tsx)
+
+**Purpose**: Display CSV upload errors in a user-friendly modal instead of browser alerts
+
+**Features**:
+- **Professional Error Display**: Red-themed modal with error icon
+- **Clear Messaging**: Shows error title and detailed message with proper formatting
+- **Line Break Preservation**: Error messages display with proper line breaks and formatting using `<pre>` tag
+- **Easy Dismissal**: Click "Close" button or overlay to dismiss
+- **Consistent UX**: Matches the styling pattern of RosterUploadResult modal
+- **Frontend Validation**: Checks CSV format before sending to backend for immediate feedback
+
+**CSV Validation (Frontend)**:
+The frontend validates CSV files before upload to provide immediate feedback:
+- **Exact Header Matching**: Parses CSV headers and checks for exact matches (case-insensitive) of required headers: `id`, `name`, `email`
+- **Prevents Partial Matches**: Headers like `contact_email` or `student_id` will not match `email` or `id`
+- **Empty File Check**: Ensures CSV has at least one data row after headers
+- **Clear Error Messages**: Shows which headers are missing and provides correct format example
+
+**Error Scenarios Handled**:
+- Invalid CSV format (missing required headers: id, name, email)
+- Empty CSV files (no data rows)
+- Invalid email addresses in CSV data (backend validation)
+- Server errors (401 Unauthorized, 403 Forbidden, 500 Internal Server Error)
+- Network failures
+
+**Usage in Pages**:
+- **ClassHome.tsx**: Shows error modal when CSV upload fails from Home tab
+- **ClassMembers.tsx**: Shows error modal when CSV upload fails from Members tab
+
+**Example Error Messages**:
+- **Frontend validation (wrong headers)**: 
+  ```
+  Invalid CSV format. Missing required headers: email, id, name
+  
+  The first line must contain exactly these headers: id, name, email
+  
+  Example format:
+  id,name,email
+  123456,John Doe,john.doe@example.com
+  ```
+- **Backend validation**: "Invalid CSV format. Missing required headers: name. Your CSV must have these headers in the first row: id, name, email"
+- **Empty file**: "CSV file must contain at least one student record after the header row."
+- **Invalid email**: "Invalid email format: not-an-email"
+- **Permission error**: "You do not have permission to enroll students in this course"
+
+**Note**: Error messages are displayed with proper line breaks and formatting for readability.
+
+### 6. Member Listing Endpoint
 **Location**: [flask_backend/api/controllers/class_controller.py](../flask_backend/api/controllers/class_controller.py)
 
 **Route**: `POST /class/members`
@@ -440,9 +489,9 @@ pytest tests/ -v
 - [flask_backend/api/models/user_model.py](../flask_backend/api/models/user_model.py) – Added `student_id` field
 - [flask_backend/api/controllers/class_controller.py](../flask_backend/api/controllers/class_controller.py) – Enhanced enrollment logic, added `/class/members` endpoint with privacy controls
 - [frontend/src/util/api.ts](../frontend/src/util/api.ts) – Updated to return roster upload response, fixed members endpoint URL
-- [frontend/src/util/csv.ts](../frontend/src/util/csv.ts) – Added callbacks for success/error handling
-- [frontend/src/pages/ClassHome.tsx](../frontend/src/pages/ClassHome.tsx) – Integrated roster result modal
-- [frontend/src/pages/ClassMembers.tsx](../frontend/src/pages/ClassMembers.tsx) – Added member listing with role badges and privacy-aware display
+- [frontend/src/util/csv.ts](../frontend/src/util/csv.ts) – Added callbacks for success/error/cancel handling
+- [frontend/src/pages/ClassHome.tsx](../frontend/src/pages/ClassHome.tsx) – Integrated roster result modal and error modal
+- [frontend/src/pages/ClassMembers.tsx](../frontend/src/pages/ClassMembers.tsx) – Added member listing with role badges, privacy-aware display, and error modal
 - [test.csv](../test.csv) – Updated sample roster
 
 ### Created
@@ -450,6 +499,8 @@ pytest tests/ -v
 - [flask_backend/tests/test_roster_upload.py](../flask_backend/tests/test_roster_upload.py) – Comprehensive test suite
 - [frontend/src/components/RosterUploadResult.tsx](../frontend/src/components/RosterUploadResult.tsx) – Password display modal
 - [frontend/src/components/RosterUploadResult.css](../frontend/src/components/RosterUploadResult.css) – Modal styling
+- [frontend/src/components/ErrorModal.tsx](../frontend/src/components/ErrorModal.tsx) – Error display modal with formatted message display
+- [frontend/src/components/ErrorModal.css](../frontend/src/components/ErrorModal.css) – Error modal styling with pre-wrap for line breaks
 - [docs/US16_IMPLEMENTATION.md](US16_IMPLEMENTATION.md) – This document
 - [docs/ROSTER_UPLOAD_GUIDE.md](ROSTER_UPLOAD_GUIDE.md) – User guide for teachers and students
 
