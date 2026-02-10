@@ -136,6 +136,7 @@ aB3d5F7g9H
 
 ### Student Can't Log In
 - **Verify credentials**: Check for typos in email/password
+- **Check for whitespace**: Remove any extra spaces before or after email (common when copy-pasting)
 - **Case sensitivity**: Passwords are case-sensitive
 - **Account exists**: Student should be in course Members list
 
