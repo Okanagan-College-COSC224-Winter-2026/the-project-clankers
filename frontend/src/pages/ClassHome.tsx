@@ -11,6 +11,17 @@ import StatusMessage from "../components/StatusMessage";
 import { isTeacher } from "../util/login";
 import RosterUploadResult from "../components/RosterUploadResult";
 
+interface RosterUploadResultData {
+  message: string;
+  enrolled_count: number;
+  created_count: number;
+  new_students?: Array<{
+    email: string;
+    student_id: string;
+    temp_password: string;
+  }>;
+}
+
 export default function ClassHome() {
   const { id } = useParams();
   const idNew = Number(id)
@@ -19,7 +30,7 @@ export default function ClassHome() {
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
-  const [rosterResult, setRosterResult] = useState<any>(null);
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -29,7 +40,7 @@ export default function ClassHome() {
       setAssignments(resp);
       setClassName(currentClass?.name || null);
     })();
-  }, []);
+  }, [id]);
     
     const tryCreateAssingment = async () => {
       try {

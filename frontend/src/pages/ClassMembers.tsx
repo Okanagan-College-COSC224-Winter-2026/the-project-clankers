@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Button from "../components/Button";
 import { importCSV } from "../util/csv";
 import { listCourseMembers, listClasses } from "../util/api";
@@ -9,23 +9,34 @@ import RosterUploadResult from "../components/RosterUploadResult";
 import './ClassMembers.css'
 import { isTeacher } from "../util/login";
 
+interface RosterUploadResultData {
+  message: string;
+  enrolled_count: number;
+  created_count: number;
+  new_students?: Array<{
+    email: string;
+    student_id: string;
+    temp_password: string;
+  }>;
+}
+
 export default function ClassMembers() {
   const { id } = useParams()
   const [members, setMembers] = useState<User[]>([])
   const [className, setClassName] = useState<string | null>(null);
-  const [rosterResult, setRosterResult] = useState<any>(null);
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     const members = await listCourseMembers(id as string)
     const classes = await listClasses();
     const currentClass = classes.find((c: { id: number }) => c.id === Number(id));
     setMembers(members)
     setClassName(currentClass?.name || null);
-  }
+  }, [id]);
 
   useEffect(() => {
     loadMembers()
-  }, [])  
+  }, [loadMembers])
 
   const handleRosterUpload = () => {
     importCSV(

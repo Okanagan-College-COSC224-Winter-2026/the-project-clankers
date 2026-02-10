@@ -1,6 +1,17 @@
 import { importStudentsForCourse } from "./api";
 
-export const importCSV = (id: string | number, onSuccess?: (data: any) => void, onError?: (error: any) => void) => {
+interface RosterUploadResult {
+  message: string;
+  enrolled_count: number;
+  created_count: number;
+  new_students?: Array<{
+    email: string;
+    student_id: string;
+    temp_password: string;
+  }>;
+}
+
+export const importCSV = (id: string | number, onSuccess?: (data: RosterUploadResult) => void, onError?: (error: unknown) => void) => {
   // Prompt the user to select a file
   const input = document.createElement("input");
   input.setAttribute("type", "file");
