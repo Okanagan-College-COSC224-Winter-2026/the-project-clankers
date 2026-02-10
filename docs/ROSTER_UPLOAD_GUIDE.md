@@ -75,21 +75,31 @@ id,name,email
 
 1. **Receive credentials** from your teacher:
    - Email address
-   - Temporary password
+   - Temporary password (10-character random code)
 
-2. **Go to login page**
+2. **Go to the login page**
 
-3. **Enter credentials**:
+3. **Enter your credentials**:
    - Email: `your.email@university.edu`
    - Password: (temporary password from teacher)
 
-4. **You're in!** The system will prompt you to change your password on first login (future feature)
+4. **System detects first login** and automatically prompts you to create a new password
+
+5. **Create your new password**:
+   - Enter your temporary password again (for verification)
+   - Choose a new secure password
+   - Confirm your new password
+   - Click "Change Password"
+
+6. **You're all set!** You can now log in with your new password
 
 ### First Login Security
 
-- Your temporary password is unique and random
-- You should change it immediately after first login
+- Your temporary password is unique, random, and cryptographically secure
+- The system **requires** you to change your password on first login
+- Your new password should be strong and memorable
 - Never share your password with anyone
+- Keep your credentials secure
 
 ---
 
@@ -161,12 +171,21 @@ aB3d5F7g9H
 1. Receive email from teacher:
    "Your login credentials:
     Email: alice@university.edu
-    Password: kJ8mN2pQ4r"
+    Temporary Password: kJ8mN2pQ4r"
 
 2. Go to login page
-3. Enter email and password
-4. Successfully logged in ✓
-5. (Future) Prompted to change password
+
+3. Enter email and temporary password
+
+4. System automatically detects first login and redirects to password change page
+
+5. Enter temporary password again (current password)
+
+6. Create new password and confirm it
+
+7. Click "Change Password"
+
+8. Successfully logged in with new password ✓
 ```
 
 ---
@@ -192,7 +211,6 @@ aB3d5F7g9H
 
 Coming soon:
 - 📧 Automated email delivery to students
-- 🔒 Enforced password change on first login (frontend)
-- 📊 Roster update/edit capabilities
+-  Roster update/edit capabilities
 - 🗑️ Bulk student removal
 - 📝 Roster upload history/audit log
