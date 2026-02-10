@@ -64,6 +64,11 @@
   color: #166534;
 }
 
+.RosterUploadResult-NoChanges {
+  font-weight: 600;
+  color: #1e40af !important;
+}
+
 .RosterUploadResult-Warning {
   background-color: #fef3c7;
   border: 1px solid #fbbf24;
@@ -123,4 +128,53 @@
   justify-content: flex-end;
   padding-top: 12px;
   border-top: 1px solid #e5e7eb;
+}
+
+.RosterUploadResult-ExistingStudents {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.RosterUploadResult-ExistingStudents h3 {
+  margin: 0 0 12px 0;
+  color: #1f2937;
+  font-size: 18px;
+}
+
+.RosterUploadResult-Info {
+  background-color: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+  color: #1e40af;
+  font-size: 14px;
+}
+
+.RosterUploadResult-ExistingStudents table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.RosterUploadResult-ExistingStudents thead {
+  background-color: #f9fafb;
+}
+
+.RosterUploadResult-ExistingStudents th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.RosterUploadResult-ExistingStudents td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+}
+
+.RosterUploadResult-ExistingStudents tbody tr:hover {
+  background-color: #f9fafb;
 }

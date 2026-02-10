@@ -62,15 +62,30 @@ User Story 16 has been implemented, enabling teachers to upload student rosters 
   "msg": "2 students added to course Course Name",
   "enrolled_count": 2,
   "created_count": 2,
+  "existing_count": 1,
   "new_students": [
     {
       "email": "student@university.edu",
       "student_id": "300111222",
       "temp_password": "aB3d5F7g9H"
     }
+  ],
+  "existing_students": [
+    {
+      "email": "existing@university.edu",
+      "student_id": "300111221",
+      "name": "Existing Student"
+    }
   ]
 }
 ```
+
+**Response Fields**:
+- `enrolled_count`: Number of students newly enrolled in the course
+- `created_count`: Number of new student accounts created
+- `existing_count`: Number of students who were already enrolled
+- `new_students`: Array with temporary passwords for newly created accounts
+- `existing_students`: Array showing students who were already enrolled (no passwords needed)
 
 #### Temporary Password Generation
 **Function**: `generate_temporary_password(length=10)`
@@ -99,7 +114,35 @@ All 8 tests passing:
 - ✅ Teacher authorization (own classes only)
 - ✅ Student login with temporary password
 
-### 4. Member Listing Endpoint
+### 4. Password Display Modal (RosterUploadResult)
+**Location**: [frontend/src/components/RosterUploadResult.tsx](../frontend/src/components/RosterUploadResult.tsx)
+
+**Purpose**: Display roster upload results to teachers with temporary passwords and existing student information
+
+**Features**:
+- **Summary Section**: Shows counts for:
+  - ✅ Students enrolled in course (newly added)
+  - 🆕 New student accounts created
+  - ℹ️ Students already existed and enrolled
+  - Special message when all students already enrolled: "No changes made - all students were already enrolled in this course"
+
+- **New Students Table** (when applicable):
+  - Student ID, Email, Temporary Password
+  - Copy All button (clipboard API)
+  - Download CSV button (generates `student-credentials-YYYY-MM-DD.csv`)
+  - Warning: "Save these temporary passwords now. They will not be shown again."
+
+- **Existing Students Table** (when applicable):
+  - Student ID, Name, Email
+  - Info message: "These students already had accounts and were already enrolled in this course"
+  - Blue theme to distinguish from new students section
+
+**Use Cases**:
+- All new students: Shows only new students table with passwords
+- All existing students: Shows "no changes" message + existing students table
+- Mixed (partial roster): Shows both tables - passwords for new students, info for existing ones
+
+### 5. Member Listing Endpoint
 **Location**: [flask_backend/api/controllers/class_controller.py](../flask_backend/api/controllers/class_controller.py)
 
 **Route**: `POST /class/members`
@@ -146,13 +189,21 @@ All 8 tests passing:
 - 🔴 **Admin**: Red background
 
 ### 6. Sample CSV
-**Location**: [test.csv](../test.csv)
+**Location**: [test.csv](../../test.csv)
 ```csv
 id,name,email
 300325853,Test User,testing@gmail.com
 300325854,Jane Doe,jane.doe@university.edu
 300325855,John Smith,john.smith@university.edu
+300325856,Sarah Williams,sarah.williams@university.edu
+300325857,Michael Brown,michael.brown@university.edu
+300325858,Emily Davis,emily.davis@university.edu
 ```
+
+**Sample Scenarios**:
+- Upload all 6: Creates 6 new accounts, enrolls all 6
+- Upload again: Shows all 6 as "already existed and enrolled", no changes
+- Add 3 more rows: Creates 3 new accounts, shows 6 existing
 
 ## User Story Requirements Met
 

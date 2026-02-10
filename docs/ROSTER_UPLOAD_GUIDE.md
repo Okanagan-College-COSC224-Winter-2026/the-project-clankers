@@ -143,6 +143,13 @@ aB3d5F7g9H
 ### No Passwords Shown
 - **New students only**: Only newly created accounts get temporary passwords
 - **Already exists**: If student was previously registered, no new password generated
+- **Check "Students Already Enrolled" section**: Existing students appear in separate table below
+
+### All Students Show as "Already Enrolled"
+- **This is expected behavior** if you've uploaded the same roster before
+- **No changes made**: Modal will show "No changes made - all students were already enrolled in this course"
+- **View existing students**: You can see the list of already-enrolled students in the table
+- **To add new students**: Add additional rows to your CSV with new student information
 
 ---
 

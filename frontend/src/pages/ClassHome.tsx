@@ -15,10 +15,16 @@ interface RosterUploadResultData {
   message: string;
   enrolled_count: number;
   created_count: number;
+  existing_count?: number;
   new_students?: Array<{
     email: string;
     student_id: string;
     temp_password: string;
+  }>;
+  existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
   }>;
 }
 
@@ -112,7 +118,9 @@ export default function ClassHome() {
         <RosterUploadResult
           enrolledCount={rosterResult.enrolled_count}
           createdCount={rosterResult.created_count}
+          existingCount={rosterResult.existing_count}
           newStudents={rosterResult.new_students}
+          existingStudents={rosterResult.existing_students}
           onClose={() => setRosterResult(null)}
         />
       )}

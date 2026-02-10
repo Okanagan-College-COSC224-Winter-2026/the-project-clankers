@@ -4,10 +4,16 @@ interface RosterUploadResult {
   message: string;
   enrolled_count: number;
   created_count: number;
+  existing_count?: number;
   new_students?: Array<{
     email: string;
     student_id: string;
     temp_password: string;
+  }>;
+  existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
   }>;
 }
 

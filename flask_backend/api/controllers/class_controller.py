@@ -209,6 +209,7 @@ def enroll_students():
 
     enrolled_students = []
     created_students = []
+    existing_students = []
     
     for student_info in students:
         student_id = student_info["id"]
@@ -251,15 +252,28 @@ def enroll_students():
             # Enroll student
             User_Course.add(student.id, class_id)
             enrolled_students.append(email)
+        else:
+            # Track students who already existed and were already enrolled
+            if student.email not in [s["email"] for s in created_students]:
+                existing_students.append({
+                    "email": email,
+                    "student_id": student_id,
+                    "name": name
+                })
 
     response_data = {
         "msg": f"{len(enrolled_students)} students added to course {course.name}",
         "enrolled_count": len(enrolled_students),
-        "created_count": len(created_students)
+        "created_count": len(created_students),
+        "existing_count": len(existing_students)
     }
     
     # Include temporary passwords in response for teacher to distribute
     if created_students:
         response_data["new_students"] = created_students
+    
+    # Include existing students info
+    if existing_students:
+        response_data["existing_students"] = existing_students
     
     return jsonify(response_data), 200

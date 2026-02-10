@@ -8,10 +8,18 @@ interface NewStudent {
   temp_password: string;
 }
 
+interface ExistingStudent {
+  email: string;
+  student_id: string;
+  name: string;
+}
+
 interface Props {
   enrolledCount: number;
   createdCount: number;
+  existingCount?: number;
   newStudents?: NewStudent[];
+  existingStudents?: ExistingStudent[];
   onClose: () => void;
 }
 
@@ -57,9 +65,17 @@ export default function RosterUploadResult(props: Props) {
         </div>
 
         <div className="RosterUploadResult-Summary">
-          <p>✅ {props.enrolledCount} student(s) enrolled in course</p>
+          {props.enrolledCount > 0 && (
+            <p>✅ {props.enrolledCount} student(s) enrolled in course</p>
+          )}
           {props.createdCount > 0 && (
             <p>🆕 {props.createdCount} new student account(s) created</p>
+          )}
+          {(props.existingCount ?? 0) > 0 && (
+            <p>ℹ️ {props.existingCount} student(s) already existed and enrolled</p>
+          )}
+          {props.enrolledCount === 0 && props.createdCount === 0 && (props.existingCount ?? 0) > 0 && (
+            <p className="RosterUploadResult-NoChanges">ℹ️ No changes made - all students were already enrolled in this course</p>
           )}
         </div>
 
@@ -99,6 +115,31 @@ export default function RosterUploadResult(props: Props) {
               </table>
             </div>
           </>
+        )}
+
+        {props.existingStudents && props.existingStudents.length > 0 && (
+          <div className="RosterUploadResult-ExistingStudents">
+            <h3>Students Already Enrolled</h3>
+            <p className="RosterUploadResult-Info">ℹ️ These students already had accounts and were already enrolled in this course.</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {props.existingStudents.map((student, index) => (
+                  <tr key={index}>
+                    <td>{student.student_id}</td>
+                    <td>{student.name}</td>
+                    <td>{student.email}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <div className="RosterUploadResult-Footer">
