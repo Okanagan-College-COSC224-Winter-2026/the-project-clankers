@@ -11,8 +11,10 @@ User Story 16 has been fully implemented with all acceptance criteria met and ad
 2. **Temporary Password Generation** – Each new student receives a unique, secure 10-character password
 3. **Student Login** – Students can log in immediately after roster upload
 4. **Password Display Modal** – Teachers see all generated passwords with copy/download options
-5. **Member Listing** – View all class members (teacher + students) with role badges
-6. **Privacy Controls** – Students see classmate names only; teachers/admins see full details
+5. **Error Modal** – Professional error display with formatted messages for CSV upload failures
+6. **Member Listing** – View all class members (teacher + students) with role badges
+7. **Privacy Controls** – Students see classmate names only; teachers/admins see full details
+8. **Student ID Uniqueness** – Prevents duplicate student IDs both within CSV files and across the system
 
 ### Security & Privacy
 - ✅ Cryptographically secure password generation using Python `secrets` module
@@ -20,6 +22,8 @@ User Story 16 has been fully implemented with all acceptance criteria met and ad
 - ✅ HTTPOnly JWT cookie authentication
 - ✅ Teacher authorization checks for enrollment actions
 - ✅ Email and CSV format validation
+- ✅ Student ID uniqueness enforcement (database constraint + validation)
+- ✅ Duplicate student ID detection (frontend and backend)
 
 ## Overview
 User Story 16 has been implemented, enabling teachers to upload student rosters and allowing students to log in with temporary passwords.
@@ -98,13 +102,18 @@ User Story 16 has been implemented, enabling teachers to upload student rosters 
 - Teacher authorization check (only class owner can enroll)
 - Email validation with regex
 - Duplicate enrollment prevention
+- **Student ID uniqueness validation**:
+  - Prevents duplicate student IDs within the same CSV file
+  - Prevents assigning an existing student ID to a different email address
+  - Detects conflicts between student ID and email ownership
+  - Database-level unique constraint on `student_id` field
 - Secure password hashing with `werkzeug.security.generate_password_hash`
 - HTTPOnly JWT cookies (existing auth pattern)
 
 ### 3. Test Coverage
 **Location**: [flask_backend/tests/test_roster_upload.py](../flask_backend/tests/test_roster_upload.py)
 
-All 8 tests passing:
+All 10 tests passing:
 - ✅ New student enrollment with temporary passwords
 - ✅ Existing student enrollment in new course
 - ✅ Duplicate enrollment prevention
@@ -113,6 +122,8 @@ All 8 tests passing:
 - ✅ Unauthorized enrollment (non-teachers)
 - ✅ Teacher authorization (own classes only)
 - ✅ Student login with temporary password
+- ✅ Duplicate student IDs in CSV rejection
+- ✅ Conflicting student ID and email detection
 
 ### 4. Password Display Modal (RosterUploadResult)
 **Location**: [frontend/src/components/RosterUploadResult.tsx](../frontend/src/components/RosterUploadResult.tsx)
@@ -160,6 +171,7 @@ The frontend validates CSV files before upload to provide immediate feedback:
 - **Exact Header Matching**: Parses CSV headers and checks for exact matches (case-insensitive) of required headers: `id`, `name`, `email`
 - **Prevents Partial Matches**: Headers like `contact_email` or `student_id` will not match `email` or `id`
 - **Empty File Check**: Ensures CSV has at least one data row after headers
+- **Duplicate Student ID Detection**: Scans CSV for duplicate student IDs and rejects the file before upload
 - **Clear Error Messages**: Shows which headers are missing and provides correct format example
 
 **Error Scenarios Handled**:
@@ -184,10 +196,13 @@ The frontend validates CSV files before upload to provide immediate feedback:
   id,name,email
   123456,John Doe,john.doe@example.com
   ```
+- **Frontend validation (duplicate IDs)**: "Duplicate student IDs found in CSV: 300111111\n\nEach student ID must be unique. Please check your CSV file and remove duplicate entries."
 - **Backend validation**: "Invalid CSV format. Missing required headers: name. Your CSV must have these headers in the first row: id, name, email"
 - **Empty file**: "CSV file must contain at least one student record after the header row."
 - **Invalid email**: "Invalid email format: not-an-email"
 - **Permission error**: "You do not have permission to enroll students in this course"
+- **Duplicate student ID (backend)**: "Duplicate student IDs found in CSV: 300111111. Each student ID must be unique."
+- **Student ID conflict**: "Student ID 300111111 is already assigned to alice@example.com. Cannot use the same student ID for bob@example.com."
 
 **Note**: Error messages are displayed with proper line breaks and formatting for readability.
 
@@ -280,12 +295,18 @@ id,name,email
    - `id` = student_id (institutional identifier)
    - `name` = full name
    - `email` = institutional email
+   - Headers must match exactly (case-insensitive)
 
 3. **Existing Students**: If student_id exists, add to course roster
    - No duplicate user creation
-   - Enrollment linkage via User_Course table
+   
+4. **Student ID Uniqueness**: Three-layer validation ensures unique student IDs
+   - **Database**: Unique constraint on `student_id` field
+   - **Backend**: Validates for duplicates within CSV and conflicts with existing records
+   - **Frontend**: Parses CSV before upload to catch duplicates immediately
+   - Prevents same student ID being used for different emails
 
-4. **Duplicate Handling**: Check by student_id, skip if already enrolled
+5. **Duplicate Handling**: Check by student_id, skip if already enrolled
    - No updates to existing users
    - Future: separate endpoint for roster updates/edits
 
@@ -486,23 +507,27 @@ pytest tests/ -v
 
 ### Modified
 
-- [flask_backend/api/models/user_model.py](../flask_backend/api/models/user_model.py) – Added `student_id` field
-- [flask_backend/api/controllers/class_controller.py](../flask_backend/api/controllers/class_controller.py) – Enhanced enrollment logic, added `/class/members` endpoint with privacy controls
-- [frontend/src/util/api.ts](../frontend/src/util/api.ts) – Updated to return roster upload response, fixed members endpoint URL
-- [frontend/src/util/csv.ts](../frontend/src/util/csv.ts) – Added callbacks for success/error/cancel handling
-- [frontend/src/pages/ClassHome.tsx](../frontend/src/pages/ClassHome.tsx) – Integrated roster result modal and error modal
+- [flask_backend/api/models/user_model.py](../flask_backend/api/models/user_model.py) – Added `student_id` field with unique constraint
+- [flask_backend/api/controllers/class_controller.py](../flask_backend/api/controllers/class_controller.py) – Enhanced enrollment logic with duplicate student ID validation and conflict detection, added `/class/members` endpoint with privacy controls
+- [frontend/src/util/api.ts](../frontend/src/util/api.ts) – Updated to return roster upload response, fixed members endpoint URL, enhanced error extraction from backend
+- [frontend/src/util/csv.ts](../frontend/src/util/csv.ts) – Added callbacks for success/error/cancel handling, CSV header validation (exact matching), duplicate student ID detection
+- [frontend/src/pages/ClassHome.tsx](../frontend/src/pages/ClassHome.tsx) – Integrated roster result modal and error modal with formatted error messages
 - [frontend/src/pages/ClassMembers.tsx](../frontend/src/pages/ClassMembers.tsx) – Added member listing with role badges, privacy-aware display, and error modal
 - [test.csv](../test.csv) – Updated sample roster
+- [flask_backend/tests/test_roster_upload.py](../flask_backend/tests/test_roster_upload.py) – Updated to check `msg` field in error responses
+- [flask_backend/tests/test_classes.py](../flask_backend/tests/test_classes.py) – Updated to expect actual error messages
 
 ### Created
 
-- [flask_backend/tests/test_roster_upload.py](../flask_backend/tests/test_roster_upload.py) – Comprehensive test suite
+- [flask_backend/tests/test_roster_upload.py](../flask_backend/tests/test_roster_upload.py) – Comprehensive test suite with 10 tests including duplicate student ID validation
 - [frontend/src/components/RosterUploadResult.tsx](../frontend/src/components/RosterUploadResult.tsx) – Password display modal
 - [frontend/src/components/RosterUploadResult.css](../frontend/src/components/RosterUploadResult.css) – Modal styling
-- [frontend/src/components/ErrorModal.tsx](../frontend/src/components/ErrorModal.tsx) – Error display modal with formatted message display
-- [frontend/src/components/ErrorModal.css](../frontend/src/components/ErrorModal.css) – Error modal styling with pre-wrap for line breaks
+- [frontend/src/components/ErrorModal.tsx](../frontend/src/components/ErrorModal.tsx) – Error display modal with formatted message display using `<pre>` tag
+- [frontend/src/components/ErrorModal.css](../frontend/src/components/ErrorModal.css) – Error modal styling with `white-space: pre-wrap` for line breaks
 - [docs/US16_IMPLEMENTATION.md](US16_IMPLEMENTATION.md) – This document
-- [docs/ROSTER_UPLOAD_GUIDE.md](ROSTER_UPLOAD_GUIDE.md) – User guide for teachers and students
+- [docs/ROSTER_UPLOAD_GUIDE.md](ROSTER_UPLOAD_GUIDE.md) – User guide for teachers and students with duplicate ID troubleshooting
+- [test-invalid.csv](../test-invalid.csv) – Test file with wrong CSV headers
+- [test-duplicate-ids.csv](../test-duplicate-ids.csv) – Test file with duplicate student IDs
 
 ## Status
 

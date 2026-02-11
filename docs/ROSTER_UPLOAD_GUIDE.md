@@ -184,6 +184,28 @@ id,name,email
 - **View existing students**: You can see the list of already-enrolled students in the table
 - **To add new students**: Add additional rows to your CSV with new student information
 
+### Duplicate Student ID Error
+
+**Error Message**: "Duplicate student IDs found in CSV: 300111111. Each student ID must be unique."
+
+**Cause**: Your CSV file contains the same student ID for multiple students.
+
+**Solution**:
+1. Open your CSV file and check the `id` column
+2. Each student ID must be unique - no duplicates allowed
+3. Verify your institutional roster export didn't include duplicate entries
+4. Fix any duplicate IDs and try uploading again
+
+**Error Message**: "Student ID 300111111 is already assigned to alice@example.com. Cannot use the same student ID for bob@example.com."
+
+**Cause**: You're trying to upload a student with a student ID that's already assigned to a different student.
+
+**Solution**:
+1. Check if the student already exists in the system with a different email
+2. If this is the same person, use their existing email address
+3. If these are different people, one of the student IDs is incorrect - verify with your institutional records
+4. Student IDs are permanent and cannot be reassigned to different people
+
 ---
 
 ## Demo Workflow

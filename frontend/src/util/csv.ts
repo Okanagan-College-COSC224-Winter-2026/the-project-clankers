@@ -93,6 +93,38 @@ export const importCSV = (
         return;
       }
 
+      // Check for duplicate student IDs in the CSV
+      const idColumnIndex = headers.indexOf('id');
+      const studentIds: string[] = [];
+      const duplicateIds: string[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Skip empty lines
+        
+        const columns = line.split(',').map(col => col.trim());
+        const studentId = columns[idColumnIndex];
+        
+        if (studentId && studentIds.includes(studentId)) {
+          if (!duplicateIds.includes(studentId)) {
+            duplicateIds.push(studentId);
+          }
+        } else if (studentId) {
+          studentIds.push(studentId);
+        }
+      }
+
+      if (duplicateIds.length > 0) {
+        const error = `Duplicate student IDs found in CSV: ${duplicateIds.join(', ')}\n\n` +
+                     "Each student ID must be unique. Please check your CSV file and remove duplicate entries.";
+        if (onError) {
+          onError(error);
+        } else {
+          alert(error);
+        }
+        return;
+      }
+
       try {
         const result = await importStudentsForCourse(Number(id), text);
         if (onSuccess) {

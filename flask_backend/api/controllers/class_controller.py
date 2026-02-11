@@ -211,6 +211,16 @@ def enroll_students():
         error_message = "\n".join(parse_errors)
         return jsonify({"msg": error_message}), 400
 
+    # Check for duplicate student IDs within the CSV
+    student_ids_in_csv = [s["id"] for s in students]
+    duplicate_ids = [sid for sid in student_ids_in_csv if student_ids_in_csv.count(sid) > 1]
+    if duplicate_ids:
+        unique_duplicates = list(set(duplicate_ids))
+        return jsonify({
+            "msg": f"Duplicate student IDs found in CSV: {', '.join(unique_duplicates)}. "
+                   "Each student ID must be unique."
+        }), 400
+
     enrolled_students = []
     created_students = []
     existing_students = []
@@ -224,10 +234,26 @@ def enroll_students():
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return jsonify({"msg": f"Invalid email format: {email}"}), 400
         
-        # Check if student already exists by student_id or email
-        student = User.get_by_student_id(student_id)
-        if not student:
-            student = User.get_by_email(email)
+        # Check if student_id is already used by another student
+        existing_by_id = User.get_by_student_id(student_id)
+        existing_by_email = User.get_by_email(email)
+        
+        # Prevent student_id conflicts
+        if existing_by_id and existing_by_email and existing_by_id.id != existing_by_email.id:
+            return jsonify({
+                "msg": f"Student ID {student_id} is already assigned to {existing_by_id.email}, "
+                       f"but email {email} belongs to a different student"
+            }), 400
+        
+        # Prevent reusing a student_id with a different email
+        if existing_by_id and not existing_by_email:
+            return jsonify({
+                "msg": f"Student ID {student_id} is already assigned to {existing_by_id.email}. "
+                       f"Cannot use the same student ID for {email}."
+            }), 400
+        
+        # Determine which student record to use
+        student = existing_by_id or existing_by_email
         
         if not student:
             # Create new student with unique temporary password

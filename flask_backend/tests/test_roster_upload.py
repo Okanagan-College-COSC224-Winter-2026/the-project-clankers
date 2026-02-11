@@ -331,3 +331,60 @@ John Doe,john@example.com"""
         # Verify must_change_password flag is set
         emma = User.get_by_email("emma@university.edu")
         assert emma.must_change_password is True
+
+    def test_duplicate_student_ids_in_csv(self, test_client, auth_headers_teacher):
+        """Test that duplicate student IDs in CSV are rejected"""
+        # Create a class
+        response = test_client.post(
+            "/class/create_class",
+            json={"name": "Test Class"},
+            headers=auth_headers_teacher,
+        )
+        class_id = response.get_json()["class"]["id"]
+
+        # CSV with duplicate student IDs
+        csv_data = """id,name,email
+300111111,Alice Johnson,alice@example.com
+300111111,Bob Smith,bob@example.com
+300222222,Charlie Brown,charlie@example.com"""
+
+        response = test_client.post(
+            "/class/enroll_students",
+            json={"class_id": class_id, "students": csv_data},
+            headers=auth_headers_teacher,
+        )
+        assert response.status_code == 400
+        assert "Duplicate student IDs found in CSV" in response.get_json()["msg"]
+        assert "300111111" in response.get_json()["msg"]
+
+    def test_conflicting_student_id_and_email(self, test_client, auth_headers_teacher):
+        """Test that student ID conflicts are detected"""
+        # Create a class
+        response = test_client.post(
+            "/class/create_class",
+            json={"name": "Test Class"},
+            headers=auth_headers_teacher,
+        )
+        class_id = response.get_json()["class"]["id"]
+
+        # Create first student
+        csv_data1 = """id,name,email
+300111111,Alice Johnson,alice@example.com"""
+        
+        test_client.post(
+            "/class/enroll_students",
+            json={"class_id": class_id, "students": csv_data1},
+            headers=auth_headers_teacher,
+        )
+
+        # Try to enroll with same student_id but different email
+        csv_data2 = """id,name,email
+300111111,Bob Smith,bob@example.com"""
+        
+        response = test_client.post(
+            "/class/enroll_students",
+            json={"class_id": class_id, "students": csv_data2},
+            headers=auth_headers_teacher,
+        )
+        assert response.status_code == 400
+        assert "already assigned to" in response.get_json()["msg"]
