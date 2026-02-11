@@ -62,18 +62,33 @@ export const importCSV = (
         return;
       }
 
-      // Check first line for required headers
+      // Check first line for required headers (must be exactly id, name, email)
       const headerLine = lines[0].trim();
       const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
       const requiredHeaders = ['id', 'name', 'email'];
+      
+      // Check for missing headers
       const missingHeaders = requiredHeaders.filter(required => !headers.includes(required));
-
-      if (missingHeaders.length > 0) {
-        const error = `Invalid CSV format. Missing required headers: ${missingHeaders.join(', ')}\n\n` +
-                     "The first line must contain exactly these headers: id, name, email\n\n" +
-                     "Example format:\n" +
-                     "id,name,email\n" +
-                     "123456,John Doe,john.doe@example.com";
+      
+      // Check for extra headers
+      const extraHeaders = headers.filter(h => !requiredHeaders.includes(h));
+      
+      if (missingHeaders.length > 0 || extraHeaders.length > 0 || headers.length !== 3) {
+        let error = "Invalid CSV format.\n\n";
+        
+        if (missingHeaders.length > 0) {
+          error += `Missing required headers: ${missingHeaders.join(', ')}\n`;
+        }
+        
+        if (extraHeaders.length > 0) {
+          error += `Extra headers not allowed: ${extraHeaders.join(', ')}\n`;
+        }
+        
+        error += "\nThe first line must contain exactly these headers: id, name, email\n\n" +
+                 "Example format:\n" +
+                 "id,name,email\n" +
+                 "123456,John Doe,john.doe@example.com";
+        
         if (onError) {
           onError(error);
         } else {
