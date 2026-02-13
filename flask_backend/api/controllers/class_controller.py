@@ -7,6 +7,8 @@ from .auth_controller import jwt_teacher_required
 import re
 import csv
 import io
+import secrets
+import string
 from typing import List, Dict, Tuple
 
 bp = Blueprint("class", __name__, url_prefix="/class")
@@ -68,11 +70,69 @@ def get_user_classes():
 
     return jsonify([{"id": c.id, "name": c.name} for c in courses]), 200
 
+
+@bp.route("/members", methods=["POST"])
+@jwt_required()
+def get_class_members():
+    """Get all members (teacher and students) in a specific class"""
+    data = request.get_json()
+    class_id = data.get("id")
+    
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+    
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+    
+    # Check if current user is teacher or admin to determine what info to show
+    current_user_email = get_jwt_identity()
+    current_user = User.get_by_email(current_user_email)
+    show_sensitive_info = current_user and (current_user.is_teacher() or current_user.is_admin())
+    
+    members = []
+    
+    # Add the teacher first
+    teacher = User.get_by_id(course.teacherID)
+    if teacher:
+        member_data = {
+            "id": teacher.id,
+            "name": teacher.name,
+            "role": teacher.role,
+        }
+        if show_sensitive_info:
+            member_data["email"] = teacher.email
+            member_data["student_id"] = teacher.student_id
+        members.append(member_data)
+    
+    # Get all user-course associations for this course (enrolled students)
+    user_courses = User_Course.query.filter_by(courseID=class_id).all()
+    
+    # Get user details for each enrolled student
+    for uc in user_courses:
+        user = User.get_by_id(uc.userID)
+        if user:
+            member_data = {
+                "id": user.id,
+                "name": user.name,
+                "role": user.role,
+            }
+            if show_sensitive_info:
+                member_data["email"] = user.email
+                member_data["student_id"] = user.student_id
+            members.append(member_data)
+    
+    return jsonify(members), 200
+
 REQUIRED_HEADERS = {"id", "name", "email"}
 def csv_to_list(csv_text):
     """Convert CSV text to a list of emails"""
     rows: List[Dict[str, str]] = []
     errors: List[str] = []
+    
+    print(f"DEBUG: CSV text length: {len(csv_text) if csv_text else 0}")
+    print(f"DEBUG: CSV text preview: {csv_text[:200] if csv_text else 'None'}")
+    
     if not csv_text or not csv_text.strip():
         return rows, ["CSV text empty"]
     
@@ -83,9 +143,13 @@ def csv_to_list(csv_text):
         return rows, [f"Failed to read CSV: {e}"]
     
     headers = {h.strip() for h in reader.fieldnames or []}
+    print(f"DEBUG: Parsed headers: {headers}")
     missing = REQUIRED_HEADERS - headers
     if missing:
-        errors.append(f"Missing required headers: {', '.join(sorted(missing))}")
+        errors.append(
+            f"Invalid CSV format. Missing required headers: {', '.join(sorted(missing))}. "
+            f"Your CSV must have these headers in the first row: id, name, email"
+        )
         return rows, errors
     
     for line_num, row in enumerate(reader, start=2):
@@ -104,16 +168,25 @@ def csv_to_list(csv_text):
             "name": normalized["name"],
             "email": normalized["email"]
         })
+    
+    print(f"DEBUG: Parsed {len(rows)} rows")
+    print(f"DEBUG: Errors: {errors}")
     return rows, errors
+
+def generate_temporary_password(length=10):
+    """Generate a unique temporary password using secrets module"""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 @bp.route("/enroll_students", methods=["POST"])
 @jwt_teacher_required
 def enroll_students():
     """
-    Enroll students into a class by class ID and list of student emails from a csv file.
-    -    If a student is already enrolled, skip them.
-    -    If a student email does not exist, create it with a default password and enroll them.
-    -    The list of student emails is passed in the request body as a CSV file.
+    Enroll students into a class by class ID and roster CSV.
+    CSV format: id, name, email
+    - If student_id exists in system, add them to course (if not already enrolled)
+    - If student_id doesn't exist, create new user with temporary password and enroll
+    - Temporary passwords are unique and students must change them on first login
     """
 
     data = request.get_json()
@@ -121,7 +194,7 @@ def enroll_students():
     student_emails_csv = data.get("students", "")
 
     if not class_id or not student_emails_csv:
-        return jsonify({"msg": "Class ID and student emails are required"}), 400
+        return jsonify({"msg": "Class ID and student roster are required"}), 400
 
     course = Course.get_by_id(class_id)
     if not course:
@@ -135,24 +208,80 @@ def enroll_students():
 
     students, parse_errors = csv_to_list(student_emails_csv)
     if parse_errors:
-        return jsonify({"msg": "Errors in CSV", "errors": parse_errors}), 400
+        error_message = "\n".join(parse_errors)
+        return jsonify({"msg": error_message}), 400
+
+    # Check for duplicate student IDs within the CSV
+    student_ids_in_csv = [s["id"] for s in students]
+    duplicate_ids = [sid for sid in student_ids_in_csv if student_ids_in_csv.count(sid) > 1]
+    if duplicate_ids:
+        unique_duplicates = list(set(duplicate_ids))
+        return jsonify({
+            "msg": f"Duplicate student IDs found in CSV: {', '.join(unique_duplicates)}. "
+                   "Each student ID must be unique."
+        }), 400
 
     enrolled_students = []
+    created_students = []
+    existing_students = []  # Students who were already enrolled in this course
+    enrolled_existing_students = []  # Existing accounts newly enrolled in this course
+    
     for student_info in students:
+        student_id = student_info["id"]
         email = student_info["email"]
+        name = student_info["name"]
+        
         # validate email format with regex
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return jsonify({"msg": f"Invalid email format: {email}"}), 400
+            return jsonify({"msg": f"Invalid email format: '{email}'"}), 400
         
-        name = student_info["name"]
-        student = User.get_by_email(email)
+        # Check if student_id is already used by another student
+        existing_by_id = User.get_by_student_id(student_id)
+        existing_by_email = User.get_by_email(email)
+        
+        # Prevent student_id conflicts
+        if existing_by_id and existing_by_email and existing_by_id.id != existing_by_email.id:
+            return jsonify({
+                "msg": f"Student ID {student_id} is already assigned to {existing_by_id.email}, "
+                       f"but email {email} belongs to a different student"
+            }), 400
+        
+        # Prevent reusing a student_id with a different email
+        if existing_by_id and not existing_by_email:
+            return jsonify({
+                "msg": f"Student ID {student_id} is already assigned to {existing_by_id.email}. "
+                       f"Cannot use the same student ID for {email}."
+            }), 400
+        
+        # Prevent using an existing email with a different student_id
+        if existing_by_email and existing_by_email.student_id and existing_by_email.student_id != student_id:
+            return jsonify({
+                "msg": f"Email {email} is already registered with student ID {existing_by_email.student_id}. "
+                       f"Cannot assign different student ID {student_id} to the same email."
+            }), 400
+        
+        # Determine which student record to use
+        student = existing_by_id or existing_by_email
+        student_already_existed = student is not None
+        
         if not student:
-            # Create new student with default password
-            # TODO: Create random password and email it to the student
-            # Current implementation sets the password to "password123"
-            student = User(name=name, email=email, hash_pass=generate_password_hash("password123"), role="student")
+            # Create new student with unique temporary password
+            temp_password = generate_temporary_password()
+            student = User(
+                name=name,
+                email=email,
+                hash_pass=generate_password_hash(temp_password),
+                role="student",
+                must_change_password=True,
+                student_id=student_id
+            )
             try:
                 User.create_user(student)
+                created_students.append({
+                    "email": email,
+                    "student_id": student_id,
+                    "temp_password": temp_password
+                })
             except Exception as e:
                 return jsonify({"msg": f"Error creating user {email}: {str(e)}"}), 500
 
@@ -162,5 +291,39 @@ def enroll_students():
             # Enroll student
             User_Course.add(student.id, class_id)
             enrolled_students.append(email)
+            
+            # Track existing students who are newly enrolled in this course
+            if student_already_existed:
+                enrolled_existing_students.append({
+                    "email": email,
+                    "student_id": student_id,
+                    "name": name
+                })
+        else:
+            # Track students who were already enrolled in this course
+            existing_students.append({
+                "email": email,
+                "student_id": student_id,
+                "name": name
+            })
 
-    return jsonify({"msg": f"{len(enrolled_students)} students added to course {course.name}"}), 200
+    response_data = {
+        "msg": f"{len(enrolled_students)} students added to course {course.name}",
+        "enrolled_count": len(enrolled_students),
+        "created_count": len(created_students),
+        "existing_count": len(existing_students)
+    }
+    
+    # Include temporary passwords in response for teacher to distribute
+    if created_students:
+        response_data["new_students"] = created_students
+    
+    # Include existing accounts that were newly enrolled
+    if enrolled_existing_students:
+        response_data["enrolled_existing_students"] = enrolled_existing_students
+    
+    # Include students who were already enrolled in this course
+    if existing_students:
+        response_data["existing_students"] = existing_students
+    
+    return jsonify(response_data), 200

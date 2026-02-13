@@ -9,6 +9,30 @@ import { importCSV } from "../util/csv";
 import Textbox from "../components/Textbox";
 import StatusMessage from "../components/StatusMessage";
 import { isTeacher } from "../util/login";
+import RosterUploadResult from "../components/RosterUploadResult";
+import ErrorModal from "../components/ErrorModal";
+
+interface RosterUploadResultData {
+  message: string;
+  enrolled_count: number;
+  created_count: number;
+  existing_count?: number;
+  new_students?: Array<{
+    email: string;
+    student_id: string;
+    temp_password: string;
+  }>;
+  enrolled_existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
+  }>;
+  existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
+  }>;
+}
 
 export default function ClassHome() {
   const { id } = useParams();
@@ -18,6 +42,9 @@ export default function ClassHome() {
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingRoster, setIsUploadingRoster] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -27,7 +54,7 @@ export default function ClassHome() {
       setAssignments(resp);
       setClassName(currentClass?.name || null);
     })();
-  }, []);
+  }, [id]);
     
     const tryCreateAssingment = async () => {
       try {
@@ -49,6 +76,34 @@ export default function ClassHome() {
         setStatusMessage('Error creating assignment.');
       }
     };
+
+    const handleRosterUpload = () => {
+      if (isUploadingRoster) return; // Prevent multiple clicks
+      
+      setIsUploadingRoster(true);
+      setStatusMessage('Opening file picker...');
+      setStatusType('success');
+      
+      importCSV(
+        id as string,
+        (result) => {
+          setIsUploadingRoster(false);
+          setStatusMessage('');
+          setRosterResult(result);
+        },
+        (error) => {
+          setIsUploadingRoster(false);
+          setStatusMessage('');
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          setUploadError(errorMessage);
+        },
+        () => {
+          // onCancel callback - user closed file picker without selecting
+          setIsUploadingRoster(false);
+          setStatusMessage('');
+        }
+      );
+    };
     
     return (
       <>
@@ -59,8 +114,8 @@ export default function ClassHome() {
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
-            <Button onClick={() => importCSV(id as string)}>
-              Add Students via CSV
+            <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
+              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
             </Button>
           ) : null}
         </div>
@@ -80,6 +135,18 @@ export default function ClassHome() {
       />
 
       <StatusMessage message={statusMessage} type={statusType} />
+
+      {rosterResult && (
+        <RosterUploadResult
+          enrolledCount={rosterResult.enrolled_count}
+          createdCount={rosterResult.created_count}
+          existingCount={rosterResult.existing_count}
+          newStudents={rosterResult.new_students}
+          enrolledExistingStudents={rosterResult.enrolled_existing_students}
+          existingStudents={rosterResult.existing_students}
+          onClose={() => setRosterResult(null)}
+        />
+      )}
 
       <div className="Class">
         <div className="Assignments">
@@ -114,6 +181,14 @@ export default function ClassHome() {
           </div>
         ) : null}
       </div>
+
+      {uploadError && (
+        <ErrorModal
+          title="Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
+        />
+      )}
     </>
   );
 }

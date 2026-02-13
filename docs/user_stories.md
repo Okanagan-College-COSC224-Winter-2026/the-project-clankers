@@ -280,20 +280,26 @@
 
 ---
 
-## US16 – Student Login After Roster Upload — **Complete**
+## US16 – Student Login After Roster Upload
 
-**As a student, I want to log in after my teacher uploads the roster so that I can access the system.**
+## Story
+As a student, I want to log in after my teacher uploads the roster so that I can access the system.
 
-### Assumptions and Details
+## Assumptions and Details
+* The student is included on a roster
+* Logging in is possible
 
-- Student is included on a roster  
-- Logging in is possible  
+## Acceptance Criteria
+- [ ] Given the student is on the roster
+- [ ] When the student logs in
+- [ ] Then the student gains access to the system
 
-### Capabilities and Acceptance Criteria
+---
 
-- [ ] Given the student is on the roster, when they log in, the system authenticates them successfully  
-- [ ] Student gains access to the courses tied to that roster  
-- [ ] Student receives guidance if they are missing from the roster  
+*Note: You may want to expand the acceptance criteria to include additional scenarios such as:*
+- [ ] Student not on roster cannot log in
+- [ ] Student receives appropriate error message if login fails
+- [ ] Student is directed to their dashboard upon successful login
 
 ---
 

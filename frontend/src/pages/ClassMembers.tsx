@@ -1,27 +1,80 @@
 import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Button from "../components/Button";
 import { importCSV } from "../util/csv";
 import { listCourseMembers, listClasses } from "../util/api";
+import RosterUploadResult from "../components/RosterUploadResult";
+import ErrorModal from "../components/ErrorModal";
 
 import './ClassMembers.css'
 import { isTeacher } from "../util/login";
+
+interface RosterUploadResultData {
+  message: string;
+  enrolled_count: number;
+  created_count: number;
+  existing_count?: number;
+  new_students?: Array<{
+    email: string;
+    student_id: string;
+    temp_password: string;
+  }>;
+  enrolled_existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
+  }>;
+  existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
+  }>;
+}
 
 export default function ClassMembers() {
   const { id } = useParams()
   const [members, setMembers] = useState<User[]>([])
   const [className, setClassName] = useState<string | null>(null);
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingRoster, setIsUploadingRoster] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const loadMembers = useCallback(async () => {
+    const members = await listCourseMembers(id as string)
+    const classes = await listClasses();
+    const currentClass = classes.find((c: { id: number }) => c.id === Number(id));
+    setMembers(members)
+    setClassName(currentClass?.name || null);
+  }, [id]);
 
   useEffect(() => {
-    ;(async () => {
-      const members = await listCourseMembers(id as string)
-      const classes = await listClasses();
-      const currentClass = classes.find((c: { id: number }) => c.id === Number(id));
-      setMembers(members)
-      setClassName(currentClass?.name || null);
-    })()
-  }, [])  
+    loadMembers()
+  }, [loadMembers])
+
+  const handleRosterUpload = () => {
+    if (isUploadingRoster) return;
+    
+    setIsUploadingRoster(true);
+    importCSV(
+      id as string,
+      (result) => {
+        setIsUploadingRoster(false);
+        // Show the result modal with passwords
+        setRosterResult(result);
+        // Reload members list to show newly added students
+        loadMembers();
+      },
+      (error) => {
+        setIsUploadingRoster(false);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setUploadError(errorMessage);
+      },
+      () => {
+        setIsUploadingRoster(false);
+      }
+    );
+  };
 
   return (
     <>
@@ -32,7 +85,9 @@ export default function ClassMembers() {
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
-            <Button onClick={() => importCSV(id as string)}>Add Students via CSV</Button>
+            <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
+              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
+            </Button>
           ) : null}
         </div>
       </div>
@@ -50,17 +105,66 @@ export default function ClassMembers() {
         ]}
       />
 
+      {rosterResult && (
+        <RosterUploadResult
+          enrolledCount={rosterResult.enrolled_count}
+          createdCount={rosterResult.created_count}
+          existingCount={rosterResult.existing_count}
+          newStudents={rosterResult.new_students}
+          enrolledExistingStudents={rosterResult.enrolled_existing_students}
+          existingStudents={rosterResult.existing_students}
+          onClose={() => setRosterResult(null)}
+        />
+      )}
+
       <div className="ClassMemberList">
-        {
+        {members.length === 0 ? (
+          <p style={{ padding: '20px', color: '#6b7280' }}>No members found.</p>
+        ) : (
           members.map(member => {
+            const getRoleBadge = (role: string) => {
+              const styles = {
+                teacher: { backgroundColor: '#3b82f6', color: 'white' },
+                student: { backgroundColor: '#10b981', color: 'white' },
+                admin: { backgroundColor: '#ef4444', color: 'white' }
+              };
+              return (
+                <span style={{
+                  ...styles[role as keyof typeof styles],
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  marginLeft: '8px',
+                  textTransform: 'uppercase'
+                }}>
+                  {role}
+                </span>
+              );
+            };
+
             return (
               <div key={member.id} className="Member">
-                {member.name} ({member.id})
+                <strong>{member.name}</strong>
+                {getRoleBadge(member.role)}
+                {member.student_id && <span> (ID: {member.student_id})</span>}
+                <br />
+                {member.email && (
+                  <span style={{ color: '#6b7280', fontSize: '14px' }}>{member.email}</span>
+                )}
               </div>
             )
           })
-        }
+        )}
       </div>
+
+      {uploadError && (
+        <ErrorModal
+          title="CSV Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
+        />
+      )}
     </>
   );
 }
