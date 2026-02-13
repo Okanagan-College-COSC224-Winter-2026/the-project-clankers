@@ -223,7 +223,8 @@ def enroll_students():
 
     enrolled_students = []
     created_students = []
-    existing_students = []
+    existing_students = []  # Students who were already enrolled in this course
+    enrolled_existing_students = []  # Existing accounts newly enrolled in this course
     
     for student_info in students:
         student_id = student_info["id"]
@@ -232,7 +233,7 @@ def enroll_students():
         
         # validate email format with regex
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return jsonify({"msg": f"Invalid email format: {email}"}), 400
+            return jsonify({"msg": f"Invalid email format: '{email}'"}), 400
         
         # Check if student_id is already used by another student
         existing_by_id = User.get_by_student_id(student_id)
@@ -252,8 +253,16 @@ def enroll_students():
                        f"Cannot use the same student ID for {email}."
             }), 400
         
+        # Prevent using an existing email with a different student_id
+        if existing_by_email and existing_by_email.student_id and existing_by_email.student_id != student_id:
+            return jsonify({
+                "msg": f"Email {email} is already registered with student ID {existing_by_email.student_id}. "
+                       f"Cannot assign different student ID {student_id} to the same email."
+            }), 400
+        
         # Determine which student record to use
         student = existing_by_id or existing_by_email
+        student_already_existed = student is not None
         
         if not student:
             # Create new student with unique temporary password
@@ -282,14 +291,21 @@ def enroll_students():
             # Enroll student
             User_Course.add(student.id, class_id)
             enrolled_students.append(email)
-        else:
-            # Track students who already existed and were already enrolled
-            if student.email not in [s["email"] for s in created_students]:
-                existing_students.append({
+            
+            # Track existing students who are newly enrolled in this course
+            if student_already_existed:
+                enrolled_existing_students.append({
                     "email": email,
                     "student_id": student_id,
                     "name": name
                 })
+        else:
+            # Track students who were already enrolled in this course
+            existing_students.append({
+                "email": email,
+                "student_id": student_id,
+                "name": name
+            })
 
     response_data = {
         "msg": f"{len(enrolled_students)} students added to course {course.name}",
@@ -302,7 +318,11 @@ def enroll_students():
     if created_students:
         response_data["new_students"] = created_students
     
-    # Include existing students info
+    # Include existing accounts that were newly enrolled
+    if enrolled_existing_students:
+        response_data["enrolled_existing_students"] = enrolled_existing_students
+    
+    # Include students who were already enrolled in this course
     if existing_students:
         response_data["existing_students"] = existing_students
     

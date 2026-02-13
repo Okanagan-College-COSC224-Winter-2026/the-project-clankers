@@ -90,6 +90,7 @@ User Story 16 has been implemented, enabling teachers to upload student rosters 
 - `existing_count`: Number of students who were already enrolled
 - `new_students`: Array with temporary passwords for newly created accounts
 - `existing_students`: Array showing students who were already enrolled (no passwords needed)
+- `enrolled_existing_students`: (Optional) Array showing existing accounts that were newly enrolled in this course
 
 #### Temporary Password Generation
 **Function**: `generate_temporary_password(length=10)`
@@ -102,28 +103,32 @@ User Story 16 has been implemented, enabling teachers to upload student rosters 
 - Teacher authorization check (only class owner can enroll)
 - Email validation with regex
 - Duplicate enrollment prevention
-- **Student ID uniqueness validation**:
+- **Student ID uniqueness validation** (comprehensive):
   - Prevents duplicate student IDs within the same CSV file
   - Prevents assigning an existing student ID to a different email address
+  - **Prevents assigning a different student ID to an existing email address** (new in Feb 2026)
   - Detects conflicts between student ID and email ownership
   - Database-level unique constraint on `student_id` field
+  - Validation logic in [class_controller.py](../../flask_backend/api/controllers/class_controller.py#L257-L262)
 - Secure password hashing with `werkzeug.security.generate_password_hash`
 - HTTPOnly JWT cookies (existing auth pattern)
 
 ### 3. Test Coverage
 **Location**: [flask_backend/tests/test_roster_upload.py](../flask_backend/tests/test_roster_upload.py)
 
-All 10 tests passing:
+All 12 tests passing:
 - ✅ New student enrollment with temporary passwords
 - ✅ Existing student enrollment in new course
 - ✅ Duplicate enrollment prevention
 - ✅ Invalid CSV format rejection
 - ✅ Invalid email format rejection
+- ✅ **Same email with different student ID rejection** (test_same_email_different_student_id)
 - ✅ Unauthorized enrollment (non-teachers)
 - ✅ Teacher authorization (own classes only)
 - ✅ Student login with temporary password
 - ✅ Duplicate student IDs in CSV rejection
 - ✅ Conflicting student ID and email detection
+- ✅ Pre-existing student with student ID enrollment
 
 ### 4. Password Display Modal (RosterUploadResult)
 **Location**: [frontend/src/components/RosterUploadResult.tsx](../frontend/src/components/RosterUploadResult.tsx)
@@ -199,7 +204,7 @@ The frontend validates CSV files before upload to provide immediate feedback:
 - **Frontend validation (duplicate IDs)**: "Duplicate student IDs found in CSV: 300111111\n\nEach student ID must be unique. Please check your CSV file and remove duplicate entries."
 - **Backend validation**: "Invalid CSV format. Missing required headers: name. Your CSV must have these headers in the first row: id, name, email"
 - **Empty file**: "CSV file must contain at least one student record after the header row."
-- **Invalid email**: "Invalid email format: not-an-email"
+- **Invalid email**: "Invalid email format: 'notanemail'" (note: invalid email shown in quotes for clarity)
 - **Permission error**: "You do not have permission to enroll students in this course"
 - **Duplicate student ID (backend)**: "Duplicate student IDs found in CSV: 300111111. Each student ID must be unique."
 - **Student ID conflict**: "Student ID 300111111 is already assigned to alice@example.com. Cannot use the same student ID for bob@example.com."
@@ -256,18 +261,22 @@ The frontend validates CSV files before upload to provide immediate feedback:
 **Location**: [test.csv](../../test.csv)
 ```csv
 id,name,email
-300325853,Test User,testing@gmail.com
-300325854,Jane Doe,jane.doe@university.edu
-300325855,John Smith,john.smith@university.edu
-300325856,Sarah Williams,sarah.williams@university.edu
-300325857,Michael Brown,michael.brown@university.edu
-300325858,Emily Davis,emily.davis@university.edu
+300111001,Alice Anderson,alice.anderson@university.edu
+300111002,Brian Baker,brian.baker@university.edu
+300111003,Carol Chen,carol.chen@university.edu
+300111004,David Davis,david.davis@university.edu
+300111005,Emily Evans,emily.evans@university.edu
+300111006,Frank Foster,frank.foster@university.edu
+300111007,Grace Garcia,grace.garcia@university.edu
+300111008,Henry Harris,henry.harris@university.edu
+300111009,Isabel Jackson,isabel.jackson@university.edu
+300111010,James Johnson,james.johnson@university.edu
 ```
 
 **Sample Scenarios**:
-- Upload all 6: Creates 6 new accounts, enrolls all 6
-- Upload again: Shows all 6 as "already existed and enrolled", no changes
-- Add 3 more rows: Creates 3 new accounts, shows 6 existing
+- Upload all 10: Creates 10 new accounts, enrolls all 10
+- Upload again: Shows all 10 as "already existed and enrolled", no changes
+- Add more rows: Creates new accounts for additions, shows 10 existing
 
 ## User Story Requirements Met
 

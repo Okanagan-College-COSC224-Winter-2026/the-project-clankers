@@ -88,7 +88,7 @@ All endpoints in this section require the HTTPOnly JWT cookie. Frontend requests
 | GET | `/group/list_ua_groups/:assignmentID` | `{ assignmentID: number }` | — | — | `Array<Group_Member>` | Not Implemented: TODO | Unassigned students for an assignment (`groupID === -1`). |
 | GET | `/group/next_groupid` | — | — | — | `number` | Not Implemented: TODO | Count of groups with `id > 0` (Sequelize `count` with `Op.gt`). |
 | POST | `/group/save_groups` | — | — | `{ groupID: number, userID: number, assignmentID: number }` | `{ message: 'successful DB post!' }` or `401` | Not Implemented: TODO | Updates `Group_Member` rows to set `groupID` for a user in an assignment. |
-| POST | `/class/enroll_students` | — | — | `{ class_id: number, students: string (CSV) }` | `{ msg: string }` | ✅Implemented | Enrolls specified students on the csv to the course, if student doesn't exist it creates it. TODO: change the default password to random and email it to the user. |
+| POST | `/class/enroll_students` | — | — | `{ class_id: number, students: string (CSV) }` | `{ msg: string, enrolled_count: number, created_count: number, existing_count: number, new_students?: array, existing_students?: array, enrolled_existing_students?: array }` | ✅Implemented | Enrolls students from CSV (id,name,email) to course. Creates new accounts with cryptographically secure temporary passwords. Validates: CSV format, email format, unique student IDs, no ID/email conflicts. Returns temp passwords for new accounts and lists existing accounts newly enrolled. |
 | GET | `/user/user_id` | — | — | — | `number` | Not Implemented: TODO | Reads `app.session[token].id`. Handler assumes session contains token; no explicit 401 check. |
 
 ---

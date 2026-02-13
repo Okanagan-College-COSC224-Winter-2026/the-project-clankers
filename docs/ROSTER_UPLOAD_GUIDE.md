@@ -67,6 +67,26 @@ id,name,email
    - `must_change_password` flag set
 3. **Duplicates** are skipped (won't re-enroll)
 
+### Validation Rules
+
+The system enforces strict validation to maintain data integrity:
+
+1. **Unique Student IDs within CSV**: Each student ID in your upload must be unique
+   - ❌ Not allowed: Two rows with the same student ID
+   - ✅ Each student ID appears only once in the CSV
+
+2. **Student ID Cannot Be Reassigned**: Once a student ID is assigned to an email, it cannot be changed
+   - ❌ Not allowed: `300325777,Billy Guy,billyguy@gmail.com` then later `300325778,Billy Guy,billyguy@gmail.com`
+   - ✅ Student ID stays with the same email address permanently
+
+3. **Email Cannot Have Multiple Student IDs**: An email address can only be associated with one student ID
+   - If you try to upload the same email with a different student ID, you'll get a validation error
+   - This prevents accidental overwrites or data conflicts
+
+4. **Student ID Cannot Be Reused**: A student ID assigned to one student cannot be used by another
+   - ❌ Not allowed: `300111111,Alice,alice@example.com` and `300111111,Bob,bob@example.com`
+   - ✅ Each person gets their own unique student ID
+
 ---
 
 ## For Students
@@ -160,6 +180,22 @@ id,name,email
 
 **Solution**: Add at least one student row after the header line.
 
+### Upload Failed - Invalid Email Format
+
+**Error Message**: "Invalid email format: 'notanemail'" (the invalid email is shown in quotes)
+
+**Cause**: One or more email addresses in your CSV don't follow the standard email format (name@domain.extension).
+
+**Solution**:
+1. Check each email address in your CSV file
+2. Ensure all emails have the format: `username@domain.tld`
+3. Common issues:
+   - ❌ Missing @ symbol: `notanemail`
+   - ❌ Missing domain extension: `user@domain`
+   - ❌ Missing domain: `@domain.com`
+   - ✅ Correct format: `user@university.edu`
+4. Fix the invalid email and try uploading again
+
 ### Upload Failed - Other Issues
 
 - **Check CSV format**: Must have `id,name,email` headers (exact spelling, all lowercase)
@@ -188,13 +224,15 @@ id,name,email
 
 **Error Message**: "Duplicate student IDs found in CSV: 300111111. Each student ID must be unique."
 
-**Cause**: Your CSV file contains the same student ID for multiple students.
+**Cause**: Your CSV file contains the same student ID for multiple students within the same upload.
 
 **Solution**:
 1. Open your CSV file and check the `id` column
 2. Each student ID must be unique - no duplicates allowed
 3. Verify your institutional roster export didn't include duplicate entries
 4. Fix any duplicate IDs and try uploading again
+
+---
 
 **Error Message**: "Student ID 300111111 is already assigned to alice@example.com. Cannot use the same student ID for bob@example.com."
 
@@ -205,6 +243,30 @@ id,name,email
 2. If this is the same person, use their existing email address
 3. If these are different people, one of the student IDs is incorrect - verify with your institutional records
 4. Student IDs are permanent and cannot be reassigned to different people
+
+---
+
+**Error Message**: "Email billyguy@gmail.com is already registered with student ID 300325777. Cannot assign different student ID 300325778 to the same email."
+
+**Cause**: You're trying to upload a student with an email address that already exists in the system, but with a different student ID than what's currently assigned.
+
+**Solution**:
+1. **Check your CSV file**: Look for rows with the same email address but different student IDs
+2. **Verify the correct student ID**: Contact your institutional records to confirm the correct student ID for this student
+3. **Use the existing student ID**: If the student is already in the system, use their existing student ID in your CSV
+4. **Example of the problem**:
+   ```csv
+   id,name,email
+   300325777,Billy Guy,billyguy@gmail.com  ← First upload (creates account)
+   300325778,Billy Guy,billyguy@gmail.com  ← Second upload (ERROR! Different ID, same email)
+   ```
+5. **Correct approach**: Use the same student ID consistently
+   ```csv
+   id,name,email
+   300325777,Billy Guy,billyguy@gmail.com  ← Always use the same ID for this email
+   ```
+
+**Why This Matters**: Student IDs and emails are both unique identifiers. Once paired, they cannot be changed to prevent data conflicts and maintain academic record integrity.
 
 ---
 

@@ -245,6 +245,114 @@ John Doe,john@example.com"""
         assert response.status_code == 400
         assert "Invalid email format" in response.get_json()["msg"]
 
+    def test_same_email_different_student_id(self, test_client, auth_headers_teacher):
+        """Test that using same email with different student ID returns error"""
+        response = test_client.post(
+            "/class/create_class",
+            json={"name": "Test Class"},
+            headers=auth_headers_teacher,
+        )
+        class_id = response.get_json()["class"]["id"]
+
+        # First enrollment with Billy Guy and student ID 300325777
+        csv_data_1 = """id,name,email
+300325777,Billy Guy,billyguy@gmail.com"""
+
+        response = test_client.post(
+            "/class/enroll_students",
+            json={"class_id": class_id, "students": csv_data_1},
+            headers=auth_headers_teacher,
+        )
+        assert response.status_code == 200
+        assert response.get_json()["enrolled_count"] == 1
+        assert response.get_json()["created_count"] == 1
+
+        # Try to enroll same email with different student ID
+        csv_data_2 = """id,name,email
+300325778,Billy Guy,billyguy@gmail.com"""
+
+        response = test_client.post(
+            "/class/enroll_students",
+            json={"class_id": class_id, "students": csv_data_2},
+            headers=auth_headers_teacher,
+        )
+        assert response.status_code == 400
+        assert "already registered with student ID 300325777" in response.get_json()["msg"]
+        assert "Cannot assign different student ID 300325778" in response.get_json()["msg"]
+
+    def test_preexisting_student_with_student_id_enrollment(self, test_client, auth_headers_teacher, db):
+        """Test that a pre-existing student with student_id can be enrolled via CSV"""
+        # Create a student manually with a student_id (simulating a student who was created previously)
+        existing_student = User(
+            name="Pre-existing Student",
+            email="preexisting@university.edu",
+            hash_pass=generate_password_hash("oldpassword"),
+            role="student",
+            student_id="300999888",
+            must_change_password=False  # Student already changed their password
+        )
+        User.create_user(existing_student)
+
+        # Verify student exists before enrollment
+        student_check = User.get_by_student_id("300999888")
+        assert student_check is not None
+        assert student_check.email == "preexisting@university.edu"
+        assert student_check.must_change_password is False
+
+        # Create a class
+        response = test_client.post(
+            "/class/create_class",
+            json={"name": "New Course"},
+            headers=auth_headers_teacher,
+        )
+        assert response.status_code == 201
+        class_id = response.get_json()["class"]["id"]
+
+        # Upload CSV that includes the pre-existing student
+        csv_data = """id,name,email
+300999888,Pre-existing Student,preexisting@university.edu
+300999889,New Student,newstudent@university.edu"""
+
+        response = test_client.post(
+            "/class/enroll_students",
+            json={"class_id": class_id, "students": csv_data},
+            headers=auth_headers_teacher,
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        print(f"Enrollment response: {data}")
+        
+        # Should enroll both students
+        assert data["enrolled_count"] == 2
+        
+        # Only the new student should be created (1 new account)
+        assert data["created_count"] == 1
+        
+        # Should have temp password for only the new student
+        assert "new_students" in data
+        assert len(data["new_students"]) == 1
+        assert data["new_students"][0]["email"] == "newstudent@university.edu"
+        assert data["new_students"][0]["student_id"] == "300999889"
+        
+        # Verify pre-existing student was enrolled but not recreated
+        student_after = User.get_by_student_id("300999888")
+        assert student_after is not None
+        assert student_after.id == existing_student.id  # Same user ID (not recreated)
+        assert student_after.must_change_password is False  # Still False (not overwritten)
+        
+        # Verify enrollment in course
+        enrollment = User_Course.get(existing_student.id, class_id)
+        assert enrollment is not None
+        
+        # Verify new student was created and enrolled
+        new_student = User.get_by_student_id("300999889")
+        assert new_student is not None
+        assert new_student.email == "newstudent@university.edu"
+        assert new_student.must_change_password is True  # New student must change password
+        enrollment_new = User_Course.get(new_student.id, class_id)
+        assert enrollment_new is not None
+
     def test_unauthorized_enrollment(self, test_client, auth_headers_student):
         """Test that students cannot enroll other students"""
         # Try to enroll as student (should fail with @jwt_teacher_required)

@@ -19,7 +19,8 @@ interface Props {
   createdCount: number;
   existingCount?: number;
   newStudents?: NewStudent[];
-  existingStudents?: ExistingStudent[];
+  enrolledExistingStudents?: ExistingStudent[];  // Existing accounts newly enrolled
+  existingStudents?: ExistingStudent[];  // Already enrolled in this course
   onClose: () => void;
 }
 
@@ -65,17 +66,34 @@ export default function RosterUploadResult(props: Props) {
         </div>
 
         <div className="RosterUploadResult-Summary">
-          {props.enrolledCount > 0 && (
-            <p>✅ {props.enrolledCount} student(s) enrolled in course</p>
-          )}
-          {props.createdCount > 0 && (
-            <p>🆕 {props.createdCount} new student account(s) created</p>
-          )}
-          {(props.existingCount ?? 0) > 0 && (
-            <p>ℹ️ {props.existingCount} student(s) already existed and enrolled</p>
-          )}
+          {/* Case 1: All students were already enrolled in this course */}
           {props.enrolledCount === 0 && props.createdCount === 0 && (props.existingCount ?? 0) > 0 && (
             <p className="RosterUploadResult-NoChanges">ℹ️ No changes made - all students were already enrolled in this course</p>
+          )}
+          
+          {/* Case 2: Students were enrolled (existing accounts or new accounts) */}
+          {props.enrolledCount > 0 && (
+            <>
+              <p>✅ {props.enrolledCount} student(s) enrolled in this course</p>
+              
+              {/* Show breakdown: new accounts created */}
+              {props.createdCount > 0 && (
+                <p>🆕 {props.createdCount} new student account(s) created</p>
+              )}
+              
+              {/* Show breakdown: existing accounts enrolled */}
+              {props.createdCount === 0 && (
+                <p>ℹ️ All students had existing accounts - no new accounts created</p>
+              )}
+              {props.createdCount > 0 && props.createdCount < props.enrolledCount && (
+                <p>ℹ️ {props.enrolledCount - props.createdCount} student(s) already had accounts</p>
+              )}
+            </>
+          )}
+          
+          {/* Show count of students who were already enrolled */}
+          {(props.existingCount ?? 0) > 0 && (
+            <p>ℹ️ {props.existingCount} student(s) were already enrolled (skipped)</p>
           )}
         </div>
 
@@ -115,6 +133,31 @@ export default function RosterUploadResult(props: Props) {
               </table>
             </div>
           </>
+        )}
+
+        {props.enrolledExistingStudents && props.enrolledExistingStudents.length > 0 && (
+          <div className="RosterUploadResult-ExistingStudents">
+            <h3>Existing Students Enrolled</h3>
+            <p className="RosterUploadResult-Info">ℹ️ These students already had accounts in the system and have been enrolled in this course.</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {props.enrolledExistingStudents.map((student, index) => (
+                  <tr key={index}>
+                    <td>{student.student_id}</td>
+                    <td>{student.name}</td>
+                    <td>{student.email}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {props.existingStudents && props.existingStudents.length > 0 && (
