@@ -633,3 +633,203 @@ def test_unauthenticated_user_cannot_get_assignments(test_client):
     # Attempt to retrieve assignments for a class without logging in
     assignments = test_client.get(f"/assignment/1")
     assert assignments.status_code == 401
+
+
+# Test cases for get_assignment_details endpoint
+def test_teacher_can_get_assignment_details(test_client, make_admin):
+    """
+    GIVEN a teacher user
+    WHEN they request detailed information for an assignment they created
+    THEN the API should return assignment details including peer review settings
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    # Create a class and assignment
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Physics 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Lab Report",
+            "rubric": "Scientific method",
+            "due_date": datetime.datetime(2025, 12, 31, 23, 59, 59).isoformat()
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Get assignment details
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    
+    assert details_response.status_code == 200
+    details = details_response.json
+    assert details["id"] == assignment_id
+    assert details["name"] == "Lab Report"
+    assert details["rubric_text"] == "Scientific method"
+    assert "rubrics" in details
+    assert "review_count" in details
+    assert "group_count" in details
+
+
+def test_student_can_get_assignment_details_if_enrolled(test_client, make_admin, enroll_user_in_course):
+    """
+    GIVEN a student user enrolled in a class
+    WHEN they request details for an assignment in that class
+    THEN the API should return assignment details (without teacher-only fields)
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    
+    # Create student user directly
+    from api.models import User
+    from werkzeug.security import generate_password_hash
+    student = User(
+        name="studentuser",
+        email="student@example.com",
+        hash_pass=generate_password_hash("student"),
+        role="student"
+    )
+    from api.models.db import db
+    db.session.add(student)
+    db.session.commit()
+    
+    # Teacher creates class and assignment
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Chemistry 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Enroll student
+    enroll_user_in_course(student.id, class_id)
+    
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Experiment 1",
+            "rubric": "Lab technique"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Student logs in and gets assignment details
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "student@example.com", "password": "student"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    
+    assert details_response.status_code == 200
+    details = details_response.json
+    assert details["id"] == assignment_id
+    assert details["name"] == "Experiment 1"
+    assert "rubrics" in details
+
+
+def test_unenrolled_student_cannot_get_assignment_details(test_client, make_admin):
+    """
+    GIVEN a student user NOT enrolled in a class
+    WHEN they request details for an assignment in that class
+    THEN the API should return a 403 error
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    
+    # Create student user directly
+    from api.models import User
+    from werkzeug.security import generate_password_hash
+    student = User(
+        name="studentuser",
+        email="student@example.com",
+        hash_pass=generate_password_hash("student"),
+        role="student"
+    )
+    from api.models.db import db
+    db.session.add(student)
+    db.session.commit()
+    
+    # Teacher creates class and assignment
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Biology 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Essay 1",
+            "rubric": "Analysis"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Student logs in (but is NOT enrolled)
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "student@example.com", "password": "student"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    
+    assert details_response.status_code == 403
+    assert details_response.json["msg"] == "Unauthorized: You do not have access to this assignment"
+
+
+def test_get_nonexistent_assignment_details(test_client, make_admin):
+    """
+    GIVEN a teacher user
+    WHEN they request details for a non-existent assignment
+    THEN the API should return a 404 error
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    details_response = test_client.get("/assignment/details/999")
+    
+    assert details_response.status_code == 404
+    assert details_response.json["msg"] == "Assignment not found"
+
+
+def test_unauthenticated_user_cannot_get_assignment_details(test_client):
+    """
+    GIVEN an unauthenticated user
+    WHEN they request assignment details
+    THEN the API should return a 401 error
+    """
+    details_response = test_client.get("/assignment/details/1")
+    assert details_response.status_code == 401

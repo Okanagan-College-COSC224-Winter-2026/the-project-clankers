@@ -128,3 +128,44 @@ def get_assignments(class_id):
     assignments = Assignment.get_by_class_id(class_id)
     assignments_data = AssignmentSchema(many=True).dump(assignments)
     return jsonify(assignments_data), 200
+
+
+@bp.route("/details/<int:assignment_id>", methods=["GET"])
+@jwt_required()
+def get_assignment_details(assignment_id):
+    """Get detailed information for a single assignment including peer review settings"""
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    # Check if user has access to this assignment (is teacher of class or student enrolled)
+    is_teacher = course.teacherID == user.id
+    is_enrolled = any(student.id == user.id for student in course.students)
+    
+    if not (is_teacher or is_enrolled):
+        return jsonify({"msg": "Unauthorized: You do not have access to this assignment"}), 403
+
+    # Serialize assignment with course data
+    assignment_data = AssignmentSchema().dump(assignment)
+    
+    # Add peer review settings (rubrics)
+    from ..models import RubricSchema
+    rubrics = assignment.rubrics.all()
+    assignment_data["rubrics"] = RubricSchema(many=True).dump(rubrics)
+    
+    # Add review counts for teachers
+    if is_teacher:
+        review_count = assignment.reviews.count()
+        assignment_data["review_count"] = review_count
+        assignment_data["group_count"] = assignment.groups.count()
+    
+    return jsonify(assignment_data), 200

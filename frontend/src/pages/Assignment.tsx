@@ -1,9 +1,10 @@
 import { useEffect, useState, ChangeEvent } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import "./Assignment.css";
 import RubricCreator from "../components/RubricCreator";
 import RubricDisplay from "../components/RubricDisplay";
 import TabNavigation from "../components/TabNavigation";
+import AssignmentSettings from "../components/AssignmentSettings";
 import { isTeacher } from "../util/login";
 
 import { 
@@ -21,11 +22,15 @@ interface SelectedCriterion {
 
 export default function Assignment() {
   const { id } = useParams();
+  const location = useLocation();
   const [stuGroup, setStuGroup] = useState<StudentGroups[]>([]);
   const [revieweeID, setRevieweeID] = useState<number>(0);
   const [stuID, setStuID] = useState<number>(0);
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
   const [review, setReview] = useState<number[]>([]);
+
+  // Determine which tab is active based on URL path
+  const isManageTab = location.pathname.includes('/manage');
 
   useEffect(() => {
       (async () => {
@@ -79,59 +84,82 @@ export default function Assignment() {
       </div>
 
       <TabNavigation
-        tabs={[
-          {
-            label: "Home",
-            path: `/assignment/${id}`,
-          },
-          {
-            label: "Group",
-            path: `/assignment/${id}/group`,
-          }
-        ]}
+        tabs={
+          isTeacher() 
+            ? [
+                {
+                  label: "Home",
+                  path: `/assignments/${id}`,
+                },
+                {
+                  label: "Group",
+                  path: `/assignments/${id}/group`,
+                },
+                {
+                  label: "Manage",
+                  path: `/assignments/${id}/manage`,
+                }
+              ]
+            : [
+                {
+                  label: "Home",
+                  path: `/assignments/${id}`,
+                },
+                {
+                  label: "Group",
+                  path: `/assignments/${id}/group`,
+                }
+              ]
+        }
       />
 
-      <div className='assignmentRubricDisplay'>
-        <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
-      </div>
-      {
-        isTeacher() && 
-          <div className='assignmentRubric'>
-            <RubricCreator id={Number(id)}/>
+      {isManageTab && isTeacher() ? (
+        <AssignmentSettings assignmentId={Number(id)} />
+      ) : (
+        <>
+          <div className='assignmentRubricDisplay'>
+            <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
           </div>
-      }
-
-{
-      //List group members as radio buttons to select for given review
-      !isTeacher() && <div className='groupMembers'>
-        <h3>Select a group member to review</h3>
-          {stuGroup.map((stus) => {
-                return (
-                  <>
-                  <input type='radio' id={stus.userID.toString()} value={stus.userID} name='groupMembers' onChange={handleRadioChange}></input>
-                  <label htmlFor={stus.userID.toString()}>{stus.userID}</label>
-                  <br></br>
-                  </>
-                )
-              }
-            )
+          {
+            isTeacher() && 
+              <div className='assignmentRubric'>
+                <RubricCreator id={Number(id)}/>
+              </div>
           }
-          <button className='submitReview' onClick={async () => {
-            console.log("Submitting review with selected criteria:", selectedCriteria);
-            try {
-              const reviewResponse = await createReview(Number(id), stuID, revieweeID);
-              const reviewData = await reviewResponse.json();
-              console.log("Review response:", reviewData);
-              for (const criterion of selectedCriteria) {
-                await createCriterion(reviewData.id, criterion.row, criterion.column, "");
-              }
-              console.log('Review submitted successfully');
-            } catch (error) {
-              console.error('Error submitting review:', error);
-            }
-          }}>Submit Review</button>
-      </div>}
+
+          {
+            //List group members as radio buttons to select for given review
+            !isTeacher() && <div className='groupMembers'>
+              <h3>Select a group member to review</h3>
+                {stuGroup.map((stus) => {
+                      return (
+                        <>
+                        <input type='radio' id={stus.userID.toString()} value={stus.userID} name='groupMembers' onChange={handleRadioChange}></input>
+                        <label htmlFor={stus.userID.toString()}>{stus.userID}</label>
+                        <br></br>
+                        </>
+                      )
+                    }
+                  )
+                }
+                <button className='submitReview' onClick={async () => {
+                  console.log("Submitting review with selected criteria:", selectedCriteria);
+                  try {
+                    const reviewResponse = await createReview(Number(id), stuID, revieweeID);
+                    const reviewData = await reviewResponse.json();
+                    console.log("Review response:", reviewData);
+                    for (const criterion of selectedCriteria) {
+                      await createCriterion(reviewData.id, criterion.row, criterion.column, "");
+                    }
+                    console.log('Review submitted successfully');
+                  } catch (error) {
+                    console.error('Error submitting review:', error);
+                  }
+                }}>Submit Review</button>
+            </div>
+          }
+        </>
+      )}
     </>
   );
 }
-

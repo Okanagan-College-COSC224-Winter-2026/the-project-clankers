@@ -10,7 +10,7 @@ export default function Button(props: Props) {
   return (
     <div
       onClick= {() => {
-         window.location.href = `/assignment/${props.id}`
+         window.location.href = `/assignments/${props.id}`
       }
     }
       className='A_Card'

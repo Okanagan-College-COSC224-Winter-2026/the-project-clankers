@@ -75,6 +75,12 @@ function AppContent() {
               <Group />
             </ProtectedRoute>
           } />
+
+          <Route path="/assignments/:id/manage" element={
+            <ProtectedRoute>
+              <Assignment />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </div>

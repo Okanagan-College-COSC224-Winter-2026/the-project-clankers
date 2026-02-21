@@ -364,6 +364,64 @@ export const createAssignment = async (courseID: number, name: string)=> {
   return await response.json();
 }
 
+export const getAssignmentDetails = async (assignmentId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/details/${assignmentId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export const editAssignment = async (assignmentId: number, data: { name?: string, rubric?: string, due_date?: string }) => {
+  const response = await fetch(`${BASE_URL}/assignment/edit_assignment/${assignmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export const deleteAssignment = async (assignmentId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/delete_assignment/${assignmentId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
 export const deleteGroup = async (groupID: number) => {
   await fetch(`${BASE_URL}/delete_group`, {
     method: 'POST',
