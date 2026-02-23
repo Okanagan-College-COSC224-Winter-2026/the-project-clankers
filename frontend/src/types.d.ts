@@ -34,6 +34,7 @@ interface GroupTableValue{
 }
 
 interface Criterion {
+  id?: number;
   rubricID: number;
   question: string;
   scoreMax: number;

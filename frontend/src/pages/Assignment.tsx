@@ -12,7 +12,9 @@ import {
   getUserId,
   createReview,
   createCriterion,
-  getReview
+  getReview,
+  getCriteria,
+  getRubric
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -28,9 +30,25 @@ export default function Assignment() {
   const [stuID, setStuID] = useState<number>(0);
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
   const [review, setReview] = useState<number[]>([]);
+  const [criteriaDescriptions, setCriteriaDescriptions] = useState<any[]>([]);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
+
+  // Load criteria descriptions for the rubric
+  useEffect(() => {
+    (async () => {
+      try {
+        const rubricResp = await getRubric(Number(id), true); // true = use as assignmentID
+        if (rubricResp && rubricResp.id) {
+          const criteriaResp = await getCriteria(rubricResp.id);
+          setCriteriaDescriptions(criteriaResp);
+        }
+      } catch (error) {
+        console.error('Error fetching criteria descriptions:', error);
+      }
+    })();
+  }, [id]);
 
   useEffect(() => {
       (async () => {
@@ -39,15 +57,37 @@ export default function Assignment() {
       const stus = await listStuGroup(Number(id), stuID);
       setStuGroup(stus);
         try {
+          if (revieweeID === 0) {
+            // No reviewee selected yet, clear the review data
+            setReview([]);
+            setSelectedCriteria([]);
+            return;
+          }
+          
           const reviewResponse = await getReview(Number(id), stuID, revieweeID);
           const reviewData = await reviewResponse.json();
-          setReview(reviewData.grades);
+          setReview(reviewData.grades || []);
+          
+          // Convert grades array to selectedCriteria format
+          const loadedCriteria: SelectedCriterion[] = [];
+          if (reviewData.grades && Array.isArray(reviewData.grades)) {
+            reviewData.grades.forEach((grade: number | null, rowIndex: number) => {
+              if (grade !== null && grade !== undefined) {
+                loadedCriteria.push({ row: rowIndex, column: grade });
+              }
+            });
+          }
+          setSelectedCriteria(loadedCriteria);
+          
           console.log("Review data:", reviewData);
+          console.log("Loaded criteria:", loadedCriteria);
         } catch (error) {
           console.error('Error fetching review:', error);
+          setReview([]);
+          setSelectedCriteria([]);
         }
       })();
-  }, [revieweeID, id, stuID]);
+  }, [revieweeID, id]);
 
   const handleCriterionSelect = (row: number, column: number) => {
     // Check if this criterion is already selected
@@ -60,6 +100,12 @@ export default function Assignment() {
       setSelectedCriteria(prev => 
         prev.filter((_, index) => index !== existingIndex)
       );
+      // Also update the review grades array
+      setReview(prev => {
+        const newReview = [...prev];
+        newReview[row] = null as any;
+        return newReview;
+      });
     } else {
       // Add the new criterion, removing any other selection in the same row
       setSelectedCriteria(prev => {
@@ -67,6 +113,12 @@ export default function Assignment() {
         const filteredCriteria = prev.filter(criterion => criterion.row !== row);
         // Add the new selection
         return [...filteredCriteria, { row, column }];
+      });
+      // Also update the review grades array
+      setReview(prev => {
+        const newReview = [...prev];
+        newReview[row] = column;
+        return newReview;
       });
     }
   };
@@ -148,12 +200,23 @@ export default function Assignment() {
                     const reviewResponse = await createReview(Number(id), stuID, revieweeID);
                     const reviewData = await reviewResponse.json();
                     console.log("Review response:", reviewData);
+                    
+                    // Submit each criterion using the criteria description ID
                     for (const criterion of selectedCriteria) {
-                      await createCriterion(reviewData.id, criterion.row, criterion.column, "");
+                      // Get the criteria description ID from the row index
+                      const criteriaDesc = criteriaDescriptions[criterion.row];
+                      if (criteriaDesc && criteriaDesc.id) {
+                        await createCriterion(reviewData.id, criteriaDesc.id, criterion.column, "");
+                      } else {
+                        console.warn(`Could not find criteria description for row ${criterion.row}`);
+                      }
                     }
+                    
                     console.log('Review submitted successfully');
+                    alert('Review submitted successfully!');
                   } catch (error) {
                     console.error('Error submitting review:', error);
+                    alert('Error submitting review. Please try again.');
                   }
                 }}>Submit Review</button>
             </div>

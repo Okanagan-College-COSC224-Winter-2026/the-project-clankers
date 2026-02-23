@@ -307,6 +307,25 @@ export const createCriteria = async (rubricID: number, question: string, scoreMa
   }
 }
 
+export const deleteCriteria = async (criteriaId: number) => {
+  const response = await fetch(`${BASE_URL}/delete_criteria/${criteriaId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+  
+  return await response.json();
+}
+
 export const createRubric = async (id: number, assignmentID: number, canComment: boolean): Promise<{ id: number }> => {
   const response = await fetch(`${BASE_URL}/create_rubric`, {
     method: 'POST',
@@ -328,8 +347,9 @@ export const createRubric = async (id: number, assignmentID: number, canComment:
   return await response.json();
 }
 
-export const getRubric = async (rubricID: number) => {
-  const resp = await fetch(`${BASE_URL}/rubric?rubricID=${rubricID}`, {
+export const getRubric = async (rubricIDOrAssignmentID: number, useAsAssignmentID: boolean = false) => {
+  const queryParam = useAsAssignmentID ? `assignmentID=${rubricIDOrAssignmentID}` : `rubricID=${rubricIDOrAssignmentID}`;
+  const resp = await fetch(`${BASE_URL}/rubric?${queryParam}`, {
       credentials: 'include'
   });
 
