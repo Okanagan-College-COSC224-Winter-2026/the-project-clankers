@@ -39,6 +39,7 @@ interface Criterion {
   question: string;
   scoreMax: number;
   hasScore: boolean;
+  description?: string;
 }
 
 interface Assignment {

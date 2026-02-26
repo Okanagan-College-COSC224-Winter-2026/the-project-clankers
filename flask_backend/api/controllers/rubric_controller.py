@@ -146,6 +146,7 @@ def create_criteria():
         question: The criterion question/description
         scoreMax: Maximum score for this criterion
         hasScore: Whether this criterion has a numeric score (default: True)
+        description: Additional description text for no-score criteria (optional)
         canComment: Whether comments are allowed (deprecated, use rubric.canComment)
     
     Returns the created criteria description
@@ -155,6 +156,7 @@ def create_criteria():
     question = data.get("question")
     score_max = data.get("scoreMax")
     has_score = data.get("hasScore", True)
+    description = data.get("description")
     
     if not all([rubric_id, question, score_max is not None]):
         return jsonify({"msg": "rubricID, question, and scoreMax are required"}), 400
@@ -176,7 +178,8 @@ def create_criteria():
         rubricID=rubric_id,
         question=question,
         scoreMax=score_max,
-        hasScore=has_score
+        hasScore=has_score,
+        description=description
     )
     CriteriaDescription.create_criteria_description(new_criteria)
     

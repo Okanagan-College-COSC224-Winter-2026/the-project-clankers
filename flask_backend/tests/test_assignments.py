@@ -836,7 +836,7 @@ def test_unauthenticated_user_cannot_get_assignment_details(test_client):
 
 
 # ============================================================================
-# INTEGRATION TESTS FOR INSTRUCTOR ASSIGNMENT MANAGEMENT USER STORY
+# US9 & 11 Test Cases: Complete Instructor Workflow & View Peer Review Settings
 # ============================================================================
 
 def test_instructor_full_assignment_management_workflow(test_client, make_admin):

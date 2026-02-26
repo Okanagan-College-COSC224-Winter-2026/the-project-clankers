@@ -15,6 +15,7 @@ class CriteriaDescription(db.Model):
     question = db.Column(db.String(255), nullable=True)
     scoreMax = db.Column(db.Integer, nullable=True)
     hasScore = db.Column(db.Boolean, nullable=False, default=True)
+    description = db.Column(db.Text, nullable=True)  # Additional description for no-score criteria
 
     # relationships
     rubric = db.relationship("Rubric", back_populates="criteria_descriptions")
@@ -22,11 +23,12 @@ class CriteriaDescription(db.Model):
         "Criterion", back_populates="criterion_row", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, rubricID, question, scoreMax, hasScore=True):
+    def __init__(self, rubricID, question, scoreMax, hasScore=True, description=None):
         self.rubricID = rubricID
         self.question = question
         self.scoreMax = scoreMax
         self.hasScore = hasScore
+        self.description = description
 
     def __repr__(self):
         return f"<CriteriaDescription id={self.id} rubric={self.rubricID}>"

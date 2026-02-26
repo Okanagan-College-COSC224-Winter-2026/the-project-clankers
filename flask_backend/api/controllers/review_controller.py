@@ -120,7 +120,7 @@ def create_criterion():
 @bp.route("/review", methods=["GET"])
 @jwt_required()
 def get_review():
-    """Get a review with its criteria grades
+    """Get a review with its criteria grades and comments
     
     Query params:
         assignmentID: ID of the assignment
@@ -129,6 +129,7 @@ def get_review():
     
     Returns:
         - grades: array of grades indexed by criteria row position
+        - comments: array of comments indexed by criteria row position
         - review: full review object with criteria
     """
     assignment_id = request.args.get("assignmentID", type=int)
@@ -147,7 +148,7 @@ def get_review():
 
     if not review:
         # No review exists yet - return empty grades array
-        return jsonify({"grades": [], "review": None}), 200
+        return jsonify({"grades": [], "comments": [], "review": None}), 200
 
     # Verify user has permission to view this review
     email = get_jwt_identity()
@@ -169,7 +170,7 @@ def get_review():
     # Get all criteria for this assignment's rubric
     rubric = assignment.rubrics.first()
     if not rubric:
-        return jsonify({"grades": [], "review": ReviewSchema().dump(review)}), 200
+        return jsonify({"grades": [], "comments": [], "review": ReviewSchema().dump(review)}), 200
 
     # Get criteria descriptions in order
     criteria_descriptions = rubric.criteria_descriptions.order_by(
@@ -177,7 +178,9 @@ def get_review():
     ).all()
 
     # Build grades array: grades[row_index] = grade_value
+    # Build comments array: comments[row_index] = comment_text
     grades = []
+    comments = []
     for criteria_desc in criteria_descriptions:
         # Find the criterion for this criteria description in the review
         criterion = Criterion.query.filter_by(
@@ -189,8 +192,14 @@ def get_review():
             grades.append(criterion.grade)
         else:
             grades.append(None)  # No grade selected for this row
+        
+        if criterion and criterion.comments:
+            comments.append(criterion.comments)
+        else:
+            comments.append("")  # No comment for this row
 
     review_data = ReviewSchema().dump(review)
     review_data["grades"] = grades
+    review_data["comments"] = comments
 
     return jsonify(review_data), 200

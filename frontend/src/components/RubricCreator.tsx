@@ -10,7 +10,7 @@ interface RubricCreatorProps {
 }
 
 export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProps) {
-    const [newCriteria, setNewCriteria] = useState<Criterion[]>([{ rubricID: 0, question: '', scoreMax: 0, hasScore: true }]);
+    const [newCriteria, setNewCriteria] = useState<Criterion[]>([{ rubricID: 0, question: '', scoreMax: 0, hasScore: true, description: '' }]);
     const [canComment, setCanComment] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
     const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -60,8 +60,8 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
             
             // Only create criteria for NEW entries (not existing ones)
             if (newCriteria.length > 0 && newCriteria[0].question !== '') {
-                await Promise.all(newCriteria.map(({ question, scoreMax, hasScore }) => 
-                    createCriteria(targetRubricId, question, scoreMax, canComment, hasScore)
+                await Promise.all(newCriteria.map(({ question, scoreMax, hasScore, description }) => 
+                    createCriteria(targetRubricId, question, scoreMax, canComment, hasScore, description || '')
                 ));
             }
             
@@ -99,7 +99,13 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         setNewCriteria(updatedCriteria);
     };
 
-    const handleAddNewSection = () => setNewCriteria(prev => [...prev, { rubricID: 0, question: '', scoreMax: 0, hasScore: true }]);
+    const handleDescriptionChange = (index: number, value: string) => {
+        const updatedCriteria = [...newCriteria];
+        updatedCriteria[index].description = value;
+        setNewCriteria(updatedCriteria);
+    };
+
+    const handleAddNewSection = () => setNewCriteria(prev => [...prev, { rubricID: 0, question: '', scoreMax: 0, hasScore: true, description: '' }]);
 
     const handleRemoveSection = (index: number) => setNewCriteria(prev => prev.filter((_, i) => i !== index));
 
@@ -203,6 +209,15 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                                     value={item.scoreMax}
                                     onChange={(e) => handleScoreMaxChange(index, Number(e.target.value))}
                                     placeholder="Enter score max"
+                                />
+                            )}
+                            {!item.hasScore && (
+                                <textarea
+                                    value={item.description || ''}
+                                    onChange={(e) => handleDescriptionChange(index, e.target.value)}
+                                    placeholder="Enter description (visible to all students)"
+                                    rows={2}
+                                    style={{ width: '100%', marginTop: '8px' }}
                                 />
                             )}
                             <Button onClick={() => handleRemoveSection(index)}>Remove</Button>
