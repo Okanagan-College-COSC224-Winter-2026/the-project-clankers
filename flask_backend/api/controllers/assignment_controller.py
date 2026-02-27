@@ -77,7 +77,10 @@ def edit_assignment(assignment_id):
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
-    # Teachers can always edit assignments - they may need to extend deadlines
+    # Check if assignment can still be modified (before due date)
+    if not assignment.can_modify():
+        return jsonify({"msg": "Assignment cannot be modified after its due date"}), 400
+
     assignment.name = data.get("name", assignment.name)
     assignment.rubric_text = data.get("rubric", assignment.rubric_text)
     

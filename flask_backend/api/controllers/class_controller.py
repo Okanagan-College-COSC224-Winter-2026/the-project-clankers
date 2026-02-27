@@ -233,7 +233,7 @@ def enroll_students():
         
         # validate email format with regex
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return jsonify({"msg": f"Invalid email format: '{email}'"}), 400
+            return jsonify({"msg": f"Invalid email format: {email}"}), 400
         
         # Check if student_id is already used by another student
         existing_by_id = User.get_by_student_id(student_id)

@@ -78,6 +78,7 @@ class Assignment(db.Model):
         """Check if the assignment can be modified (edited/deleted) at the given time."""
         due = self._ensure_timezone_aware(self.due_date)
         now = self._get_current_utc_time()
+        return (due is None) or (now < due)
     
     def is_visible_to_students(self):
         """Check if the assignment is visible to students based on the start date."""
@@ -86,7 +87,6 @@ class Assignment(db.Model):
             return True  # No start date means it's always visible
         now = self._get_current_utc_time()
         return now >= start
-        return (due is None) or (now < due)
 
     def update(self):
         """Update assignment in the database"""
