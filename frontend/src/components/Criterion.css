@@ -14,6 +14,13 @@
     font-size: inherit;
 }
 
+.criterionDescription {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    max-width: 100%;
+}
+
 .reviewedCell {
     background-color: lightgreen;
 }
