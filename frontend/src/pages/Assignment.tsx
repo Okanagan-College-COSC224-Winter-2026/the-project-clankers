@@ -31,7 +31,7 @@ export default function Assignment() {
   const [stuID, setStuID] = useState<number>(0);
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
   const [review, setReview] = useState<number[]>([]);
-  const [criteriaDescriptions, setCriteriaDescriptions] = useState<any[]>([]);
+  const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
 
   // Determine which tab is active based on URL path
@@ -119,7 +119,7 @@ export default function Assignment() {
       // Also update the review grades array
       setReview(prev => {
         const newReview = [...prev];
-        newReview[row] = null as any;
+        newReview[row] = 0;
         return newReview;
       });
     } else {

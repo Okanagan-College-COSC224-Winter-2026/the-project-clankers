@@ -9,6 +9,7 @@ interface User {
   name: string;
   email: string;
   role: 'student' | 'teacher' | 'admin';
+  student_id?: string;
 }
 
 interface StudentGroups {

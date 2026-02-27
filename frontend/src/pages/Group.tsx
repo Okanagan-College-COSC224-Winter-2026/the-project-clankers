@@ -150,7 +150,7 @@ export default function Group() {
       }
       setMemberTable(memLocal);
     })();
-  }, []);
+  }, [id]);
 
   return (
     <>

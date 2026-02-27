@@ -35,7 +35,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                         setNewCriteria([]); // Clear new criteria if we have existing ones
                     }
                 }
-            } catch (error) {
+            } catch {
                 console.log('No existing rubric found, will create new one');
                 // No rubric exists yet, that's okay, user can create one
             } finally {

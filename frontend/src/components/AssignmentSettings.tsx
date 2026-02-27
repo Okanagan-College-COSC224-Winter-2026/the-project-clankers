@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAssignmentDetails, editAssignment, deleteAssignment } from "../util/api";
 import Button from "./Button";
@@ -36,11 +36,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    loadAssignmentDetails();
-  }, [assignmentId]);
-
-  const loadAssignmentDetails = async () => {
+  const loadAssignmentDetails = useCallback(async () => {
     try {
       const data = await getAssignmentDetails(assignmentId);
       setAssignment(data);
@@ -53,7 +49,11 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setStatusType('error');
       setStatusMessage(error instanceof Error ? error.message : "Failed to load assignment details");
     }
-  };
+  }, [assignmentId]);
+
+  useEffect(() => {
+    loadAssignmentDetails();
+  }, [loadAssignmentDetails]);
 
   const handleEdit = () => {
     setIsEditing(true);
