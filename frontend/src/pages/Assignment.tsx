@@ -14,7 +14,8 @@ import {
   createCriterion,
   getReview,
   getCriteria,
-  getRubric
+  getRubric,
+  getAssignmentDetails
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -31,9 +32,24 @@ export default function Assignment() {
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
   const [review, setReview] = useState<number[]>([]);
   const [criteriaDescriptions, setCriteriaDescriptions] = useState<any[]>([]);
+  const [assignmentName, setAssignmentName] = useState<string>("");
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
+
+  // Fetch assignment details to get the name
+  useEffect(() => {
+    (async () => {
+      try {
+        const assignmentData = await getAssignmentDetails(Number(id));
+        if (assignmentData && assignmentData.name) {
+          setAssignmentName(assignmentData.name);
+        }
+      } catch (error) {
+        console.error('Error fetching assignment details:', error);
+      }
+    })();
+  }, [id]);
 
   // Load criteria descriptions for the rubric
   useEffect(() => {
@@ -132,7 +148,7 @@ export default function Assignment() {
   return (
     <>
       <div className="AssignmentHeader">
-        <h2>Assignment {id}</h2>
+        <h2>{assignmentName || "Loading..."}</h2>
       </div>
 
       <TabNavigation
