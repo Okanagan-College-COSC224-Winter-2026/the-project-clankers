@@ -403,7 +403,7 @@ export const getAssignmentDetails = async (assignmentId: number) => {
   return await response.json();
 }
 
-export const editAssignment = async (assignmentId: number, data: { name?: string, rubric?: string, due_date?: string }) => {
+export const editAssignment = async (assignmentId: number, data: { name?: string, rubric?: string, start_date?: string, due_date?: string }) => {
   const response = await fetch(`${BASE_URL}/assignment/edit_assignment/${assignmentId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

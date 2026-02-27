@@ -47,6 +47,7 @@ interface Assignment {
   name: string;
   courseID: number;
   rubric?: string;
+  start_date?: string;
   due_date?: string;
 }
 

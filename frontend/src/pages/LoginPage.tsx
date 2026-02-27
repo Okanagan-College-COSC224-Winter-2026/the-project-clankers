@@ -30,46 +30,53 @@ export default function LoginPage() {
     }
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    attemptLogin();
+  }
+
   return (
     <div className="LoginPage">
       {error && <StatusMessage message={error} type="error" className="LoginError" />}
       <div className="LoginBlock">  
         <h1>Login</h1>
 
-        <div className="LoginInner">
-          <div className="LoginInputs">
-            <div className="LoginInputChunk">
-              <span>Email</span>
-              <Textbox
-                placeholder='Email...'
-                onInput={setEmail}
-                className='LoginInput'
-              />
+        <form onSubmit={handleSubmit}>
+          <div className="LoginInner">
+            <div className="LoginInputs">
+              <div className="LoginInputChunk">
+                <span>Email</span>
+                <Textbox
+                  placeholder='Email...'
+                  onInput={setEmail}
+                  className='LoginInput'
+                />
+              </div>
+
+              <div className="LoginInputChunk">
+                <span>Password</span>
+                <Textbox
+                  type='password'
+                  placeholder='Password...'
+                  onInput={setPassword}
+                  className='LoginInput'
+                />
+              </div>
             </div>
 
-            <div className="LoginInputChunk">
-              <span>Password</span>
-              <Textbox
-                type='password'
-                placeholder='Password...'
-                onInput={setPassword}
-                className='LoginInput'
-              />
-            </div>
           </div>
-
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button
-            onClick={()=> attemptLogin()}
-            children="Login"
-          />
-          <Button
-            onClick={() => navigate('/register')}
-            type='secondary'
-            children="Register"
-          />
-        </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              type='submit'
+              children="Login"
+            />
+            <Button
+              onClick={() => navigate('/register')}
+              type='secondary'
+              children="Register"
+            />
+          </div>
+        </form>
       </div>
     </div>
   );

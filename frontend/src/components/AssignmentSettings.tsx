@@ -13,6 +13,7 @@ interface AssignmentDetails {
   id: number;
   name: string;
   rubric_text: string;
+  start_date: string | null;
   due_date: string | null;
   courseID: number;
   rubrics: Array<{
@@ -29,6 +30,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [editedRubric, setEditedRubric] = useState("");
+  const [editedStartDate, setEditedStartDate] = useState("");
   const [editedDueDate, setEditedDueDate] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -44,6 +46,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setAssignment(data);
       setEditedName(data.name || "");
       setEditedRubric(data.rubric_text || "");
+      setEditedStartDate(data.start_date ? data.start_date.split('T')[0] : "");
       setEditedDueDate(data.due_date ? data.due_date.split('T')[0] : "");
     } catch (error) {
       console.error("Error loading assignment details:", error);
@@ -68,10 +71,14 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     setStatusMessage("");
 
     try {
-      const updateData: { name?: string, rubric?: string, due_date?: string } = {
+      const updateData: { name?: string, rubric?: string, start_date?: string, due_date?: string } = {
         name: editedName,
         rubric: editedRubric,
       };
+
+      if (editedStartDate) {
+        updateData.start_date = new Date(editedStartDate).toISOString();
+      }
 
       if (editedDueDate) {
         // Convert to ISO format for backend
@@ -98,6 +105,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     if (assignment) {
       setEditedName(assignment.name || "");
       setEditedRubric(assignment.rubric_text || "");
+      setEditedStartDate(assignment.start_date ? assignment.start_date.split('T')[0] : "");
       setEditedDueDate(assignment.due_date ? assignment.due_date.split('T')[0] : "");
     }
   };
@@ -163,6 +171,16 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
             </div>
 
             <div className="form-group">
+              <label>Start Date:</label>
+              <input
+                type="date"
+                value={editedStartDate}
+                onChange={(e) => setEditedStartDate(e.target.value)}
+                className="date-input"
+              />
+            </div>
+
+            <div className="form-group">
               <label>Due Date:</label>
               <input
                 type="date"
@@ -191,6 +209,15 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
             <div className="detail-row">
               <span className="detail-label">Rubric:</span>
               <span className="detail-value">{assignment.rubric_text || "No rubric description"}</span>
+            </div>
+
+            <div className="detail-row">
+              <span className="detail-label">Start Date:</span>
+              <span className="detail-value">
+                {assignment.start_date 
+                  ? new Date(assignment.start_date).toLocaleDateString() 
+                  : "No start date set"}
+              </span>
             </div>
 
             <div className="detail-row">

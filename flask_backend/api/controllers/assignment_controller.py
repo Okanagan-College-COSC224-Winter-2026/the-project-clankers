@@ -15,6 +15,13 @@ def create_assignment():
     course_id = data.get("courseID")
     assignment_name = data.get("name")
     rubric_text = data.get("rubric")
+    
+    start_date = data.get("start_date")
+    if not start_date:
+        start_date = None
+    else:
+        start_date = datetime.fromisoformat(start_date)
+    
     due_date = data.get("due_date")
     if not due_date:
         due_date = None
@@ -37,7 +44,7 @@ def create_assignment():
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
-    new_assignment = Assignment(courseID=course_id, name=assignment_name, rubric_text=rubric_text, due_date=due_date)
+    new_assignment = Assignment(courseID=course_id, name=assignment_name, rubric_text=rubric_text, start_date=start_date, due_date=due_date)
     Assignment.create(new_assignment)
     return (
         jsonify(
@@ -52,7 +59,7 @@ def create_assignment():
 @bp.route("/edit_assignment/<int:assignment_id>", methods=["PATCH"])
 @jwt_teacher_required
 def edit_assignment(assignment_id):
-    """Edit an existing assignment if the authenticated user is the teacher of the class and the due date has not passed"""
+    """Edit an existing assignment if the authenticated user is the teacher of the class"""
     data = request.get_json()
     assignment = Assignment.get_by_id(assignment_id)
     if not assignment:
@@ -70,11 +77,14 @@ def edit_assignment(assignment_id):
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
-    if not assignment.can_modify():
-        return jsonify({"msg": "Assignment cannot be modified after its due date"}), 400
-
+    # Teachers can always edit assignments - they may need to extend deadlines
     assignment.name = data.get("name", assignment.name)
     assignment.rubric_text = data.get("rubric", assignment.rubric_text)
+    
+    start_date = data.get("start_date")
+    if start_date:
+        assignment.start_date = datetime.fromisoformat(start_date)
+    
     due_date = data.get("due_date")
     if due_date:
         assignment.due_date = datetime.fromisoformat(due_date)
@@ -125,7 +135,18 @@ def get_assignments(class_id):
     if not course:
         return jsonify({"msg": "Class not found"}), 404
 
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+    
+    is_teacher = course.teacherID == user.id
     assignments = Assignment.get_by_class_id(class_id)
+    
+    # Filter out assignments that haven't started yet for students
+    if not is_teacher:
+        assignments = [a for a in assignments if a.is_visible_to_students()]
+    
     assignments_data = AssignmentSchema(many=True).dump(assignments)
     return jsonify(assignments_data), 200
 
@@ -153,6 +174,10 @@ def get_assignment_details(assignment_id):
     
     if not (is_teacher or is_enrolled):
         return jsonify({"msg": "Unauthorized: You do not have access to this assignment"}), 403
+    
+    # Check if assignment has started (for students only)
+    if not is_teacher and not assignment.is_visible_to_students():
+        return jsonify({"msg": "This assignment is not available yet"}), 403
 
     # Serialize assignment with course data
     assignment_data = AssignmentSchema().dump(assignment)
