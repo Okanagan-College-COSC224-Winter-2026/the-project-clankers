@@ -520,3 +520,17 @@ export const changePassword = async (currentPassword: string, newPassword: strin
 
   return await response.json();
 }
+export const deleteClass = async (classId: number) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}`, {
+    method: 'DELETE',
+    credentials: 'include' // This sends your JWT cookie
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.msg || "Failed to delete class");
+  }
+  return response.json();
+};
