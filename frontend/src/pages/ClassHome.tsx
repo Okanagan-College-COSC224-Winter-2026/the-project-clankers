@@ -154,7 +154,7 @@ export default function ClassHome() {
             {assignments.map((assignment) => {
               return (
                 <li key={assignment.id}>
-                  <AssignmentCard id={assignment.id}>
+                  <AssignmentCard id={assignment.id} dueDate={assignment.due_date}>
                     {assignment.name}
                   </AssignmentCard>
                 </li>

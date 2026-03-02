@@ -6,6 +6,7 @@ interface props {
     scoreMaxes: Array<number>;
     canComment: boolean;
     hasScores: Array<boolean>;
+    descriptions?: Array<string>;
     onCriterionSelect: (row: number, column: number) => void;
     grades: number[];
 }
@@ -20,6 +21,7 @@ export default function Criteria(props: props) {
                         question={question} 
                         scoreMax={props.scoreMaxes[i]} 
                         hasScore={props.hasScores[i]}
+                        description={props.descriptions?.[i]}
                         onCriterionSelect={props.onCriterionSelect}
                         questionIndex={i}
                         grade={props.grades[i]}

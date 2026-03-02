@@ -10,6 +10,7 @@ import {
   listUnassignedGroups,
   saveGroups,
   deleteGroup,
+  getAssignmentDetails,
 } from "../util/api";
 import { useParams } from "react-router-dom";
 import "./Group.css";
@@ -43,6 +44,7 @@ export default function Group() {
   const [groupName, setGroupName] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
+  const [assignmentName, setAssignmentName] = useState<string>("");
 
   const nameFromId = (id: number) => {
     return classMembers.find((mem) => mem.id === id)?.name || 'N/A';
@@ -101,6 +103,16 @@ export default function Group() {
 
   useEffect(() => {
     (async () => {
+      // Fetch assignment name
+      try {
+        const assignmentData = await getAssignmentDetails(Number(id));
+        if (assignmentData && assignmentData.name) {
+          setAssignmentName(assignmentData.name);
+        }
+      } catch (error) {
+        console.error('Error fetching assignment details:', error);
+      }
+
       const classMembers = await listCourseMembers(String(id));
       setclassMembers(classMembers);
       const groups = await listGroups(Number(id));
@@ -138,25 +150,42 @@ export default function Group() {
       }
       setMemberTable(memLocal);
     })();
-  }, []);
+  }, [id]);
 
   return (
     <>
       <div className="AssignmentHeader">
-        <h2>Assignment {id}</h2>
+        <h2>{assignmentName || "Loading..."}</h2>
       </div>
 
       <TabNavigation
-        tabs={[
-          {
-            label: "Home",
-            path: `/assignment/${id}`,
-          },
-          {
-            label: "Group",
-            path: `/assignment/${id}/group`,
-          }
-        ]}
+        tabs={
+          isTeacher() 
+            ? [
+                {
+                  label: "Home",
+                  path: `/assignments/${id}`,
+                },
+                {
+                  label: "Group",
+                  path: `/assignments/${id}/group`,
+                },
+                {
+                  label: "Manage",
+                  path: `/assignments/${id}/manage`,
+                }
+              ]
+            : [
+                {
+                  label: "Home",
+                  path: `/assignments/${id}`,
+                },
+                {
+                  label: "Group",
+                  path: `/assignments/${id}/group`,
+                }
+              ]
+        }
       />
 
       <StatusMessage message={statusMessage} type={statusType} />

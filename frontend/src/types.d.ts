@@ -9,6 +9,7 @@ interface User {
   name: string;
   email: string;
   role: 'student' | 'teacher' | 'admin';
+  student_id?: string;
 }
 
 interface StudentGroups {
@@ -34,10 +35,12 @@ interface GroupTableValue{
 }
 
 interface Criterion {
+  id?: number;
   rubricID: number;
   question: string;
   scoreMax: number;
   hasScore: boolean;
+  description?: string;
 }
 
 interface Assignment {
@@ -45,6 +48,7 @@ interface Assignment {
   name: string;
   courseID: number;
   rubric?: string;
+  start_date?: string;
   due_date?: string;
 }
 

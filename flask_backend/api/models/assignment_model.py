@@ -16,6 +16,8 @@ class Assignment(db.Model):
     name = db.Column(db.String(255), nullable=True)
     rubric_text = db.Column("rubric", db.String(255), nullable=True)
 
+    # NEW: start date field (assignment not visible to students before this date)
+    start_date = db.Column(db.DateTime, nullable=True, index=True)
     # NEW: due date field (acceptance criteria: edit/delete allowed before due date)
     due_date = db.Column(db.DateTime, nullable=True, index=True)
 
@@ -37,10 +39,11 @@ class Assignment(db.Model):
         "Group_Members", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, courseID, name, rubric_text, due_date=None):
+    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None):
         self.courseID = courseID
         self.name = name
         self.rubric_text = rubric_text
+        self.start_date = start_date
         self.due_date = due_date
 
     def __repr__(self):
@@ -76,6 +79,14 @@ class Assignment(db.Model):
         due = self._ensure_timezone_aware(self.due_date)
         now = self._get_current_utc_time()
         return (due is None) or (now < due)
+    
+    def is_visible_to_students(self):
+        """Check if the assignment is visible to students based on the start date."""
+        start = self._ensure_timezone_aware(self.start_date)
+        if start is None:
+            return True  # No start date means it's always visible
+        now = self._get_current_utc_time()
+        return now >= start
 
     def update(self):
         """Update assignment in the database"""

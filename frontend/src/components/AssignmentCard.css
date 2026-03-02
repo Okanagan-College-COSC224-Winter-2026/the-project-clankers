@@ -3,6 +3,7 @@
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
+  gap: 12px;
   color: var(--text-primary);
 
   padding: 4px;
@@ -20,6 +21,27 @@
 .A_Card img {
   width: 40px;
   height: 40px;
+  flex-shrink: 0;
+}
+
+.assignment-name {
+  flex: 1;
+}
+
+.due-date-badge {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+}
+
+.due-date-badge.overdue {
+  background-color: #dc3545;
+  color: white;
 }
 
 /*TODO: add disabled functionality */

@@ -6,6 +6,7 @@ interface props {
     question: string;
     scoreMax: number;
     hasScore: boolean;
+    description?: string;
     onCriterionSelect: (row: number, column: number) => void;
     questionIndex: number;
     grade: number;
@@ -48,7 +49,7 @@ export default function Criterion(props: props) {
                 })
             ) : (
                 <td className='criterionData'>
-                    <textarea className='comment' placeholder='Comment here'/>
+                    <div className='criterionDescription'>{props.description || ''}</div>
                 </td>
             )}
         </tr>

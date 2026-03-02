@@ -22,6 +22,7 @@ export default function RubricDisplay({ rubricId, onCriterionSelect, grades }: R
     const questions: string[] = [];
     const scoreMaxes: number[] = [];
     const hasScores: boolean[] = [];
+    const descriptions: string[] = [];
 
     useEffect(() => {
         const loadData = async () => {
@@ -41,6 +42,7 @@ export default function RubricDisplay({ rubricId, onCriterionSelect, grades }: R
         questions.push(crit.question);
         scoreMaxes.push(crit.scoreMax);
         hasScores.push(crit.hasScore);
+        descriptions.push(crit.description || '');
     });
 
     if (!rubricId || criteria.length === 0) {
@@ -59,6 +61,7 @@ export default function RubricDisplay({ rubricId, onCriterionSelect, grades }: R
                 scoreMaxes={scoreMaxes}
                 canComment={rubricInfo?.canComment ?? false}
                 hasScores={hasScores}
+                descriptions={descriptions}
                 onCriterionSelect={onCriterionSelect}
                 grades={grades}
             />

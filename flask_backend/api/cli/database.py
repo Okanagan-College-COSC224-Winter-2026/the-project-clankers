@@ -166,6 +166,29 @@ def add_sample_courses_command():
     click.echo("Sample courses and assignments created successfully")
 
 
+@click.command("migrate_add_start_date")
+@with_appcontext
+def migrate_add_start_date_command():
+    """Add start_date column to Assignment table (migration for existing databases)"""
+    from sqlalchemy import inspect, text
+    
+    inspector = inspect(db.engine)
+    columns = [col['name'] for col in inspector.get_columns('Assignment')]
+    
+    if 'start_date' in columns:
+        click.echo("Column 'start_date' already exists in Assignment table")
+        return
+    
+    try:
+        # Add the start_date column - using raw SQL for SQLite compatibility
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE Assignment ADD COLUMN start_date DATETIME"))
+            conn.commit()
+        click.echo("Successfully added 'start_date' column to Assignment table")
+    except Exception as e:
+        click.echo(f"Error adding start_date column: {e}", err=True)
+
+
 def init_app(app):
     """Register CLI commands with the Flask app"""
     app.cli.add_command(init_db_command)
@@ -174,3 +197,4 @@ def init_app(app):
     app.cli.add_command(create_admin_command)
     app.cli.add_command(ensure_admin_command)
     app.cli.add_command(add_sample_courses_command)
+    app.cli.add_command(migrate_add_start_date_command)
