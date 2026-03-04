@@ -52,11 +52,7 @@ class User(db.Model):
         "Group_Members", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-<<<<<<< Updated upstream
-    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None):
-=======
-    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, profile_picture_url=None):
->>>>>>> Stashed changes
+    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None, profile_picture_url=None):
         valid_roles = ["student", "teacher", "admin"]
         if role not in valid_roles:
             raise ValueError(f"Invalid role '{role}'. Must be one of: {', '.join(valid_roles)}")
@@ -65,11 +61,8 @@ class User(db.Model):
         self.hash_pass = hash_pass
         self.role = role
         self.must_change_password = must_change_password
-<<<<<<< Updated upstream
         self.student_id = student_id
-=======
         self.profile_picture_url = profile_picture_url
->>>>>>> Stashed changes
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"
