@@ -58,6 +58,10 @@ def create_app(test_config=None):
         ),  # Strict in production for maximum security
         JWT_ACCESS_COOKIE_PATH="/",
         JWT_COOKIE_DOMAIN=os.environ.get("JWT_COOKIE_DOMAIN", None),
+        # File upload configuration
+        MAX_CONTENT_LENGTH=5 * 1024 * 1024,  # 5MB max file size
+        UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "profile_pictures"),
+        ALLOWED_EXTENSIONS={"png", "jpg", "jpeg", "gif", "webp"},
     )
 
     if test_config is None:
@@ -70,6 +74,12 @@ def create_app(test_config=None):
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
+    except OSError:
+        pass
+
+    # ensure the upload folder exists
+    try:
+        os.makedirs(app.config["UPLOAD_FOLDER"])
     except OSError:
         pass
 
@@ -99,6 +109,19 @@ def create_app(test_config=None):
     @app.route("/hello")
     def hello():
         return {"message": "Hello, World!"}
+
+    # Error handlers to ensure JSON responses
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        return jsonify({"msg": "File too large. Maximum size is 5MB."}), 413
+
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        return jsonify({"msg": "Internal server error"}), 500
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({"msg": "Resource not found"}), 404
 
     # Initialize CLI commands
     init_app(app)

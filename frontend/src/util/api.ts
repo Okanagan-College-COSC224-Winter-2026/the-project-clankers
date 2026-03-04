@@ -2,9 +2,110 @@ import { didExpire, removeToken } from "./login";
 
 const BASE_URL = 'http://localhost:5000'
 
-// export const getProfile = async (id: string) => {
-//   // TODO
-// }
+export const getCurrentUserProfile = async () => {
+  const response = await fetch(`${BASE_URL}/user/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export const getEnrolledCourses = async () => {
+  const response = await fetch(`${BASE_URL}/class/classes`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export const updateUserProfile = async (data: { name?: string; profile_picture_url?: string }) => {
+  const response = await fetch(`${BASE_URL}/user/`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export const uploadProfilePicture = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch(`${BASE_URL}/user/profile-picture`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+
+    maybeHandleExpire(response);
+
+    if (!response.ok) {
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.msg || `Response status: ${response.status}`);
+      } else {
+        // For non-JSON errors (like HTML error pages)
+        const text = await response.text();
+        console.error('Non-JSON error response:', text);
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+      }
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Upload error:', error);
+    throw error;
+  }
+}
+
+export const getProfilePictureUrl = (filename: string | null | undefined) => {
+  if (!filename) {
+    return 'https://placehold.co/200x200';
+  }
+  
+  // If it's already a full URL, return it
+  if (filename.startsWith('http://') || filename.startsWith('https://')) {
+    return filename;
+  }
+  
+  // Otherwise, construct the URL to our backend
+  return `${BASE_URL}/user/profile-picture/${filename}`;
+}
+
+
 
 
 export const maybeHandleExpire = (response: Response) => {
