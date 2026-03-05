@@ -3,31 +3,325 @@
   flex-direction: row;
   justify-content: flex-start;
   align-items: flex-start;
-  padding: 4rem;
+  padding: 2rem 4rem;
+  gap: 3rem;
 }
 
-.Profile .profile-image {
+.profile-image-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-image {
   width: 200px;
   height: 200px;
   border-radius: 50%;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
-.Profile .profile-image img {
+.profile-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.Profile .profile-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  margin-left: 1rem;
+.change-picture-btn {
+  padding: 0.5rem 1rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.Profile .profile-info h1 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+.change-picture-btn:hover {
+  background-color: #1565c0;
+}
+
+.edit-picture-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 200px;
+}
+
+.picture-url-input,
+.picture-file-input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  width: 100%;
+}
+
+.picture-file-input {
+  padding: 0.375rem 0.5rem;
+  cursor: pointer;
+}
+
+.picture-url-input:focus,
+.picture-file-input:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.picture-url-input:disabled,
+.picture-file-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.selected-file-name {
+  font-size: 0.75rem;
+  color: #666;
+  margin: -0.25rem 0 0 0;
+  word-break: break-all;
+}
+
+.edit-picture-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-picture-btn,
+.cancel-picture-btn {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-picture-btn {
+  background-color: #4caf50;
+  color: white;
+}
+
+.save-picture-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.save-picture-btn:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
+}
+
+.cancel-picture-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.cancel-picture-btn:hover:not(:disabled) {
+  background-color: #da190b;
+}
+
+.cancel-picture-btn:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
+}
+
+.update-error {
+  color: #f44336;
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 2rem;
+  flex: 1;
+  min-width: 300px;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.profile-section h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #666;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-section span {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.375rem 0.875rem;
+  border-radius: 0.25rem;
+  background-color: #e3f2fd;
+  color: #1976d2;
+  font-weight: 600;
+  font-size: 0.875rem !important;
+}
+
+.profile-corrections {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  background-color: #f5f5f5;
+  border-left: 4px solid #ffc107;
+  width: 100%;
+}
+
+.profile-corrections h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.75rem 0;
+}
+
+.profile-corrections p {
+  font-size: 0.9375rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.profile-enrolled-courses {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+  min-width: 300px;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+}
+
+.profile-enrolled-courses h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.5rem 0;
+}
+
+.courses-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.course-item {
+  padding: 0.875rem;
+  background-color: #fff;
+  border-radius: 0.25rem;
+  border-left: 4px solid #1976d2;
+  transition: all 0.2s ease;
+}
+
+.course-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateX(2px);
+}
+
+.course-name {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #333;
+  display: block;
+}
+
+.no-courses-message {
+  font-size: 0.9375rem;
+  color: #999;
+  font-style: italic;
+  margin: 0;
+}
+
+.profile-loading,
+.profile-error {
+  font-size: 1.125rem;
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
+}
+
+.profile-error {
+  color: #d32f2f;
+}
+
+.profile-loading {
+  color: #666;
+}
+
+@media (max-width: 1024px) {
+  .Profile {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .profile-info,
+  .profile-enrolled-courses {
+    width: 100%;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 768px) {
+  .Profile {
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .profile-image {
+    width: 150px;
+    height: 150px;
+  }
+
+  .profile-info,
+  .profile-enrolled-courses {
+    width: 100%;
+    min-width: unset;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-section {
+    width: 100%;
+    align-items: center;
+  }
+
+  .profile-corrections {
+    width: 100%;
+  }
+
+  .courses-list {
+    width: 100%;
+  }
+
+  .course-item {
+    text-align: center;
+  }
 }

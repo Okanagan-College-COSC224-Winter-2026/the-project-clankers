@@ -2,10 +2,13 @@
 User management endpoints
 """
 
-from flask import Blueprint, jsonify, request
+import os
+import uuid
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from marshmallow import Schema, ValidationError, fields, validate
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 from ..models import User, UserSchema
 
@@ -19,6 +22,7 @@ class UserUpdateSchema(Schema):
     """Schema for updating user information"""
 
     name = fields.Str(validate=validate.Length(min=1, max=255))
+    profile_picture_url = fields.Str(allow_none=True, validate=validate.Length(max=500))
 
 
 user_update_schema = UserUpdateSchema()
@@ -79,6 +83,9 @@ def update_current_user():
     # Update allowed fields
     if "name" in data:
         user.name = data["name"]
+    
+    if "profile_picture_url" in data:
+        user.profile_picture_url = data["profile_picture_url"]
 
     user.update()
 
@@ -145,3 +152,69 @@ def change_password():
     user.update()
 
     return jsonify({"msg": "Password updated successfully"}), 200
+
+
+def allowed_file(filename):
+    """Check if file has an allowed extension"""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in current_app.config["ALLOWED_EXTENSIONS"]
+
+
+@bp.route("/profile-picture", methods=["POST"])
+@jwt_required()
+def upload_profile_picture():
+    """Upload a profile picture for the current user"""
+    # Check if file is in request
+    if "file" not in request.files:
+        return jsonify({"msg": "No file provided"}), 400
+
+    file = request.files["file"]
+
+    # Check if file was selected
+    if file.filename == "":
+        return jsonify({"msg": "No file selected"}), 400
+
+    # Validate file type
+    if not allowed_file(file.filename):
+        return jsonify({
+            "msg": "Invalid file type. Allowed types: png, jpg, jpeg, gif, webp"
+        }), 400
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Generate unique filename to avoid collisions
+    ext = file.filename.rsplit(".", 1)[1].lower()
+    filename = f"{user.id}_{uuid.uuid4().hex}.{ext}"
+    
+    # Delete old profile picture if it exists and is not a URL
+    if user.profile_picture_url and not user.profile_picture_url.startswith("http"):
+        old_file_path = os.path.join(current_app.config["UPLOAD_FOLDER"], user.profile_picture_url)
+        if os.path.exists(old_file_path):
+            try:
+                os.remove(old_file_path)
+            except OSError:
+                pass  # Ignore errors when deleting old file
+
+    # Save new file
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+
+    # Update user's profile picture URL to the filename
+    user.profile_picture_url = filename
+    user.update()
+
+    return jsonify({
+        "msg": "Profile picture uploaded successfully",
+        "profile_picture_url": filename
+    }), 200
+
+
+@bp.route("/profile-picture/<filename>", methods=["GET"])
+def serve_profile_picture(filename):
+    """Serve a profile picture file"""
+    # Secure the filename to prevent directory traversal attacks
+    safe_filename = secure_filename(filename)
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], safe_filename)

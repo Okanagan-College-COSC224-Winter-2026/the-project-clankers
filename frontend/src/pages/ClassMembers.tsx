@@ -3,7 +3,7 @@ import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback } from "react";
 import Button from "../components/Button";
 import { importCSV } from "../util/csv";
-import { listCourseMembers, listClasses } from "../util/api";
+import { listCourseMembers, listClasses, getProfilePictureUrl } from "../util/api";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
 
@@ -145,13 +145,23 @@ export default function ClassMembers() {
 
             return (
               <div key={member.id} className="Member">
-                <strong>{member.name}</strong>
-                {getRoleBadge(member.role)}
-                {member.student_id && <span> (ID: {member.student_id})</span>}
-                <br />
-                {member.email && (
-                  <span style={{ color: '#6b7280', fontSize: '14px' }}>{member.email}</span>
-                )}
+                <div className="MemberContent">
+                  <img 
+                    src={getProfilePictureUrl(member.profile_picture_url)} 
+                    alt={`${member.name}'s profile`}
+                    className="MemberProfilePicture"
+                  />
+                  <div className="MemberInfo">
+                    <div className="MemberNameRow">
+                      <strong>{member.name}</strong>
+                      {getRoleBadge(member.role)}
+                      <span> (ID: {member.student_id || 'NULL'})</span>
+                    </div>
+                    {member.email && (
+                      <span style={{ color: '#6b7280', fontSize: '14px' }}>{member.email}</span>
+                    )}
+                  </div>
+                </div>
               </div>
             )
           })

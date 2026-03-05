@@ -10,6 +10,7 @@ interface User {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   student_id?: string;
+  profile_picture_url?: string | null;
 }
 
 interface StudentGroups {

@@ -30,12 +30,14 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
 
     # Explicit fields for clarity and validation
     id = fields.Int(dump_only=True)
+    student_id = fields.Str(allow_none=True, validate=validate.Length(max=50))
     name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     email = fields.Email(required=True)
     role = fields.Str(
         dump_default="student", validate=validate.OneOf(["student", "teacher", "admin"])
     )
     must_change_password = fields.Bool(dump_default=False)
+    profile_picture_url = fields.Str(allow_none=True, validate=validate.Length(max=500))
 
 
 class UserRegistrationSchema(ma.Schema):

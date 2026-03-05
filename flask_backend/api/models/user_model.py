@@ -19,6 +19,7 @@ class User(db.Model):
     hash_pass = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), default="student", nullable=False)
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+    profile_picture_url = db.Column(db.String(500), nullable=True)
 
     __table_args__ = (
         CheckConstraint("role IN ('student', 'teacher', 'admin')", name="check_valid_role"),
@@ -51,7 +52,7 @@ class User(db.Model):
         "Group_Members", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None):
+    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None, profile_picture_url=None):
         valid_roles = ["student", "teacher", "admin"]
         if role not in valid_roles:
             raise ValueError(f"Invalid role '{role}'. Must be one of: {', '.join(valid_roles)}")
@@ -61,6 +62,7 @@ class User(db.Model):
         self.role = role
         self.must_change_password = must_change_password
         self.student_id = student_id
+        self.profile_picture_url = profile_picture_url
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"
