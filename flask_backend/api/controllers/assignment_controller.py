@@ -252,9 +252,10 @@ def upload_assignment_file(assignment_id):
     file.save(filepath)
 
     # Create new AssignmentFile record
+    # Store original filename for display (unique_filename ensures filesystem safety)
     new_file = AssignmentFile(
         assignment_id=assignment_id,
-        filename=secure_filename(file.filename),
+        filename=file.filename,  # Keep original filename with spaces
         file_path=unique_filename,
         uploaded_by=user.id
     )
