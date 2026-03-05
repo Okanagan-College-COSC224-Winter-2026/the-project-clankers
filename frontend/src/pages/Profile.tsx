@@ -4,6 +4,7 @@ import { getCurrentUserProfile, getEnrolledCourses, uploadProfilePicture, getPro
 
 interface UserProfile {
   id: number
+  student_id?: string | null
   name: string
   email: string
   role: string
@@ -190,7 +191,7 @@ export default function Profile() {
 
         <div className="profile-section">
           <h2>Student ID</h2>
-          <span>{profile.id}</span>
+          <span>{profile.student_id || 'N/A'}</span>
         </div>
 
         <div className="profile-section">

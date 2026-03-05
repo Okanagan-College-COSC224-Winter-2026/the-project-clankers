@@ -30,6 +30,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
 
     # Explicit fields for clarity and validation
     id = fields.Int(dump_only=True)
+    student_id = fields.Str(allow_none=True, validate=validate.Length(max=50))
     name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     email = fields.Email(required=True)
     role = fields.Str(
