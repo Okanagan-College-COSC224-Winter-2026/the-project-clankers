@@ -5,6 +5,8 @@ import RubricCreator from "../components/RubricCreator";
 import RubricDisplay from "../components/RubricDisplay";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
+import AssignmentFileUpload from "../components/AssignmentFileUpload";
+import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import { isTeacher } from "../util/login";
 
 import { 
@@ -33,22 +35,30 @@ export default function Assignment() {
   const [review, setReview] = useState<number[]>([]);
   const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
+  const [attachmentFilename, setAttachmentFilename] = useState<string | null>(null);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
 
-  // Fetch assignment details to get the name
-  useEffect(() => {
-    (async () => {
-      try {
-        const assignmentData = await getAssignmentDetails(Number(id));
-        if (assignmentData && assignmentData.name) {
-          setAssignmentName(assignmentData.name);
-        }
-      } catch (error) {
-        console.error('Error fetching assignment details:', error);
+  // Fetch assignment details to get the name and attachment
+  const fetchAssignmentDetails = async () => {
+    try {
+      const assignmentData = await getAssignmentDetails(Number(id));
+      if (assignmentData && assignmentData.name) {
+        setAssignmentName(assignmentData.name);
       }
-    })();
+      if (assignmentData && assignmentData.attachment_filename) {
+        setAttachmentFilename(assignmentData.attachment_filename);
+      } else {
+        setAttachmentFilename(null);
+      }
+    } catch (error) {
+      console.error('Error fetching assignment details:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignmentDetails();
   }, [id]);
 
   // Load criteria descriptions for the rubric
@@ -185,6 +195,20 @@ export default function Assignment() {
         <AssignmentSettings assignmentId={Number(id)} />
       ) : (
         <>
+          {/* File upload/display section */}
+          {isTeacher() ? (
+            <AssignmentFileUpload 
+              assignmentId={Number(id)} 
+              currentFile={attachmentFilename}
+              onUploadSuccess={fetchAssignmentDetails}
+            />
+          ) : (
+            <AssignmentFileDisplay 
+              assignmentId={Number(id)} 
+              filename={attachmentFilename}
+            />
+          )}
+
           <div className='assignmentRubricDisplay'>
             <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
           </div>

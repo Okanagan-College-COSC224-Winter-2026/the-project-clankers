@@ -703,3 +703,62 @@ export const changePassword = async (currentPassword: string, newPassword: strin
 
   return await response.json();
 }
+
+// Assignment File Upload
+export const uploadAssignmentFile = async (assignmentId: number, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${BASE_URL}/assignment/upload_file/${assignmentId}`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
+// Assignment File Download
+export const downloadAssignmentFile = async (assignmentId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/download_file/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  // Return the blob for download
+  return response.blob();
+};
+
+// Assignment File Delete
+export const deleteAssignmentFile = async (assignmentId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/delete_file/${assignmentId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+};

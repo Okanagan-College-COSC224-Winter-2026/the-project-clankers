@@ -61,7 +61,9 @@ def create_app(test_config=None):
         # File upload configuration
         MAX_CONTENT_LENGTH=5 * 1024 * 1024,  # 5MB max file size
         UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "profile_pictures"),
+        ASSIGNMENT_UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "assignments"),
         ALLOWED_EXTENSIONS={"png", "jpg", "jpeg", "gif", "webp"},
+        ALLOWED_DOCUMENT_EXTENSIONS={"pdf", "docx", "txt"},
     )
 
     if test_config is None:
@@ -80,6 +82,12 @@ def create_app(test_config=None):
     # ensure the upload folder exists
     try:
         os.makedirs(app.config["UPLOAD_FOLDER"])
+    except OSError:
+        pass
+
+    # ensure the assignment upload folder exists
+    try:
+        os.makedirs(app.config["ASSIGNMENT_UPLOAD_FOLDER"])
     except OSError:
         pass
 
