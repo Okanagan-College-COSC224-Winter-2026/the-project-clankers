@@ -99,6 +99,7 @@ def get_class_members():
             "id": teacher.id,
             "name": teacher.name,
             "role": teacher.role,
+            "profile_picture_url": teacher.profile_picture_url,
         }
         if show_sensitive_info:
             member_data["email"] = teacher.email
@@ -116,6 +117,7 @@ def get_class_members():
                 "id": user.id,
                 "name": user.name,
                 "role": user.role,
+                "profile_picture_url": user.profile_picture_url,
             }
             if show_sensitive_info:
                 member_data["email"] = user.email

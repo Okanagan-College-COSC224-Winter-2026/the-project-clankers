@@ -191,7 +191,7 @@ export default function Profile() {
 
         <div className="profile-section">
           <h2>Student ID</h2>
-          <span>{profile.student_id || 'N/A'}</span>
+          <span>{profile.student_id || 'NULL'}</span>
         </div>
 
         <div className="profile-section">
