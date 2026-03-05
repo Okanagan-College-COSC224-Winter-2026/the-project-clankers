@@ -1,31 +1,55 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./AssignmentFileDisplay.css";
-import { downloadAssignmentFile } from "../util/api";
+import { getAssignmentFiles, downloadAssignmentFile } from "../util/api";
+
+interface AssignmentFile {
+  id: number;
+  filename: string;
+  uploaded_at: string;
+  uploaded_by: number;
+}
 
 interface AssignmentFileDisplayProps {
   assignmentId: number;
-  filename: string | null;
 }
 
 export default function AssignmentFileDisplay({ 
-  assignmentId, 
-  filename 
+  assignmentId
 }: AssignmentFileDisplayProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [files, setFiles] = useState<AssignmentFile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<number | null>(null);
 
-  const handleDownload = async () => {
-    setIsDownloading(true);
+  useEffect(() => {
+    loadFiles();
+  }, [assignmentId]);
+
+  const loadFiles = async () => {
+    setIsLoading(true);
+    try {
+      const filesData = await getAssignmentFiles(assignmentId);
+      setFiles(filesData);
+    } catch (err) {
+      console.error("Failed to load files:", err);
+      setFiles([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownload = async (fileId: number, filename: string) => {
+    setDownloadingFileId(fileId);
     setDownloadError(null);
 
     try {
-      const blob = await downloadAssignmentFile(assignmentId);
+      const blob = await downloadAssignmentFile(fileId);
       
       // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = filename || "assignment-file";
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -33,33 +57,48 @@ export default function AssignmentFileDisplay({
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "Download failed");
     } finally {
-      setIsDownloading(false);
+      setDownloadingFileId(null);
     }
   };
 
-  if (!filename) {
+  if (isLoading) {
     return (
       <div className="assignment-file-display">
-        <p className="no-file-message">No file attached to this assignment</p>
+        <p className="loading-message">Loading files...</p>
+      </div>
+    );
+  }
+
+  if (files.length === 0) {
+    return (
+      <div className="assignment-file-display">
+        <p className="no-file-message">No files attached to this assignment</p>
       </div>
     );
   }
 
   return (
     <div className="assignment-file-display">
-      <h3>Assignment File</h3>
-      <div className="file-card">
-        <div className="file-info">
-          <span className="file-icon">📄</span>
-          <span className="file-name">{filename}</span>
-        </div>
-        <button 
-          className="download-button"
-          onClick={handleDownload}
-          disabled={isDownloading}
-        >
-          {isDownloading ? "Downloading..." : "Download"}
-        </button>
+      <h3>Assignment Files</h3>
+      <div className="files-list">
+        {files.map((file) => (
+          <div key={file.id} className="file-card">
+            <div className="file-info">
+              <span className="file-icon">📄</span>
+              <span className="file-name">{file.filename}</span>
+              <span className="file-date">
+                {new Date(file.uploaded_at).toLocaleDateString()}
+              </span>
+            </div>
+            <button 
+              className="download-button"
+              onClick={() => handleDownload(file.id, file.filename)}
+              disabled={downloadingFileId === file.id}
+            >
+              {downloadingFileId === file.id ? "Downloading..." : "Download"}
+            </button>
+          </div>
+        ))}
       </div>
       
       {downloadError && (

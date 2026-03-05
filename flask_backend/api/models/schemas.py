@@ -1,6 +1,7 @@
 from marshmallow import fields, validate
 
 from .assignment_model import Assignment
+from .assignment_file_model import AssignmentFile
 from .course_group_model import CourseGroup
 from .course_model import Course
 from .criteria_description_model import CriteriaDescription
@@ -111,6 +112,18 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
         sqla_session = db.session
 
     course = fields.Nested(CourseListSchema, dump_only=True)
+
+
+class AssignmentFileSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for assignment file attachments"""
+
+    class Meta:
+        model = AssignmentFile
+        load_instance = True
+        include_fk = True
+        sqla_session = db.session
+
+    uploaded_at = fields.DateTime(dump_only=True)
 
 
 # ============================================================

@@ -35,22 +35,16 @@ export default function Assignment() {
   const [review, setReview] = useState<number[]>([]);
   const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
-  const [attachmentFilename, setAttachmentFilename] = useState<string | null>(null);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
 
-  // Fetch assignment details to get the name and attachment
+  // Fetch assignment details to get the name
   const fetchAssignmentDetails = async () => {
     try {
       const assignmentData = await getAssignmentDetails(Number(id));
       if (assignmentData && assignmentData.name) {
         setAssignmentName(assignmentData.name);
-      }
-      if (assignmentData && assignmentData.attachment_filename) {
-        setAttachmentFilename(assignmentData.attachment_filename);
-      } else {
-        setAttachmentFilename(null);
       }
     } catch (error) {
       console.error('Error fetching assignment details:', error);
@@ -198,14 +192,11 @@ export default function Assignment() {
           {/* File upload/display section */}
           {isTeacher() ? (
             <AssignmentFileUpload 
-              assignmentId={Number(id)} 
-              currentFile={attachmentFilename}
-              onUploadSuccess={fetchAssignmentDetails}
+              assignmentId={Number(id)}
             />
           ) : (
             <AssignmentFileDisplay 
-              assignmentId={Number(id)} 
-              filename={attachmentFilename}
+              assignmentId={Number(id)}
             />
           )}
 

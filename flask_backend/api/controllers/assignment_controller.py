@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from werkzeug.utils import secure_filename
 
-from ..models import Course, Assignment, User, AssignmentSchema
+from ..models import Course, Assignment, AssignmentFile, User, AssignmentSchema, AssignmentFileSchema
 from .auth_controller import jwt_teacher_required
 
 bp = Blueprint("assignment", __name__, url_prefix="/assignment")
@@ -210,7 +210,7 @@ def allowed_document_file(filename):
 @bp.route("/upload_file/<int:assignment_id>", methods=["POST"])
 @jwt_teacher_required
 def upload_assignment_file(assignment_id):
-    """Upload a file (PDF, DOCX, TXT) to an assignment (teachers only)"""
+    """Upload a file (PDF, DOCX, TXT) to an assignment (teachers only) - supports multiple files"""
     # Check if file is in request
     if "file" not in request.files:
         return jsonify({"msg": "No file provided"}), 400
@@ -247,35 +247,29 @@ def upload_assignment_file(assignment_id):
     ext = file.filename.rsplit(".", 1)[1].lower()
     unique_filename = f"{assignment_id}_{uuid.uuid4().hex}.{ext}"
     
-    # Delete old attachment if it exists
-    if assignment.attachment_path:
-        old_file_path = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], assignment.attachment_path)
-        if os.path.exists(old_file_path):
-            try:
-                os.remove(old_file_path)
-            except OSError:
-                pass  # Ignore errors when deleting old file
-
     # Save new file
     filepath = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], unique_filename)
     file.save(filepath)
 
-    # Update assignment with file information
-    assignment.attachment_filename = secure_filename(file.filename)  # Store original filename
-    assignment.attachment_path = unique_filename  # Store unique filename
-    assignment.update()
+    # Create new AssignmentFile record
+    new_file = AssignmentFile(
+        assignment_id=assignment_id,
+        filename=secure_filename(file.filename),
+        file_path=unique_filename,
+        uploaded_by=user.id
+    )
+    AssignmentFile.create(new_file)
 
     return jsonify({
         "msg": "File uploaded successfully",
-        "attachment_filename": assignment.attachment_filename,
-        "attachment_path": assignment.attachment_path
+        "file": AssignmentFileSchema().dump(new_file)
     }), 200
 
 
-@bp.route("/download_file/<int:assignment_id>", methods=["GET"])
+@bp.route("/files/<int:assignment_id>", methods=["GET"])
 @jwt_required()
-def download_assignment_file(assignment_id):
-    """Download the file attached to an assignment (available to enrolled students and teachers)"""
+def get_assignment_files(assignment_id):
+    """Get all files attached to an assignment (available to enrolled students and teachers)"""
     assignment = Assignment.get_by_id(assignment_id)
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
@@ -296,29 +290,64 @@ def download_assignment_file(assignment_id):
     if not (is_teacher or is_enrolled):
         return jsonify({"msg": "Unauthorized: You do not have access to this assignment"}), 403
 
-    # Check if file exists
-    if not assignment.attachment_path:
-        return jsonify({"msg": "No file attached to this assignment"}), 404
-
-    # Serve the file with original filename for download
-    return send_from_directory(
-        current_app.config["ASSIGNMENT_UPLOAD_FOLDER"],
-        assignment.attachment_path,
-        as_attachment=True,
-        download_name=assignment.attachment_filename
-    )
+    # Get all files for this assignment
+    files = AssignmentFile.get_by_assignment_id(assignment_id)
+    files_data = AssignmentFileSchema(many=True).dump(files)
+    
+    return jsonify(files_data), 200
 
 
-@bp.route("/delete_file/<int:assignment_id>", methods=["DELETE"])
-@jwt_teacher_required
-def delete_assignment_file(assignment_id):
-    """Delete the file attached to an assignment (teachers only)"""
+@bp.route("/download_file/<int:file_id>", methods=["GET"])
+@jwt_required()
+def download_assignment_file(file_id):
+    """Download a specific file attached to an assignment (available to enrolled students and teachers)"""
+    assignment_file = AssignmentFile.get_by_id(file_id)
+    if not assignment_file:
+        return jsonify({"msg": "File not found"}), 404
+
+    assignment = Assignment.get_by_id(assignment_file.assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
     email = get_jwt_identity()
     user = User.get_by_email(email)
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    assignment = Assignment.get_by_id(assignment_id)
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    # Check if user has access to this assignment
+    is_teacher = course.teacherID == user.id
+    is_enrolled = any(student.id == user.id for student in course.students)
+    
+    if not (is_teacher or is_enrolled):
+        return jsonify({"msg": "Unauthorized: You do not have access to this assignment"}), 403
+
+    # Serve the file with original filename for download
+    return send_from_directory(
+        current_app.config["ASSIGNMENT_UPLOAD_FOLDER"],
+        assignment_file.file_path,
+        as_attachment=True,
+        download_name=assignment_file.filename
+    )
+
+
+@bp.route("/delete_file/<int:file_id>", methods=["DELETE"])
+@jwt_teacher_required
+def delete_assignment_file(file_id):
+    """Delete a specific file attached to an assignment (teachers only)"""
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    assignment_file = AssignmentFile.get_by_id(file_id)
+    if not assignment_file:
+        return jsonify({"msg": "File not found"}), 404
+
+    assignment = Assignment.get_by_id(assignment_file.assignment_id)
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
 
@@ -329,21 +358,15 @@ def delete_assignment_file(assignment_id):
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
-    # Check if file exists
-    if not assignment.attachment_path:
-        return jsonify({"msg": "No file attached to this assignment"}), 404
-
     # Delete file from filesystem
-    file_path = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], assignment.attachment_path)
+    file_path = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], assignment_file.file_path)
     if os.path.exists(file_path):
         try:
             os.remove(file_path)
         except OSError as e:
             return jsonify({"msg": f"Error deleting file: {str(e)}"}), 500
 
-    # Clear file fields in database
-    assignment.attachment_filename = None
-    assignment.attachment_path = None
-    assignment.update()
+    # Delete file record from database
+    assignment_file.delete()
 
     return jsonify({"msg": "File deleted successfully"}), 200

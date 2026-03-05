@@ -12,6 +12,117 @@
   color: #333;
 }
 
+.assignment-file-upload-container h4 {
+  margin: 20px 0 10px 0;
+  font-size: 1rem;
+  color: #555;
+}
+
+.loading-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 20px;
+}
+
+.no-files-message {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 5px;
+  border: 1px dashed #ddd;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background-color: #fff;
+  border: 2px solid #4CAF50;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.file-item:hover {
+  background-color: #f5f5f5;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.file-icon {
+  font-size: 1.5rem;
+}
+
+.file-name {
+  font-size: 1rem;
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+
+.file-date {
+  font-size: 0.85rem;
+  color: #666;
+  margin-left: auto;
+  padding-right: 15px;
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.download-file-button {
+  padding: 8px 16px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.download-file-button:hover {
+  background-color: #0b7dda;
+}
+
+.delete-file-button-small {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.delete-file-button-small:hover {
+  background-color: #da190b;
+}
+
+.upload-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #ddd;
+}
+
 .file-drop-zone {
   width: 100%;
   min-height: 200px;
@@ -93,22 +204,6 @@
   background-color: #fff;
   border: 2px solid #4CAF50;
   border-radius: 8px;
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.file-icon {
-  font-size: 1.5rem;
-}
-
-.file-name {
-  font-size: 1rem;
-  color: #333;
-  font-weight: 500;
 }
 
 .delete-file-button {

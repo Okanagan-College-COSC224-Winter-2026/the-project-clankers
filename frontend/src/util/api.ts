@@ -725,9 +725,26 @@ export const uploadAssignmentFile = async (assignmentId: number, file: File) => 
   return await response.json();
 };
 
+// Get all files for an assignment
+export const getAssignmentFiles = async (assignmentId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/files/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
 // Assignment File Download
-export const downloadAssignmentFile = async (assignmentId: number) => {
-  const response = await fetch(`${BASE_URL}/assignment/download_file/${assignmentId}`, {
+export const downloadAssignmentFile = async (fileId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/download_file/${fileId}`, {
     method: 'GET',
     credentials: 'include'
   });
@@ -744,8 +761,8 @@ export const downloadAssignmentFile = async (assignmentId: number) => {
 };
 
 // Assignment File Delete
-export const deleteAssignmentFile = async (assignmentId: number) => {
-  const response = await fetch(`${BASE_URL}/assignment/delete_file/${assignmentId}`, {
+export const deleteAssignmentFile = async (fileId: number) => {
+  const response = await fetch(`${BASE_URL}/assignment/delete_file/${fileId}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',

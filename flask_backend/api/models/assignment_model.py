@@ -42,6 +42,9 @@ class Assignment(db.Model):
     group_members = db.relationship(
         "Group_Members", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
+    files = db.relationship(
+        "AssignmentFile", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, attachment_filename=None, attachment_path=None):
         self.courseID = courseID

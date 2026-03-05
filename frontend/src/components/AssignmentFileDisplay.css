@@ -12,11 +12,27 @@
   color: #333;
 }
 
-.no-file-message {
+.loading-message {
   text-align: center;
   color: #666;
   font-style: italic;
   padding: 20px;
+}
+
+.no-file-message {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 5px;
+  border: 1px dashed #ddd;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .file-card {
@@ -27,12 +43,18 @@
   background-color: #fff;
   border: 2px solid #2196F3;
   border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.file-card:hover {
+  background-color: #f5f5f5;
 }
 
 .file-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex: 1;
 }
 
 .file-icon {
@@ -43,6 +65,14 @@
   font-size: 1rem;
   color: #333;
   font-weight: 500;
+  flex: 1;
+}
+
+.file-date {
+  font-size: 0.85rem;
+  color: #666;
+  margin-left: auto;
+  padding-right: 15px;
 }
 
 .download-button {
