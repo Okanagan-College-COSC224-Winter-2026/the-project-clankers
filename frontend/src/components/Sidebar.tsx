@@ -21,7 +21,7 @@ export default function Sidebar() {
         </SidebarRow>
 
         <SidebarRow selected={location === '/home'} href="/home">
-          Home
+          Dashboard
         </SidebarRow>
         
         { /* TODO: make this ID match who is logged in */ }

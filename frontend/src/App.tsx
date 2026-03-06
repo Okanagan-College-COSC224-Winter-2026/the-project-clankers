@@ -9,7 +9,11 @@ import CreateClass from "./pages/CreateClass";
 import LoginPage from "./pages/LoginPage";
 import ClassHome from "./pages/ClassHome";
 import ClassMembers from "./pages/ClassMembers";
+import ClassGroupManagement from "./pages/ClassGroupManagement";
 import Assignment from "./pages/Assignment";
+import AssignmentMembers from "./pages/AssignmentMembers";
+import AssignmentGroups from "./pages/AssignmentGroups";
+import AssignmentRubric from "./pages/AssignmentRubric";
 import Group from "./pages/Group";
 import RegisterPage from "./pages/RegisterPage";
 import ChangePassword from "./pages/ChangePassword";
@@ -64,9 +68,33 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
+          <Route path="/classes/:id/groups" element={
+            <ProtectedRoute>
+              <ClassGroupManagement />
+            </ProtectedRoute>
+          } />
+
           <Route path="/assignments/:id" element={
             <ProtectedRoute>
               <Assignment />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/assignments/:id/members" element={
+            <ProtectedRoute>
+              <AssignmentMembers />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/assignments/:id/groups" element={
+            <ProtectedRoute>
+              <AssignmentGroups />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/assignments/:id/rubric" element={
+            <ProtectedRoute>
+              <AssignmentRubric />
             </ProtectedRoute>
           } />
 

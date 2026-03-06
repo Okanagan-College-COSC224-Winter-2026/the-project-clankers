@@ -1,8 +1,6 @@
 import { useEffect, useState, ChangeEvent } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import "./Assignment.css";
-import RubricCreator from "../components/RubricCreator";
-import RubricDisplay from "../components/RubricDisplay";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
 import { isTeacher } from "../util/login";
@@ -33,6 +31,8 @@ export default function Assignment() {
   const [review, setReview] = useState<number[]>([]);
   const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
+  const [courseId, setCourseId] = useState<number | null>(null);
+  const [courseName, setCourseName] = useState<string>("");
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
@@ -44,6 +44,14 @@ export default function Assignment() {
         const assignmentData = await getAssignmentDetails(Number(id));
         if (assignmentData && assignmentData.name) {
           setAssignmentName(assignmentData.name);
+        }
+        if (assignmentData && assignmentData.courseID) {
+          setCourseId(assignmentData.courseID);
+          // Fetch the course name
+          const { listClasses } = await import("../util/api");
+          const classes = await listClasses();
+          const course = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+          if (course) setCourseName(course.name);
         }
       } catch (error) {
         console.error('Error fetching assignment details:', error);
@@ -147,6 +155,11 @@ export default function Assignment() {
 
   return (
     <>
+      {courseId && (
+        <div className="assignment-breadcrumb">
+          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+        </div>
+      )}
       <div className="AssignmentHeader">
         <h2>{assignmentName || "Loading..."}</h2>
       </div>
@@ -160,8 +173,16 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Group",
-                  path: `/assignments/${id}/group`,
+                  label: "Members",
+                  path: `/assignments/${id}/members`,
+                },
+                {
+                  label: "Groups",
+                  path: `/assignments/${id}/groups`,
+                },
+                {
+                  label: "Rubric",
+                  path: `/assignments/${id}/rubric`,
                 },
                 {
                   label: "Manage",
@@ -174,8 +195,16 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Group",
-                  path: `/assignments/${id}/group`,
+                  label: "Members",
+                  path: `/assignments/${id}/members`,
+                },
+                {
+                  label: "Groups",
+                  path: `/assignments/${id}/groups`,
+                },
+                {
+                  label: "Rubric",
+                  path: `/assignments/${id}/rubric`,
                 }
               ]
         }
@@ -185,16 +214,6 @@ export default function Assignment() {
         <AssignmentSettings assignmentId={Number(id)} />
       ) : (
         <>
-          <div className='assignmentRubricDisplay'>
-            <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
-          </div>
-          {
-            isTeacher() && 
-              <div className='assignmentRubric'>
-                <RubricCreator id={Number(id)}/>
-              </div>
-          }
-
           {
             //List group members as radio buttons to select for given review
             !isTeacher() && <div className='groupMembers'>

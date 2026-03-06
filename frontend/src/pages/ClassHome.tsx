@@ -108,9 +108,7 @@ export default function ClassHome() {
     return (
       <>
         <div className="ClassHeader">
-          <div className="ClassHeaderLeft">
-            <h2>{className}</h2>
-          </div>
+          <h2>{className}</h2>
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
@@ -122,16 +120,33 @@ export default function ClassHome() {
       </div>
 
       <TabNavigation
-        tabs={[
-          {
-            label: "Home",
-            path: `/classes/${id}/home`,
-          },
-          {
-            label: "Members",
-            path: `/classes/${id}/members`,
-          },
-        ]}
+        tabs={
+          isTeacher()
+            ? [
+                {
+                  label: "Home",
+                  path: `/classes/${id}/home`,
+                },
+                {
+                  label: "Members",
+                  path: `/classes/${id}/members`,
+                },
+                {
+                  label: "Groups",
+                  path: `/classes/${id}/groups`,
+                },
+              ]
+            : [
+                {
+                  label: "Home",
+                  path: `/classes/${id}/home`,
+                },
+                {
+                  label: "Members",
+                  path: `/classes/${id}/members`,
+                },
+              ]
+        }
       />
 
       <StatusMessage message={statusMessage} type={statusType} />
