@@ -477,7 +477,7 @@ As a student, I want to log in after my teacher uploads the roster so that I can
 
 ---
 
-## US27 – Password View Toggle — **In Progress**
+## US27 – Password View Toggle — **In Review**
 
 **As a User, I want to be able to click a button to reveal my password while I login or register.**
 
