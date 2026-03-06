@@ -82,13 +82,8 @@ export default function RegisterPage() {
                 children="Register"
               />
             </div>
-
           </div>
-
         </div>
-
-        
-
       </div>
     </div>
   );
