@@ -76,14 +76,18 @@ export default function RegisterPage() {
               />
             </div>
 
+            <div className='RegisterButton'>
+              <Button
+                onClick={()=> attemptRegister()}
+                children="Register"
+              />
+            </div>
+
           </div>
 
         </div>
 
-        <Button
-          onClick={()=> attemptRegister()}
-          children="Register"
-        />
+        
 
       </div>
     </div>
