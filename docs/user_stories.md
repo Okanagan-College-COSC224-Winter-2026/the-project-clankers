@@ -88,10 +88,26 @@
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Instructor can create a class  
+- [x] Instructor can create a class  
+- [x] Instructor can view class details (students count, assignments count, teacher info)
+- [x] Instructor can edit/update a class name
+- [x] Instructor can delete a class (only if no assignments exist, or if user is admin)
 - [ ] Instructor can create an assignment under that class  
 - [ ] Students in that class can see the assignment  
 - [ ] Instructor can edit or delete the assignment before its start or due date  
+
+### Implementation Notes
+
+**Class Management Endpoints (Implemented):**
+- `GET /class/<id>` - Get class details (accessible to teachers, enrolled students, and admins)
+- `PUT /class/update_class` - Update class name (requires teacher role and class ownership)
+- `DELETE /class/delete_class` - Delete class (requires teacher role and class ownership; prevents deletion if assignments exist unless user is admin)
+
+**Access Control:**
+- Teachers can only edit/delete their own classes
+- Admins can edit/delete any class
+- Students can view classes they're enrolled in but cannot edit/delete
+- Classes with assignments cannot be deleted by non-admin users (safety measure)
 
 ---
 
