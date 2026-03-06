@@ -45,6 +45,9 @@ class Assignment(db.Model):
     files = db.relationship(
         "AssignmentFile", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
+    student_submissions = db.relationship(
+        "StudentSubmission", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, attachment_filename=None, attachment_path=None):
         self.courseID = courseID

@@ -8,6 +8,7 @@ from .db import db, ma
 from .group_members_model import Group_Members
 from .review_model import Review
 from .rubric_model import Rubric
+from .student_submission_model import StudentSubmission
 from .schemas import (
     AssignmentSchema,
     AssignmentFileSchema,
@@ -19,6 +20,7 @@ from .schemas import (
     GroupMembersSchema,
     ReviewSchema,
     RubricSchema,
+    StudentSubmissionSchema,
     SubmissionSchema,
     UserCourseSchema,
     UserListSchema,
@@ -45,6 +47,7 @@ __all__ = [
     "Group_Members",
     "User_Course",
     "Submission",
+    "StudentSubmission",
     "UserSchema",
     "UserRegistrationSchema",
     "UserLoginSchema",

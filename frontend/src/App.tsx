@@ -81,6 +81,18 @@ function AppContent() {
               <Assignment />
             </ProtectedRoute>
           } />
+
+          <Route path="/assignments/:id/submission" element={
+            <ProtectedRoute>
+              <Assignment />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/assignments/:id/student-submissions" element={
+            <ProtectedRoute>
+              <Assignment />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </div>

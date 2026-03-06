@@ -779,3 +779,84 @@ export const deleteAssignmentFile = async (fileId: number) => {
 
   return await response.json();
 };
+
+// ================================
+// STUDENT SUBMISSION API FUNCTIONS
+// ================================
+
+// Upload a student submission file
+export const uploadStudentSubmission = async (assignmentId: number, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${BASE_URL}/submissions/upload/${assignmentId}`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
+// Get student submissions for an assignment (students get their own, teachers get all)
+export const getStudentSubmissions = async (assignmentId: number) => {
+  const response = await fetch(`${BASE_URL}/submissions/assignment/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.submissions || [];
+};
+
+// Download a student submission file
+export const downloadStudentSubmission = async (submissionId: number) => {
+  const response = await fetch(`${BASE_URL}/submissions/download/${submissionId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  // Return the blob for download
+  return response.blob();
+};
+
+// Delete a student submission
+export const deleteStudentSubmission = async (submissionId: number) => {
+  const response = await fetch(`${BASE_URL}/submissions/${submissionId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+};
