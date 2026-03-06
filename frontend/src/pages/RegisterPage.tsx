@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import './RegisterPage.css';
 import Textbox from '../components/Textbox';
+import PasswordInput from '../components/PasswordInput';
+import PasswordCriteria from '../components/PasswordCriteria';
 import Button from '../components/Button';
 import StatusMessage from '../components/StatusMessage';
 import { tryRegister } from '../util/api';
@@ -55,18 +57,19 @@ export default function RegisterPage() {
 
             <div className="RegisterInputChunk">
               <span>Password</span>
-              <Textbox
-                type='password'
+              <PasswordInput
+                value={password}
                 placeholder='Password...'
                 onInput={setPassword}
                 className='RegisterInput'
               />
+              {password && <PasswordCriteria password={password} />}
             </div>
 
             <div className="RegisterInputChunk">
               <span>Confirm Password</span>
-              <Textbox
-                type='password'
+              <PasswordInput
+                value={confirmPassword}
                 placeholder='Confirm Password...'
                 onInput={setConfirmPassword}
                 className='RegisterInput'

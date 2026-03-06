@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
 import Textbox from '../components/Textbox';
+import PasswordInput from '../components/PasswordInput';
 import Button from '../components/Button';
 import StatusMessage from '../components/StatusMessage';
 import { tryLogin } from '../util/api';
@@ -55,8 +56,8 @@ export default function LoginPage() {
 
               <div className="LoginInputChunk">
                 <span>Password</span>
-                <Textbox
-                  type='password'
+                <PasswordInput
+                  value={password}
                   placeholder='Password...'
                   onInput={setPassword}
                   className='LoginInput'
