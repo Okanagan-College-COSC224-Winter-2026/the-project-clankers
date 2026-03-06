@@ -1,0 +1,894 @@
+"""
+Tests for course-scoped group management functionality
+"""
+
+import pytest
+from flask import json
+from werkzeug.security import generate_password_hash
+
+from api.models import (
+    Course,
+    CourseGroup,
+    Group_Members,
+    User,
+    User_Course,
+    db
+)
+
+
+@pytest.fixture
+def teacher(db):
+    """Create a teacher user"""
+    teacher = User(
+        name="Teacher", 
+        email="teacher@test.com", 
+        hash_pass=generate_password_hash("password"), 
+        role="teacher"
+    )
+    db.session.add(teacher)
+    db.session.commit()
+    return teacher
+
+
+@pytest.fixture
+def another_teacher(db):
+    """Create another teacher user"""
+    teacher = User(
+        name="Other Teacher", 
+        email="other@test.com", 
+        hash_pass=generate_password_hash("password"), 
+        role="teacher"
+    )
+    db.session.add(teacher)
+    db.session.commit()
+    return teacher
+
+
+@pytest.fixture
+def students(db):
+    """Create multiple student users"""
+    students = []
+    for i in range(5):
+        student = User(
+            name=f"Student {i+1}",
+            email=f"student{i+1}@test.com",
+            hash_pass=generate_password_hash("password"),
+            role="student"
+        )
+        db.session.add(student)
+        students.append(student)
+    db.session.commit()
+    return students
+
+
+@pytest.fixture
+def course_with_students(db, teacher, students):
+    """Create a course with enrolled students"""
+    course = Course(teacherID=teacher.id, name="Test Course")
+    db.session.add(course)
+    db.session.commit()
+    
+    # Enroll all students in the course
+    for student in students:
+        enrollment = User_Course(userID=student.id, courseID=course.id)
+        db.session.add(enrollment)
+    db.session.commit()
+    
+    return course
+
+
+@pytest.fixture
+def course_with_groups(db, course_with_students, students):
+    """Create a course with existing groups"""
+    course = course_with_students
+    
+    # Create two groups
+    group1 = CourseGroup(name="Group 1", courseID=course.id)
+    group2 = CourseGroup(name="Group 2", courseID=course.id)
+    db.session.add(group1)
+    db.session.add(group2)
+    db.session.commit()
+    
+    # Assign first 2 students to group1, next 2 to group2, leave last one unassigned
+    Group_Members.create_group_member(students[0].id, group1.id)
+    Group_Members.create_group_member(students[1].id, group1.id)
+    Group_Members.create_group_member(students[2].id, group2.id)
+    Group_Members.create_group_member(students[3].id, group2.id)
+    
+    return course, group1, group2
+
+
+# ========================
+# Model Tests
+# ========================
+
+def test_course_group_has_course_id(db, teacher):
+    """Test that CourseGroup now uses courseID instead of assignmentID"""
+    course = Course(teacherID=teacher.id, name="Test Course")
+    db.session.add(course)
+    db.session.commit()
+    
+    group = CourseGroup(name="Group A", courseID=course.id)
+    db.session.add(group)
+    db.session.commit()
+    
+    assert group.courseID == course.id
+    assert hasattr(group, 'courseID')
+    assert not hasattr(group, 'assignmentID')
+
+
+def test_group_members_no_assignment_id(db, teacher, students):
+    """Test that Group_Members no longer has assignmentID"""
+    course = Course(teacherID=teacher.id, name="Test Course")
+    db.session.add(course)
+    db.session.commit()
+    
+    group = CourseGroup(name="Group A", courseID=course.id)
+    db.session.add(group)
+    db.session.commit()
+    
+    member = Group_Members.create_group_member(students[0].id, group.id)
+    
+    assert member.userID == students[0].id
+    assert member.groupID == group.id
+    assert not hasattr(member, 'assignmentID')
+
+
+def test_course_has_groups_relationship(db, teacher):
+    """Test that Course model has groups relationship"""
+    course = Course(teacherID=teacher.id, name="Test Course")
+    db.session.add(course)
+    db.session.commit()
+    
+    group1 = CourseGroup(name="Group 1", courseID=course.id)
+    group2 = CourseGroup(name="Group 2", courseID=course.id)
+    db.session.add(group1)
+    db.session.add(group2)
+    db.session.commit()
+    
+    assert course.groups.count() == 2
+    assert group1 in course.groups.all()
+    assert group2 in course.groups.all()
+
+
+def test_get_by_course_id(db, teacher):
+    """Test CourseGroup.get_by_course_id class method"""
+    course = Course(teacherID=teacher.id, name="Test Course")
+    db.session.add(course)
+    db.session.commit()
+    
+    group1 = CourseGroup(name="Group 1", courseID=course.id)
+    group2 = CourseGroup(name="Group 2", courseID=course.id)
+    db.session.add(group1)
+    db.session.add(group2)
+    db.session.commit()
+    
+    groups = CourseGroup.get_by_course_id(course.id)
+    assert len(groups) == 2
+    assert group1 in groups
+    assert group2 in groups
+
+
+# ========================
+# API Endpoint Tests
+# ========================
+
+def test_list_groups_success(test_client, teacher, course_with_groups):
+    """Test listing all groups in a course"""
+    course, group1, group2 = course_with_groups
+    
+    response = test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/groups")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    assert len(data) == 2
+    assert any(g['name'] == 'Group 1' for g in data)
+    assert any(g['name'] == 'Group 2' for g in data)
+
+
+def test_list_groups_nonexistent_course(test_client, teacher):
+    """Test listing groups for non-existent course"""
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get("/classes/99999/groups")
+    assert response.status_code == 404
+    assert b"Course not found" in response.data
+
+
+def test_list_groups_unauthorized_teacher(test_client, teacher, another_teacher, course_with_students):
+    """Test that teacher cannot access another teacher's course groups"""
+    # Login as the other teacher
+    test_client.post("/auth/login", json={
+        "email": "other@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course_with_students.id}/groups")
+    assert response.status_code == 403
+
+
+def test_create_group_success(test_client, teacher, course_with_students):
+    """Test creating a new group"""
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": "New Group"}
+    )
+    assert response.status_code == 201
+    
+    data = json.loads(response.data)
+    assert data['name'] == "New Group"
+    assert data['courseID'] == course_with_students.id
+
+
+def test_create_group_empty_name(test_client, teacher, course_with_students):
+    """Test creating a group with empty name"""
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": ""}
+    )
+    assert response.status_code == 400
+    assert b"Group name is required" in response.data
+
+
+def test_create_group_missing_name(test_client, teacher, course_with_students):
+    """Test creating a group without name field"""
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={}
+    )
+    assert response.status_code == 400
+
+
+def test_create_group_student_forbidden(test_client, students, course_with_students):
+    """Test that students cannot create groups"""
+    # Students are already enrolled via course_with_students fixture
+    
+    test_client.post("/auth/login", json={
+        "email": "student1@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": "Hacker Group"}
+    )
+    assert response.status_code == 403
+
+
+def test_update_group_success(test_client, teacher, course_with_groups):
+    """Test renaming a group"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.put(
+        f"/classes/{course.id}/groups/{group1.id}",
+        json={"name": "Renamed Group"}
+    )
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    assert data['name'] == "Renamed Group"
+
+
+def test_update_group_wrong_course(test_client, teacher, another_teacher, course_with_groups):
+    """Test updating a group that belongs to different course"""
+    course, group1, _ = course_with_groups
+    
+    # Create another course
+    other_course = Course(teacherID=another_teacher.id, name="Other Course")
+    db.session.add(other_course)
+    db.session.commit()
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    # Try to update group1 using other_course.id (which belongs to another teacher)
+    # Returns 403 because the logged-in teacher doesn't own other_course
+    response = test_client.put(
+        f"/classes/{other_course.id}/groups/{group1.id}",
+        json={"name": "Hacked Name"}
+    )
+    assert response.status_code == 403
+
+
+def test_delete_group_success(test_client, teacher, course_with_groups):
+    """Test deleting a group"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.delete(f"/classes/{course.id}/groups/{group1.id}")
+    assert response.status_code == 200
+    
+    # Verify group is deleted
+    assert CourseGroup.get_by_id(group1.id) is None
+
+
+def test_delete_group_removes_members(test_client, teacher, course_with_groups, students):
+    """Test that deleting a group removes all group memberships"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    # Verify members exist before deletion
+    members_before = Group_Members.query.filter_by(groupID=group1.id).count()
+    assert members_before == 2
+    
+    response = test_client.delete(f"/classes/{course.id}/groups/{group1.id}")
+    assert response.status_code == 200
+    
+    # Verify members are removed (cascade delete)
+    members_after = Group_Members.query.filter_by(groupID=group1.id).count()
+    assert members_after == 0
+
+
+def test_get_group_members_success(test_client, teacher, course_with_groups, students):
+    """Test getting members of a group"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/groups/{group1.id}/members")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    assert len(data) == 2
+    assert any(u['email'] == 'student1@test.com' for u in data)
+    assert any(u['email'] == 'student2@test.com' for u in data)
+
+
+def test_add_group_member_success(test_client, teacher, course_with_groups, students):
+    """Test adding a student to a group"""
+    course, group1, _ = course_with_groups
+    unassigned_student = students[4]  # Last student is unassigned
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course.id}/groups/{group1.id}/members",
+        json={"userID": unassigned_student.id}
+    )
+    assert response.status_code == 201
+    
+    # Verify member was added
+    member = Group_Members.get(unassigned_student.id, group1.id)
+    assert member is not None
+
+
+def test_add_member_not_enrolled(test_client, teacher, course_with_students):
+    """Test adding a student not enrolled in the course"""
+    # Create unenrolled student
+    unenrolled = User(name="Outsider", email="outsider@test.com", hash_pass="hashed", role="student")
+    db.session.add(unenrolled)
+    db.session.commit()
+    
+    # Create a group
+    group = CourseGroup(name="Group A", courseID=course_with_students.id)
+    db.session.add(group)
+    db.session.commit()
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups/{group.id}/members",
+        json={"userID": unenrolled.id}
+    )
+    assert response.status_code == 400
+    assert b"not enrolled" in response.data
+
+
+def test_add_member_already_in_another_group(test_client, teacher, course_with_groups, students):
+    """Test adding a student already in another group (should move them)"""
+    course, group1, group2 = course_with_groups
+    student_in_group1 = students[0]
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    # Try to add student from group1 to group2
+    response = test_client.post(
+        f"/classes/{course.id}/groups/{group2.id}/members",
+        json={"userID": student_in_group1.id}
+    )
+    assert response.status_code == 201
+    
+    # Verify student is no longer in group1
+    old_membership = Group_Members.get(student_in_group1.id, group1.id)
+    assert old_membership is None
+    
+    # Verify student is now in group2
+    new_membership = Group_Members.get(student_in_group1.id, group2.id)
+    assert new_membership is not None
+
+
+def test_add_member_nonexistent_student(test_client, teacher, course_with_groups):
+    """Test adding a non-existent student"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course.id}/groups/{group1.id}/members",
+        json={"userID": 99999}
+    )
+    assert response.status_code == 404
+    assert b"Student not found" in response.data
+
+
+def test_remove_member_success(test_client, teacher, course_with_groups, students):
+    """Test removing a student from a group"""
+    course, group1, _ = course_with_groups
+    student = students[0]
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.delete(
+        f"/classes/{course.id}/groups/{group1.id}/members/{student.id}"
+    )
+    assert response.status_code == 200
+    
+    # Verify member was removed
+    member = Group_Members.get(student.id, group1.id)
+    assert member is None
+
+
+def test_remove_member_not_in_group(test_client, teacher, course_with_groups, students):
+    """Test removing a student not in the group"""
+    course, group1, _ = course_with_groups
+    unassigned_student = students[4]
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.delete(
+        f"/classes/{course.id}/groups/{group1.id}/members/{unassigned_student.id}"
+    )
+    assert response.status_code == 404
+    assert b"Member not found" in response.data
+
+
+def test_get_unassigned_students_success(test_client, teacher, course_with_groups, students):
+    """Test getting list of unassigned students"""
+    course, _, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/members/unassigned")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    # Only student 5 (index 4) should be unassigned
+    assert len(data) == 1
+    assert data[0]['email'] == 'student5@test.com'
+
+
+def test_get_unassigned_all_assigned(test_client, teacher, course_with_groups, students):
+    """Test getting unassigned students when all are assigned"""
+    course, group1, _ = course_with_groups
+    
+    # Assign the last student
+    Group_Members.create_group_member(students[4].id, group1.id)
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/members/unassigned")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    assert len(data) == 0
+
+
+def test_student_can_view_groups(test_client, students, course_with_groups):
+    """Test that enrolled students can view course groups"""
+    course, _, _ = course_with_groups
+    
+    # Student 1 is enrolled
+    test_client.post("/auth/login", json={
+        "email": "student1@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/groups")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    assert len(data) == 2
+
+
+def test_student_cannot_create_groups(test_client, students, course_with_students):
+    """Test that students cannot create groups"""
+    test_client.post("/auth/login", json={
+        "email": "student1@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": "Student Group"}
+    )
+    assert response.status_code == 403
+
+
+def test_unenrolled_student_cannot_view_groups(test_client, students, course_with_groups):
+    """Test that unenrolled students cannot view course groups"""
+    course, _, _ = course_with_groups
+    
+    # Create unenrolled student with properly hashed password
+    unenrolled = User(
+        name="Outsider", 
+        email="outsider@test.com", 
+        hash_pass=generate_password_hash("password"), 
+        role="student"
+    )
+    db.session.add(unenrolled)
+    db.session.commit()
+    
+    test_client.post("/auth/login", json={
+        "email": "outsider@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/groups")
+    assert response.status_code == 403
+
+
+def test_group_member_count_accuracy(test_client, teacher, course_with_groups):
+    """Test that member_count in group response is accurate"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/groups")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    group1_data = next(g for g in data if g['id'] == group1.id)
+    assert group1_data['member_count'] == 2
+
+
+def test_empty_group_has_zero_members(test_client, teacher, course_with_students):
+    """Test that newly created empty group has member_count of 0"""
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    # Create empty group
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": "Empty Group"}
+    )
+    assert response.status_code == 201
+    
+    group_id = json.loads(response.data)['id']
+    
+    # Get groups list
+    response = test_client.get(f"/classes/{course_with_students.id}/groups")
+    data = json.loads(response.data)
+    
+    empty_group = next(g for g in data if g['id'] == group_id)
+    assert empty_group['member_count'] == 0
+
+
+def test_password_not_exposed_in_member_lists(test_client, teacher, course_with_groups):
+    """Test that password/hash is not exposed in member list responses"""
+    course, group1, _ = course_with_groups
+    
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    response = test_client.get(f"/classes/{course.id}/groups/{group1.id}/members")
+    assert response.status_code == 200
+    
+    data = json.loads(response.data)
+    for user in data:
+        assert 'password' not in user
+        assert 'hash_pass' not in user
+
+
+def test_concurrent_group_operations(test_client, teacher, course_with_students, students):
+    """Test handling of concurrent group membership changes"""
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+    
+    # Create two groups
+    response1 = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": "Group A"}
+    )
+    group_a_id = json.loads(response1.data)['id']
+    
+    response2 = test_client.post(
+        f"/classes/{course_with_students.id}/groups",
+        json={"name": "Group B"}
+    )
+    group_b_id = json.loads(response2.data)['id']
+    
+    student_id = students[0].id
+    
+    # Add student to group A
+    test_client.post(
+        f"/classes/{course_with_students.id}/groups/{group_a_id}/members",
+        json={"userID": student_id}
+    )
+    
+    # Add same student to group B (should move them)
+    response = test_client.post(
+        f"/classes/{course_with_students.id}/groups/{group_b_id}/members",
+        json={"userID": student_id}
+    )
+    assert response.status_code == 201
+    
+    # Verify student is only in group B
+    member_a = Group_Members.get(student_id, group_a_id)
+    member_b = Group_Members.get(student_id, group_b_id)
+    
+    assert member_a is None
+    assert member_b is not None
+
+
+# ========================
+# Randomize Min Group Size Tests
+# ========================
+
+def test_randomize_all_groups_get_at_least_two_members(test_client, teacher, db):
+    """Randomize distribution must give every used group at least 2 members.
+    Simulates the frontend randomize algorithm at the API level:
+    6 students, 3 empty groups → each group gets 2."""
+    # Setup: course with 6 students and 3 empty groups
+    course = Course(teacherID=teacher.id, name="Rand Course")
+    db.session.add(course)
+    db.session.commit()
+
+    student_ids = []
+    for i in range(6):
+        s = User(
+            name=f"RS{i+1}", email=f"rs{i+1}@test.com",
+            hash_pass=generate_password_hash("password"), role="student"
+        )
+        db.session.add(s)
+        db.session.commit()
+        db.session.add(User_Course(userID=s.id, courseID=course.id))
+        student_ids.append(s.id)
+    db.session.commit()
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com", "password": "password"
+    })
+
+    group_ids = []
+    for name in ("G1", "G2", "G3"):
+        resp = test_client.post(
+            f"/classes/{course.id}/groups", json={"name": name}
+        )
+        assert resp.status_code == 201
+        group_ids.append(json.loads(resp.data)["id"])
+
+    # Round-robin assignment (mirrors frontend logic)
+    for idx, sid in enumerate(student_ids):
+        gid = group_ids[idx % len(group_ids)]
+        resp = test_client.post(
+            f"/classes/{course.id}/groups/{gid}/members",
+            json={"userID": sid}
+        )
+        assert resp.status_code == 201
+
+    # Verify every group has at least 2 members
+    for gid in group_ids:
+        resp = test_client.get(f"/classes/{course.id}/groups/{gid}/members")
+        assert resp.status_code == 200
+        members = json.loads(resp.data)
+        assert len(members) >= 2, f"Group {gid} has only {len(members)} member(s)"
+
+
+def test_randomize_skips_groups_when_not_enough_students(test_client, teacher, db):
+    """When there are fewer students than 2×groups, some groups should be
+    left empty so that used groups still have ≥2 members.
+    3 students, 3 empty groups → only 1 group used (gets 3), 2 groups empty."""
+    course = Course(teacherID=teacher.id, name="Rand Course 2")
+    db.session.add(course)
+    db.session.commit()
+
+    student_ids = []
+    for i in range(3):
+        s = User(
+            name=f"RS2_{i+1}", email=f"rs2_{i+1}@test.com",
+            hash_pass=generate_password_hash("password"), role="student"
+        )
+        db.session.add(s)
+        db.session.commit()
+        db.session.add(User_Course(userID=s.id, courseID=course.id))
+        student_ids.append(s.id)
+    db.session.commit()
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com", "password": "password"
+    })
+
+    group_ids = []
+    for name in ("GA", "GB", "GC"):
+        resp = test_client.post(
+            f"/classes/{course.id}/groups", json={"name": name}
+        )
+        assert resp.status_code == 201
+        group_ids.append(json.loads(resp.data)["id"])
+
+    # Replicate frontend min-2 algorithm:
+    # Phase 1 – pick groups we can afford to fill to 2.
+    # All empty → need 2 each. 3 students → can fill 1 group (cost 2), 1 left.
+    available = list(student_ids)
+    budget = len(available)
+    selected_gids = []
+    for gid in group_ids:
+        needed = 2  # all empty
+        if budget >= needed:
+            selected_gids.append(gid)
+            budget -= needed
+
+    # Phase 1: fill each selected group to 2
+    idx = 0
+    for gid in selected_gids:
+        for _ in range(2):
+            resp = test_client.post(
+                f"/classes/{course.id}/groups/{gid}/members",
+                json={"userID": available[idx]}
+            )
+            assert resp.status_code == 201
+            idx += 1
+
+    # Phase 2: distribute remaining students across selected groups
+    while idx < len(available):
+        for gid in selected_gids:
+            if idx >= len(available):
+                break
+            resp = test_client.post(
+                f"/classes/{course.id}/groups/{gid}/members",
+                json={"userID": available[idx]}
+            )
+            assert resp.status_code == 201
+            idx += 1
+
+    # Verify: selected groups have ≥ 2, skipped groups are empty
+    for gid in selected_gids:
+        resp = test_client.get(f"/classes/{course.id}/groups/{gid}/members")
+        members = json.loads(resp.data)
+        assert len(members) >= 2, f"Selected group {gid} has {len(members)} member(s)"
+
+    skipped_gids = [g for g in group_ids if g not in selected_gids]
+    for gid in skipped_gids:
+        resp = test_client.get(f"/classes/{course.id}/groups/{gid}/members")
+        members = json.loads(resp.data)
+        assert len(members) == 0, f"Skipped group {gid} should be empty but has {len(members)}"
+
+
+def test_randomize_with_existing_members_honors_minimum(test_client, teacher, db):
+    """Groups that already have 1 member only need 1 more to reach 2.
+    2 groups, each with 1 existing member, 2 new students → both groups reach 2."""
+    course = Course(teacherID=teacher.id, name="Rand Course 3")
+    db.session.add(course)
+    db.session.commit()
+
+    # 4 students: 2 already placed, 2 unassigned
+    all_students = []
+    for i in range(4):
+        s = User(
+            name=f"RS3_{i+1}", email=f"rs3_{i+1}@test.com",
+            hash_pass=generate_password_hash("password"), role="student"
+        )
+        db.session.add(s)
+        db.session.commit()
+        db.session.add(User_Course(userID=s.id, courseID=course.id))
+        all_students.append(s)
+    db.session.commit()
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com", "password": "password"
+    })
+
+    # Create 2 groups
+    gids = []
+    for name in ("GX", "GY"):
+        resp = test_client.post(
+            f"/classes/{course.id}/groups", json={"name": name}
+        )
+        assert resp.status_code == 201
+        gids.append(json.loads(resp.data)["id"])
+
+    # Pre-assign 1 student to each group
+    test_client.post(
+        f"/classes/{course.id}/groups/{gids[0]}/members",
+        json={"userID": all_students[0].id}
+    )
+    test_client.post(
+        f"/classes/{course.id}/groups/{gids[1]}/members",
+        json={"userID": all_students[1].id}
+    )
+
+    # Fetch unassigned
+    resp = test_client.get(f"/classes/{course.id}/members/unassigned")
+    unassigned = json.loads(resp.data)
+    assert len(unassigned) == 2
+
+    # Since each group already has 1 member, need only 1 each to reach 2.
+    # Phase 1: top up each group to 2
+    idx = 0
+    for gid in gids:
+        resp = test_client.post(
+            f"/classes/{course.id}/groups/{gid}/members",
+            json={"userID": unassigned[idx]["id"]}
+        )
+        assert resp.status_code == 201
+        idx += 1
+
+    # Verify both groups now have exactly 2
+    for gid in gids:
+        resp = test_client.get(f"/classes/{course.id}/groups/{gid}/members")
+        members = json.loads(resp.data)
+        assert len(members) == 2, f"Group {gid} should have 2 members, got {len(members)}"

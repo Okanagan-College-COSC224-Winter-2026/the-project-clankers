@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from werkzeug.utils import secure_filename
 
-from ..models import Course, Assignment, AssignmentFile, User, AssignmentSchema, AssignmentFileSchema
+from ..models import Course, Assignment, AssignmentFile, User, AssignmentSchema, AssignmentFileSchema, CourseGroup, Group_Members, UserSchema
 from .auth_controller import jwt_teacher_required
 
 bp = Blueprint("assignment", __name__, url_prefix="/assignment")
@@ -197,7 +197,9 @@ def get_assignment_details(assignment_id):
     if is_teacher:
         review_count = assignment.reviews.count()
         assignment_data["review_count"] = review_count
-        assignment_data["group_count"] = assignment.groups.count()
+        # Groups are now course-scoped, get count from the course
+        course_groups = CourseGroup.get_by_course_id(course.id)
+        assignment_data["group_count"] = len(course_groups)
     
     return jsonify(assignment_data), 200
 

@@ -12,17 +12,14 @@ class Group_Members(db.Model):
 
     userID = db.Column(db.Integer, db.ForeignKey("User.id"), primary_key=True)
     groupID = db.Column(db.Integer, db.ForeignKey("CourseGroup.id"), primary_key=True)
-    assignmentID = db.Column(db.Integer, db.ForeignKey("Assignment.id"), nullable=True, index=True)
 
     # relationships
     user = db.relationship("User", back_populates="group_memberships")
     group = db.relationship("CourseGroup", back_populates="members")
-    assignment = db.relationship("Assignment", back_populates="group_members")
 
-    def __init__(self, userID, groupID, assignmentID):
+    def __init__(self, userID, groupID):
         self.userID = userID
         self.groupID = groupID
-        self.assignmentID = assignmentID
 
     def __repr__(self):
         return f"<Group_Members user={self.userID} group={self.groupID}>"
@@ -33,12 +30,11 @@ class Group_Members(db.Model):
         return cls.query.get((int(userID), int(groupID)))
 
     @classmethod
-    def create_group_member(cls, userID, groupID, assignmentID=None):
+    def create_group_member(cls, userID, groupID):
         """Add a new group member to the database"""
         group_member = cls(
             userID=int(userID),
             groupID=int(groupID),
-            assignmentID=(int(assignmentID) if assignmentID is not None else None),
         )
         db.session.add(group_member)
         db.session.commit()

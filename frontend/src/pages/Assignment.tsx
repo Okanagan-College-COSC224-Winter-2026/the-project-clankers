@@ -1,8 +1,6 @@
 import { useEffect, useState, ChangeEvent } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import "./Assignment.css";
-import RubricCreator from "../components/RubricCreator";
-import RubricDisplay from "../components/RubricDisplay";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
 import AssignmentFileUpload from "../components/AssignmentFileUpload";
@@ -37,6 +35,8 @@ export default function Assignment() {
   const [review, setReview] = useState<number[]>([]);
   const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
+  const [courseId, setCourseId] = useState<number | null>(null);
+  const [courseName, setCourseName] = useState<string>("");
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
@@ -44,19 +44,25 @@ export default function Assignment() {
   const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
 
   // Fetch assignment details to get the name
-  const fetchAssignmentDetails = async () => {
-    try {
-      const assignmentData = await getAssignmentDetails(Number(id));
-      if (assignmentData && assignmentData.name) {
-        setAssignmentName(assignmentData.name);
-      }
-    } catch (error) {
-      console.error('Error fetching assignment details:', error);
-    }
-  };
-
   useEffect(() => {
-    fetchAssignmentDetails();
+    (async () => {
+      try {
+        const assignmentData = await getAssignmentDetails(Number(id));
+        if (assignmentData && assignmentData.name) {
+          setAssignmentName(assignmentData.name);
+        }
+        if (assignmentData && assignmentData.courseID) {
+          setCourseId(assignmentData.courseID);
+          // Fetch the course name
+          const { listClasses } = await import("../util/api");
+          const classes = await listClasses();
+          const course = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+          if (course) setCourseName(course.name);
+        }
+      } catch (error) {
+        console.error('Error fetching assignment details:', error);
+      }
+    })();
   }, [id]);
 
   // Load criteria descriptions for the rubric
@@ -155,6 +161,11 @@ export default function Assignment() {
 
   return (
     <>
+      {courseId && (
+        <div className="assignment-breadcrumb">
+          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+        </div>
+      )}
       <div className="AssignmentHeader">
         <h2>{assignmentName || "Loading..."}</h2>
       </div>
@@ -168,8 +179,16 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Group",
-                  path: `/assignments/${id}/group`,
+                  label: "Members",
+                  path: `/assignments/${id}/members`,
+                },
+                {
+                  label: "Groups",
+                  path: `/assignments/${id}/groups`,
+                },
+                {
+                  label: "Rubric",
+                  path: `/assignments/${id}/rubric`,
                 },
                 {
                   label: "Student Submissions",
@@ -186,12 +205,20 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Group",
-                  path: `/assignments/${id}/group`,
+                  label: "Members",
+                  path: `/assignments/${id}/members`,
+                },
+                {
+                  label: "Groups",
+                  path: `/assignments/${id}/groups`,
                 },
                 {
                   label: "Submission",
                   path: `/assignments/${id}/submission`,
+                },
+                {
+                  label: "Rubric",
+                  path: `/assignments/${id}/rubric`,
                 }
               ]
         }
@@ -208,6 +235,7 @@ export default function Assignment() {
       ) : (
         /* Home tab - default view */
         <>
+<<<<<<< HEAD
           {/* File upload/display section */}
           {isTeacher() ? (
             <AssignmentFileUpload 

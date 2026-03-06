@@ -39,9 +39,9 @@
 }
 
 .empty-state {
-  text-align: center;
+  text-align: left;
   padding: 2rem;
-  margin: 2rem auto;
+  margin: 2rem 0;
   max-width: 400px;
   border: 2px dashed #ccc;
   border-radius: 8px;

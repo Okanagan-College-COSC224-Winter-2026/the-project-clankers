@@ -94,12 +94,26 @@
   transform: rotate(90deg);
 }
 
+.assignment-breadcrumb {
+  padding: 8px 12px;
+}
+
+.assignment-breadcrumb a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.assignment-breadcrumb a:hover {
+  color: var(--text-primary);
+}
+
 .AssignmentHeader {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
+  padding: 0 12px 12px 12px;
 }
 
 .groupNameInput{

@@ -69,13 +69,10 @@ export default function Home() {
       <h1>Peer Review Dashboard</h1>
 
       <div className="Classes">
-        {courses.length === 0 ? (
+        {courses.length === 0 && !isTeacher() ? (
           <div className="empty-state">
             <h2>No courses yet</h2>
             <p>Contact your instructor to get enrolled in courses.</p>
-            {isTeacher() && (
-              <p>Or <a href="/classes/create">create a new class</a> to get started.</p>
-            )}
           </div>
         ) : (
           courses.map((course) => {
