@@ -434,7 +434,7 @@ def allowed_document_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_DOCUMENT_EXTENSIONS
 ```
 
-**Size limit:** 5MB (configured in Flask)
+**Size limit:** 50MB (configured in Flask)
 
 ---
 

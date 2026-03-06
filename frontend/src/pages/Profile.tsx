@@ -64,10 +64,10 @@ export default function Profile() {
       return
     }
 
-    // Validate file size (5MB max)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    // Validate file size (50MB max)
+    const maxSize = 50 * 1024 * 1024 // 50MB
     if (file.size > maxSize) {
-      setUpdateError('File is too large. Maximum size is 5MB.')
+      setUpdateError('File is too large. Maximum size is 50MB.')
       return
     }
 
