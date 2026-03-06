@@ -43,20 +43,19 @@ $PIP_PATH install -r requirements-dev.txt --quiet
 # Set Flask app environment variable
 export FLASK_APP=api
 
-# Drop existing database if it exists
-if [ -f "instance/app.sqlite" ]; then
-    echo "Existing database found - deleting it..."
-    rm -f instance/app.sqlite
-    echo "✅ Database deleted"
+# Initialize database only if it doesn't exist
+if [ ! -f "instance/app.sqlite" ]; then
+    echo "🗄️  Database not found - initializing..."
+    $PYTHON_PATH -m flask init_db
+    
+    # Add sample users
+    echo "👥 Adding sample users..."
+    $PYTHON_PATH -m flask add_users
+    echo "✅ Database initialized"
+else
+    echo "✅ Database already exists - skipping initialization"
+    echo "💡 To reset the database, run: ./reset-db.sh"
 fi
-
-# Initialize database
-echo "🗄️  Initializing database..."
-$PYTHON_PATH -m flask init_db
-
-# Add sample users
-echo "👥 Adding sample users..."
-$PYTHON_PATH -m flask add_users
 
 echo ""
 echo "========================================"

@@ -53,10 +53,12 @@ cd Peer-Evaluation-App-V1
 > - Automatically changes to the flask_backend directory (if needed)
 > - Creates virtual environment (`.venv`)
 > - Installs all backend dependencies
-> - **Deletes and recreates database** if one already exists (ensures fresh start, no prompts)
+> - **Only initializes database if it doesn't exist** (safe to run multiple times)
 > - **Automatically runs `flask init_db`** (creates SQLite database with schema)
 > - **Automatically runs `flask add_users`** (adds sample users: student, teacher, admin)
 > - **Automatically starts the Flask server** on http://localhost:5000
+>
+> **Note:** The setup script will NOT delete your existing database. To reset the database, use the separate reset script (see below).
 
 ✅ **Backend will be running on port 5000**
 
@@ -225,7 +227,7 @@ To stop the servers:
 | Port 3000 already in use | Stop other processes or see [frontend README](../frontend/README.md) for port configuration |
 | `flask: command not found` | Make sure Python venv is activated and `export FLASK_APP=api` has been run to set environment variable|
 | Import errors | Re-run `pip install -e .` in flask_backend with venv activated |
-| Database errors | Rerun the setup script `.\flask_backend\setup.ps1` to automatically delete and recreate the database |
+| Database errors | Reset the database with `cd flask_backend` then `.\reset-db.ps1` (Windows) or `./reset-db.sh` (Mac/Linux) |
 
 **For more detailed troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
@@ -233,27 +235,29 @@ To stop the servers:
 
 ## ⚡ Quick Database Reset
 
-**Need to reset your database quickly?** Just rerun the setup script:
+**Need to reset your database quickly?** Use the dedicated reset script:
 
 **Windows (PowerShell):**
 ```powershell
-.\flask_backend\setup.ps1
+cd flask_backend
+.\reset-db.ps1
 ```
 
 **macOS/Linux:**
 ```bash
-./flask_backend/setup.sh
+cd flask_backend
+./reset-db.sh
 ```
 
-The setup script automatically detects if a database already exists and will:
+The reset script will:
 1. Delete the existing database file (no confirmation needed)
 2. Create a fresh database with the schema
 3. Add sample users (student, teacher, admin)
-4. Start the Flask server
+4. Does NOT start the server (run `flask run` manually after)
 
 Perfect for testing or when you need a clean slate!
 
-> **Note:** The setup script is smart enough to handle both first-time setup and database resets - completely automated with no prompts.
+> **Note:** The setup script (`setup.ps1`/`setup.sh`) is safe to run anytime - it will only initialize the database if it doesn't exist, preserving your data. Use the reset script when you explicitly want to wipe and recreate the database.
 
 ---
 
@@ -282,7 +286,8 @@ Perfect for testing or when you need a clean slate!
 ## 💡 Pro Tips
 
 - **One-command setup and start**: Use `.\flask_backend\setup.ps1` (Windows) or `./flask_backend/setup.sh` (macOS/Linux) from project root for complete backend setup and server start
-- **Quick database reset**: Just rerun the setup script - it automatically deletes and recreates the database with no prompts
+- **Quick database reset**: Use `cd flask_backend` then `.\reset-db.ps1` (Windows) or `./reset-db.sh` (Mac/Linux) to wipe and recreate the database
+- **Safe to rerun setup**: The setup script won't delete your database if it exists - it's safe to run anytime
 - **Backend hot-reload**: Flask runs in debug mode by default, so code changes reload automatically
 - **Frontend hot-reload**: Vite provides instant HMR (Hot Module Replacement)
 - **Database inspection**: Use `sqlite3 flask_backend/instance/app.sqlite` to query the database directly

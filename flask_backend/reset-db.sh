@@ -1,6 +1,6 @@
 #!/bin/bash
 # Quick database reset script for development
-# Usage: ./reset-db.sh
+# Usage: ./reset-db.sh (from flask_backend directory)
 
 set -e
 
@@ -12,29 +12,34 @@ if [ ! -d "api" ]; then
     exit 1
 fi
 
-# Activate virtual environment
-if [ -f "venv/bin/activate" ]; then
-    echo "✅ Activating virtual environment..."
-    source venv/bin/activate
-else
-    echo "❌ Virtual environment not found. Run setup first!"
+# Check if virtual environment exists
+if [ ! -f ".venv/bin/python" ]; then
+    echo "❌ Virtual environment not found. Run setup.sh first!"
     exit 1
 fi
+
+# Get the full path to the Python executable in the venv
+PYTHON_PATH=".venv/bin/python"
 
 # Set Flask app
 export FLASK_APP=api
 
-# Drop database
-echo "🗑️  Dropping existing database..."
-flask --app api drop_db
+# Drop existing database if it exists
+if [ -f "instance/app.sqlite" ]; then
+    echo "🗑️  Dropping existing database..."
+    rm -f instance/app.sqlite
+    echo "✅ Database dropped"
+else
+    echo "No existing database found"
+fi
 
 # Initialize database
 echo "🔨 Creating new database..."
-flask --app api init_db
+$PYTHON_PATH -m flask init_db
 
 # Add sample users
 echo "👥 Adding sample users..."
-flask --app api add_users
+$PYTHON_PATH -m flask add_users
 
 echo ""
 echo "✅ Database reset complete!"

@@ -40,20 +40,19 @@ Write-Host "Installing dev dependencies..." -ForegroundColor Yellow
 # Set Flask app environment variable
 $env:FLASK_APP = "api"
 
-# Drop existing database if it exists
-if (Test-Path "instance\app.sqlite") {
-    Write-Host "Existing database found - deleting it..." -ForegroundColor Yellow
-    Remove-Item "instance\app.sqlite" -Force
-    Write-Host "Database deleted" -ForegroundColor Green
+# Initialize database only if it doesn't exist
+if (-not (Test-Path "instance\app.sqlite")) {
+    Write-Host "Database not found - initializing..." -ForegroundColor Yellow
+    & $pythonPath -m flask init_db
+    
+    # Add sample users
+    Write-Host "Adding sample users..." -ForegroundColor Yellow
+    & $pythonPath -m flask add_users
+    Write-Host "Database initialized" -ForegroundColor Green
+} else {
+    Write-Host "Database already exists - skipping initialization" -ForegroundColor Green
+    Write-Host "To reset the database, run: .\reset-db.ps1" -ForegroundColor Cyan
 }
-
-# Initialize database
-Write-Host "Initializing database..." -ForegroundColor Yellow
-& $pythonPath -m flask init_db
-
-# Add sample users
-Write-Host "Adding sample users..." -ForegroundColor Yellow
-& $pythonPath -m flask add_users
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green

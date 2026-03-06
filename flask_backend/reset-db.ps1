@@ -1,5 +1,5 @@
 # Quick database reset script for development
-# Usage: .\reset-db.ps1
+# Usage: .\reset-db.ps1 (from flask_backend directory)
 
 Write-Host "Resetting database..." -ForegroundColor Cyan
 
@@ -9,29 +9,34 @@ if (-not (Test-Path "api")) {
     exit 1
 }
 
-# Activate virtual environment
-if (Test-Path "venv\Scripts\Activate.ps1") {
-    Write-Host "Activating virtual environment..." -ForegroundColor Green
-    & .\venv\Scripts\Activate.ps1
-} else {
-    Write-Host "Virtual environment not found. Run setup first!" -ForegroundColor Red
+# Check if virtual environment exists
+if (-not (Test-Path ".venv\Scripts\python.exe")) {
+    Write-Host "Virtual environment not found. Run setup.ps1 first!" -ForegroundColor Red
     exit 1
 }
+
+# Get the full path to the Python executable in the venv
+$pythonPath = ".venv\Scripts\python.exe"
 
 # Set Flask app
 $env:FLASK_APP = "api"
 
-# Drop database
-Write-Host "Dropping existing database..." -ForegroundColor Yellow
-flask --app api drop_db
+# Drop existing database if it exists
+if (Test-Path "instance\app.sqlite") {
+    Write-Host "Dropping existing database..." -ForegroundColor Yellow
+    Remove-Item "instance\app.sqlite" -Force
+    Write-Host "Database dropped" -ForegroundColor Green
+} else {
+    Write-Host "No existing database found" -ForegroundColor Gray
+}
 
 # Initialize database
 Write-Host "Creating new database..." -ForegroundColor Yellow
-flask --app api init_db
+& $pythonPath -m flask init_db
 
 # Add sample users
 Write-Host "Adding sample users..." -ForegroundColor Yellow
-flask --app api add_users
+& $pythonPath -m flask add_users
 
 Write-Host ""
 Write-Host "Database reset complete!" -ForegroundColor Green
