@@ -540,3 +540,100 @@ def test_enroll_in_class_invalid_email_format(test_client, make_admin):
     )
     assert response.status_code == 400
     assert response.json["msg"] == "Invalid email format: johndoeatexample.com"
+
+
+def test_get_class_details(test_client, make_admin):
+    """
+    GIVEN a logged-in teacher user
+    WHEN GET /class/<id> is called with valid class ID
+    THEN class details should be returned
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Math 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    response = test_client.get(
+        f"/class/{class_id}",
+        headers={"Content-Type": "application/json"}
+    )
+
+    assert response.status_code == 200
+    assert response.json["id"] == class_id
+    assert response.json["name"] == "Math 101"
+    assert "teacher" in response.json
+    assert response.json["teacher"]["name"] == "teacheruser"
+    assert "student_count" in response.json
+    assert "assignments_count" in response.json
+
+
+def test_update_class(test_client, make_admin):
+    """
+    GIVEN a logged-in teacher user
+    WHEN PUT /class/update_class is called with valid data
+    THEN the class should be updated
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Math 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    response = test_client.put(
+        "/class/update_class",
+        data=json.dumps({"id": class_id, "name": "Advanced Math 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["msg"] == "Class updated successfully"
+    assert response.json["class"]["name"] == "Advanced Math 101"
+
+
+def test_delete_class(test_client, make_admin):
+    """
+    GIVEN a logged-in teacher user
+    WHEN DELETE /class/delete_class is called with valid class ID
+    THEN the class should be deleted
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Math 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    response = test_client.delete(
+        "/class/delete_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert "Math 101" in response.json["msg"]
+    assert "deleted successfully" in response.json["msg"]
+
+    # Verify class is deleted
+    response = test_client.get(f"/class/{class_id}", headers={"Content-Type": "application/json"})
+    assert response.status_code == 404

@@ -207,6 +207,71 @@ export const listClasses = async () => {
   return await resp.json()
 }
 
+export const getClassDetails = async (classId: string | number) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export const updateClass = async (classId: number, name: string) => {
+  const response = await fetch(`${BASE_URL}/class/update_class`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      id: classId,
+      name,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const deleteClass = async (classId: number) => {
+  const response = await fetch(`${BASE_URL}/class/delete_class`, {
+    method: 'DELETE',
+    body: JSON.stringify({
+      id: classId,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
 export const importStudentsForCourse = async (courseID: number, students: string) => {
   const response = await fetch(`${BASE_URL}/class/enroll_students`, {
     method: 'POST',
