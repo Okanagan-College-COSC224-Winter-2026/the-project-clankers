@@ -8,7 +8,7 @@
 
 ## Overview
 
-Implemented a system that allows teachers to upload multiple files (PDF, DOCX, TXT) to assignments, with students able to view and download all attached files. Files are accumulated over time rather than replaced, allowing teachers to add additional materials after the initial upload.
+Implemented a system that allows teachers to upload multiple files (PDF, DOCX, TXT, ZIP) to assignments, with students able to view and download all attached files. Files are accumulated over time rather than replaced, allowing teachers to add additional materials after the initial upload.
 
 ### User Stories Addressed
 
@@ -427,7 +427,7 @@ filename = file.filename  # Original with spaces preserved
 ### 3. File Type Validation
 
 ```python
-ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'docx', 'txt'}
+ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'docx', 'txt', 'zip'}
 
 def allowed_document_file(filename):
     return '.' in filename and \

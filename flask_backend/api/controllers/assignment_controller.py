@@ -210,7 +210,7 @@ def allowed_document_file(filename):
 @bp.route("/upload_file/<int:assignment_id>", methods=["POST"])
 @jwt_teacher_required
 def upload_assignment_file(assignment_id):
-    """Upload a file (PDF, DOCX, TXT) to an assignment (teachers only) - supports multiple files"""
+    """Upload a file (PDF, DOCX, TXT, ZIP) to an assignment (teachers only) - supports multiple files"""
     # Check if file is in request
     if "file" not in request.files:
         return jsonify({"msg": "No file provided"}), 400
@@ -224,7 +224,7 @@ def upload_assignment_file(assignment_id):
     # Validate file type
     if not allowed_document_file(file.filename):
         return jsonify({
-            "msg": "Invalid file type. Allowed types: pdf, docx, txt"
+            "msg": "Invalid file type. Allowed types: pdf, docx, txt, zip"
         }), 400
 
     email = get_jwt_identity()

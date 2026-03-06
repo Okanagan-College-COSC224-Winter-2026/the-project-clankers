@@ -59,11 +59,11 @@ def create_app(test_config=None):
         JWT_ACCESS_COOKIE_PATH="/",
         JWT_COOKIE_DOMAIN=os.environ.get("JWT_COOKIE_DOMAIN", None),
         # File upload configuration
-        MAX_CONTENT_LENGTH=5 * 1024 * 1024,  # 5MB max file size
+        MAX_CONTENT_LENGTH=50 * 1024 * 1024,  # 50MB max file size
         UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "profile_pictures"),
         ASSIGNMENT_UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "assignments"),
         ALLOWED_EXTENSIONS={"png", "jpg", "jpeg", "gif", "webp"},
-        ALLOWED_DOCUMENT_EXTENSIONS={"pdf", "docx", "txt"},
+        ALLOWED_DOCUMENT_EXTENSIONS={"pdf", "docx", "txt", "zip"},
     )
 
     if test_config is None:

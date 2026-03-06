@@ -24,8 +24,8 @@ export default function AssignmentFileUpload({
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allowedExtensions = ["pdf", "docx", "txt"];
-  const maxFileSize = 5 * 1024 * 1024; // 5MB
+  const allowedExtensions = ["pdf", "docx", "txt", "zip"];
+  const maxFileSize = 50 * 1024 * 1024; // 50MB
 
   // Load existing files
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function AssignmentFileUpload({
 
     // Check file size
     if (file.size > maxFileSize) {
-      return `File size exceeds 5MB limit`;
+      return `File size exceeds 50MB limit`;
     }
 
     return null;
@@ -212,7 +212,7 @@ export default function AssignmentFileUpload({
             type="file"
             ref={fileInputRef}
             onChange={handleFileInputChange}
-            accept=".pdf,.docx,.txt"
+            accept=".pdf,.docx,.txt,.zip"
             style={{ display: "none" }}
           />
           
@@ -230,7 +230,7 @@ export default function AssignmentFileUpload({
               {isUploading ? "Uploading..." : "Browse Files"}
             </button>
             <p className="file-requirements">
-              Allowed types: PDF, DOCX, TXT (Max 5MB)
+              Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
             </p>
           </div>
         </div>
