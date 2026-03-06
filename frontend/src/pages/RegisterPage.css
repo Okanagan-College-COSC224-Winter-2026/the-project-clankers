@@ -23,13 +23,12 @@
   margin: 8px;
   padding-bottom: 16px;
 
-  height: 50%;
   width: 30%;
 
   background-color: #fff;
 
   min-height: 300px;
-  max-height: 400px;
+  max-height: 700px;
 }
 
 .RegisterInner {
