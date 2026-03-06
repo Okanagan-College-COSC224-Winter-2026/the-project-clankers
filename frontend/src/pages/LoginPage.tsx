@@ -66,7 +66,7 @@ export default function LoginPage() {
             </div>
 
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center'}}>
             <Button
               type='submit'
               children="Login"
