@@ -36,6 +36,7 @@ class Assignment(db.Model):
     reviews = db.relationship(
         "Review", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
+<<<<<<< HEAD
     group_members = db.relationship(
         "Group_Members", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )

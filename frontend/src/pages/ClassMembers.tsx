@@ -189,6 +189,7 @@ export default function ClassMembers() {
             const groupName = userGroups.get(member.id);
             return (
               <div key={member.id} className="Member">
+<<<<<<< HEAD
                 <div className="MemberContent">
                   <img 
                     src={getProfilePictureUrl(member.profile_picture_url)} 
@@ -218,6 +219,13 @@ export default function ClassMembers() {
                     )}
                   </div>
                 </div>
+                )}
+                <br />
+                <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                  {member.email}
+                  {member.student_id && <span> | Student ID: {member.student_id}</span>}
+                </span>
+>>>>>>> 1d997af57a0f59d60a773feacf138787d663d777
               </div>
             )
           })
