@@ -23,13 +23,12 @@
   margin: 8px;
   padding-bottom: 16px;
 
-  height: 50%;
   width: 30%;
 
   background-color: #fff;
 
   min-height: 300px;
-  max-height: 400px;
+  max-height: 700px;
 }
 
 .RegisterInner {
@@ -41,7 +40,7 @@
 }
 
 .RegisterButton {
-  margin-bottom: 16px;
+  margin-bottom: 128px;
 }
 
 .RegisterInputs {
@@ -57,8 +56,9 @@
 .RegisterInputChunk {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
 
   margin: 12px;
+  width: 100%;
 }

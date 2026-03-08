@@ -475,3 +475,24 @@ As a student, I want to log in after my teacher uploads the roster so that I can
 - [ ] Admin receives success or error feedback for each action  
 - [ ] All actions go through the frontend admin page and persist to the backend
 
+---
+
+## US27 – Password View Toggle — **In Review**
+
+**As a User, I want to be able to click a button to reveal my password while I login or register.**
+
+### Assumptions and Details
+
+- The user is on the login or register page
+- The user has begun typing
+
+### Capabilities and Acceptance Criteria
+- [ ] Given the user is on the login or registration page
+- [ ] There is a clickable button next to the password field
+- [ ] When the button is clicked, the password becomes visible/invisible
+- [ ] Button cannot be clicked if password field is empty
+- [ ] Password criteria is displayed below the password field
+- [ ] Password criteria updates as password is entered
+
+---
+
