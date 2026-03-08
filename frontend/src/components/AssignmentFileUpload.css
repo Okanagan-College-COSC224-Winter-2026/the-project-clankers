@@ -1,0 +1,246 @@
+.assignment-file-upload-container {
+  width: 100%;
+  margin: 20px 0;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.assignment-file-upload-container h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.assignment-file-upload-container h4 {
+  margin: 20px 0 10px 0;
+  font-size: 1rem;
+  color: #555;
+}
+
+.loading-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 20px;
+}
+
+.no-files-message {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 5px;
+  border: 1px dashed #ddd;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background-color: #fff;
+  border: 2px solid #4CAF50;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.file-item:hover {
+  background-color: #f5f5f5;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.file-icon {
+  font-size: 1.5rem;
+}
+
+.file-name {
+  font-size: 1rem;
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+
+.file-date {
+  font-size: 0.85rem;
+  color: #666;
+  margin-left: auto;
+  padding-right: 15px;
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.download-file-button {
+  padding: 8px 16px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.download-file-button:hover {
+  background-color: #0b7dda;
+}
+
+.delete-file-button-small {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.delete-file-button-small:hover {
+  background-color: #da190b;
+}
+
+.upload-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #ddd;
+}
+
+.file-drop-zone {
+  width: 100%;
+  min-height: 200px;
+  border: 3px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.file-drop-zone:hover {
+  border-color: #4CAF50;
+  background-color: #f0f9ff;
+}
+
+.file-drop-zone.dragging {
+  border-color: #4CAF50;
+  background-color: #e8f5e9;
+  border-style: solid;
+}
+
+.drop-zone-content {
+  text-align: center;
+  padding: 20px;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+}
+
+.drop-zone-text {
+  font-size: 1.1rem;
+  color: #555;
+  margin: 10px 0;
+}
+
+.drop-zone-or {
+  font-size: 0.9rem;
+  color: #888;
+  margin: 15px 0;
+}
+
+.browse-button {
+  padding: 12px 30px;
+  font-size: 1rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-weight: 500;
+}
+
+.browse-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.browse-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.file-requirements {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 15px;
+}
+
+.current-file-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background-color: #fff;
+  border: 2px solid #4CAF50;
+  border-radius: 8px;
+}
+
+.delete-file-button {
+  padding: 8px 20px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.delete-file-button:hover:not(:disabled) {
+  background-color: #da190b;
+}
+
+.delete-file-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.upload-message {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 5px;
+  font-size: 0.95rem;
+}
+
+.upload-message.error {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef5350;
+}
+
+.upload-message.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #66bb6a;
+}

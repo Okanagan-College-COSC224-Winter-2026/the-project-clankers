@@ -1,8 +1,11 @@
+import os
+import uuid
 from datetime import datetime
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from werkzeug.utils import secure_filename
 
-from ..models import Course, Assignment, User, AssignmentSchema
+from ..models import Course, Assignment, AssignmentFile, User, AssignmentSchema, AssignmentFileSchema
 from .auth_controller import jwt_teacher_required
 
 bp = Blueprint("assignment", __name__, url_prefix="/assignment")
@@ -197,3 +200,174 @@ def get_assignment_details(assignment_id):
         assignment_data["group_count"] = assignment.groups.count()
     
     return jsonify(assignment_data), 200
+
+
+def allowed_document_file(filename):
+    """Check if file has an allowed extension for assignment documents"""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in current_app.config["ALLOWED_DOCUMENT_EXTENSIONS"]
+
+
+@bp.route("/upload_file/<int:assignment_id>", methods=["POST"])
+@jwt_teacher_required
+def upload_assignment_file(assignment_id):
+    """Upload a file (PDF, DOCX, TXT, ZIP) to an assignment (teachers only) - supports multiple files"""
+    # Check if file is in request
+    if "file" not in request.files:
+        return jsonify({"msg": "No file provided"}), 400
+
+    file = request.files["file"]
+
+    # Check if file was selected
+    if file.filename == "":
+        return jsonify({"msg": "No file selected"}), 400
+
+    # Validate file type
+    if not allowed_document_file(file.filename):
+        return jsonify({
+            "msg": "Invalid file type. Allowed types: pdf, docx, txt, zip"
+        }), 400
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.teacherID != user.id:
+        return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
+
+    # Generate unique filename to avoid collisions
+    ext = file.filename.rsplit(".", 1)[1].lower()
+    unique_filename = f"{assignment_id}_{uuid.uuid4().hex}.{ext}"
+    
+    # Save new file
+    filepath = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], unique_filename)
+    file.save(filepath)
+
+    # Create new AssignmentFile record
+    # Store original filename for display (unique_filename ensures filesystem safety)
+    new_file = AssignmentFile(
+        assignment_id=assignment_id,
+        filename=file.filename,  # Keep original filename with spaces
+        file_path=unique_filename,
+        uploaded_by=user.id
+    )
+    AssignmentFile.create(new_file)
+
+    return jsonify({
+        "msg": "File uploaded successfully",
+        "file": AssignmentFileSchema().dump(new_file)
+    }), 200
+
+
+@bp.route("/files/<int:assignment_id>", methods=["GET"])
+@jwt_required()
+def get_assignment_files(assignment_id):
+    """Get all files attached to an assignment (available to enrolled students and teachers)"""
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    # Check if user has access to this assignment
+    is_teacher = course.teacherID == user.id
+    is_enrolled = any(student.id == user.id for student in course.students)
+    
+    if not (is_teacher or is_enrolled):
+        return jsonify({"msg": "Unauthorized: You do not have access to this assignment"}), 403
+
+    # Get all files for this assignment
+    files = AssignmentFile.get_by_assignment_id(assignment_id)
+    files_data = AssignmentFileSchema(many=True).dump(files)
+    
+    return jsonify(files_data), 200
+
+
+@bp.route("/download_file/<int:file_id>", methods=["GET"])
+@jwt_required()
+def download_assignment_file(file_id):
+    """Download a specific file attached to an assignment (available to enrolled students and teachers)"""
+    assignment_file = AssignmentFile.get_by_id(file_id)
+    if not assignment_file:
+        return jsonify({"msg": "File not found"}), 404
+
+    assignment = Assignment.get_by_id(assignment_file.assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    # Check if user has access to this assignment
+    is_teacher = course.teacherID == user.id
+    is_enrolled = any(student.id == user.id for student in course.students)
+    
+    if not (is_teacher or is_enrolled):
+        return jsonify({"msg": "Unauthorized: You do not have access to this assignment"}), 403
+
+    # Serve the file with original filename for download
+    return send_from_directory(
+        current_app.config["ASSIGNMENT_UPLOAD_FOLDER"],
+        assignment_file.file_path,
+        as_attachment=True,
+        download_name=assignment_file.filename
+    )
+
+
+@bp.route("/delete_file/<int:file_id>", methods=["DELETE"])
+@jwt_teacher_required
+def delete_assignment_file(file_id):
+    """Delete a specific file attached to an assignment (teachers only)"""
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    assignment_file = AssignmentFile.get_by_id(file_id)
+    if not assignment_file:
+        return jsonify({"msg": "File not found"}), 404
+
+    assignment = Assignment.get_by_id(assignment_file.assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.teacherID != user.id:
+        return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
+
+    # Delete file from filesystem
+    file_path = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], assignment_file.file_path)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            return jsonify({"msg": f"Error deleting file: {str(e)}"}), 500
+
+    # Delete file record from database
+    assignment_file.delete()
+
+    return jsonify({"msg": "File deleted successfully"}), 200

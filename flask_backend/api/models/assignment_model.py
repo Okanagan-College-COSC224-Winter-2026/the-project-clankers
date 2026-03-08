@@ -20,6 +20,10 @@ class Assignment(db.Model):
     start_date = db.Column(db.DateTime, nullable=True, index=True)
     # NEW: due date field (acceptance criteria: edit/delete allowed before due date)
     due_date = db.Column(db.DateTime, nullable=True, index=True)
+    
+    # File attachment fields
+    attachment_filename = db.Column(db.String(255), nullable=True)  # Original filename
+    attachment_path = db.Column(db.String(500), nullable=True)  # Server-side path
 
     # relationships
     course = db.relationship("Course", back_populates="assignments", lazy="joined")
@@ -38,13 +42,21 @@ class Assignment(db.Model):
     group_members = db.relationship(
         "Group_Members", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
+    files = db.relationship(
+        "AssignmentFile", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    student_submissions = db.relationship(
+        "StudentSubmission", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
-    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None):
+    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, attachment_filename=None, attachment_path=None):
         self.courseID = courseID
         self.name = name
         self.rubric_text = rubric_text
         self.start_date = start_date
         self.due_date = due_date
+        self.attachment_filename = attachment_filename
+        self.attachment_path = attachment_path
 
     def __repr__(self):
         return f"<Assignment id={self.id} name={self.name}>"

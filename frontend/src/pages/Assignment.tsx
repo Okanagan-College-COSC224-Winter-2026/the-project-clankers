@@ -5,6 +5,10 @@ import RubricCreator from "../components/RubricCreator";
 import RubricDisplay from "../components/RubricDisplay";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
+import AssignmentFileUpload from "../components/AssignmentFileUpload";
+import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
+import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
+import TeacherSubmissionView from "../components/TeacherSubmissionView";
 import { isTeacher } from "../util/login";
 
 import { 
@@ -36,19 +40,23 @@ export default function Assignment() {
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
+  const isSubmissionTab = location.pathname.includes('/submission');
+  const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
 
   // Fetch assignment details to get the name
-  useEffect(() => {
-    (async () => {
-      try {
-        const assignmentData = await getAssignmentDetails(Number(id));
-        if (assignmentData && assignmentData.name) {
-          setAssignmentName(assignmentData.name);
-        }
-      } catch (error) {
-        console.error('Error fetching assignment details:', error);
+  const fetchAssignmentDetails = async () => {
+    try {
+      const assignmentData = await getAssignmentDetails(Number(id));
+      if (assignmentData && assignmentData.name) {
+        setAssignmentName(assignmentData.name);
       }
-    })();
+    } catch (error) {
+      console.error('Error fetching assignment details:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignmentDetails();
   }, [id]);
 
   // Load criteria descriptions for the rubric
@@ -164,6 +172,10 @@ export default function Assignment() {
                   path: `/assignments/${id}/group`,
                 },
                 {
+                  label: "Student Submissions",
+                  path: `/assignments/${id}/student-submissions`,
+                },
+                {
                   label: "Manage",
                   path: `/assignments/${id}/manage`,
                 }
@@ -176,6 +188,10 @@ export default function Assignment() {
                 {
                   label: "Group",
                   path: `/assignments/${id}/group`,
+                },
+                {
+                  label: "Submission",
+                  path: `/assignments/${id}/submission`,
                 }
               ]
         }
@@ -183,8 +199,26 @@ export default function Assignment() {
 
       {isManageTab && isTeacher() ? (
         <AssignmentSettings assignmentId={Number(id)} />
+      ) : isSubmissionTab && !isTeacher() ? (
+        /* Student submission upload tab */
+        <StudentSubmissionUpload assignmentId={Number(id)} />
+      ) : isStudentSubmissionsTab && isTeacher() ? (
+        /* Teacher view of all student submissions */
+        <TeacherSubmissionView assignmentId={Number(id)} />
       ) : (
+        /* Home tab - default view */
         <>
+          {/* File upload/display section */}
+          {isTeacher() ? (
+            <AssignmentFileUpload 
+              assignmentId={Number(id)}
+            />
+          ) : (
+            <AssignmentFileDisplay 
+              assignmentId={Number(id)}
+            />
+          )}
+
           <div className='assignmentRubricDisplay'>
             <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
           </div>

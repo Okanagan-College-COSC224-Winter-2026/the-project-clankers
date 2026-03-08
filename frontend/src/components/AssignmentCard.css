@@ -44,6 +44,16 @@
   color: white;
 }
 
+.due-date-badge.complete {
+  background-color: #28a745;
+  color: white;
+}
+
+.due-date-badge.in-progress {
+  background-color: #007bff;
+  color: white;
+}
+
 /*TODO: add disabled functionality */
 .A_Card:hover{
   cursor: pointer;

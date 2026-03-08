@@ -1,4 +1,5 @@
 from .assignment_model import Assignment
+from .assignment_file_model import AssignmentFile
 from .course_group_model import CourseGroup
 from .course_model import Course
 from .criteria_description_model import CriteriaDescription
@@ -7,8 +8,10 @@ from .db import db, ma
 from .group_members_model import Group_Members
 from .review_model import Review
 from .rubric_model import Rubric
+from .student_submission_model import StudentSubmission
 from .schemas import (
     AssignmentSchema,
+    AssignmentFileSchema,
     CourseGroupSchema,
     CourseListSchema,
     CourseSchema,
@@ -17,6 +20,7 @@ from .schemas import (
     GroupMembersSchema,
     ReviewSchema,
     RubricSchema,
+    StudentSubmissionSchema,
     SubmissionSchema,
     UserCourseSchema,
     UserListSchema,
@@ -34,6 +38,7 @@ __all__ = [
     "User",
     "Course",
     "Assignment",
+    "AssignmentFile",
     "Rubric",
     "CriteriaDescription",
     "Criterion",
@@ -42,6 +47,7 @@ __all__ = [
     "Group_Members",
     "User_Course",
     "Submission",
+    "StudentSubmission",
     "UserSchema",
     "UserRegistrationSchema",
     "UserLoginSchema",
@@ -49,6 +55,7 @@ __all__ = [
     "CourseSchema",
     "CourseListSchema",
     "AssignmentSchema",
+    "AssignmentFileSchema",
     "RubricSchema",
     "CriteriaDescriptionSchema",
     "CriterionSchema",
