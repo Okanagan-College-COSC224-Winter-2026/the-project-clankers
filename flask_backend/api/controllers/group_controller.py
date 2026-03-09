@@ -98,6 +98,14 @@ def create_class_group(course_id):
     if not name:
         return jsonify({"msg": "Group name is required"}), 400
     
+    # Check for duplicate group name within the same course
+    existing = CourseGroup.query.filter(
+        CourseGroup.courseID == course_id,
+        db.func.lower(CourseGroup.name) == name.strip().lower()
+    ).first()
+    if existing:
+        return jsonify({"msg": "A group with that name already exists"}), 409
+    
     # Create the group
     new_group = CourseGroup(name=name, courseID=course_id)
     CourseGroup.create_group(new_group)
@@ -136,6 +144,15 @@ def update_group(course_id, group_id):
     
     if not name:
         return jsonify({"msg": "Group name is required"}), 400
+    
+    # Check for duplicate group name within the same course (excluding current group)
+    existing = CourseGroup.query.filter(
+        CourseGroup.courseID == course_id,
+        CourseGroup.id != group_id,
+        db.func.lower(CourseGroup.name) == name.strip().lower()
+    ).first()
+    if existing:
+        return jsonify({"msg": "A group with that name already exists"}), 409
     
     group.name = name
     group.update()

@@ -3,6 +3,7 @@ import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Button from "../components/Button";
 import StatusMessage from "../components/StatusMessage";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { listClasses } from "../util/api";
 import "./ClassGroupManagement.css";
 
@@ -27,6 +28,15 @@ export default function ClassGroupManagement() {
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [className, setClassName] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const isCreating = useRef(false);
+  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning' | 'info' | 'success';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -103,17 +113,31 @@ export default function ClassGroupManagement() {
   }, [loadData, id]);
 
   const showStatus = (message: string, type: "error" | "success") => {
-    setStatusMessage(message);
-    setStatusType(type);
-    setTimeout(() => setStatusMessage(""), 3000);
+    // Cancel any pending clear timeout
+    if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+    setStatusMessage("");
+    setTimeout(() => {
+      setStatusMessage(message);
+      setStatusType(type);
+    }, 0);
+    statusTimeoutRef.current = setTimeout(() => setStatusMessage(""), 4100);
   };
 
   const createGroup = async () => {
+    if (isCreating.current) return;
+
     if (!newGroupName.trim()) {
       showStatus("Group name cannot be empty", "error");
       return;
     }
 
+    // Check for duplicate group name
+    if (groups.some(g => g.name.toLowerCase() === newGroupName.trim().toLowerCase())) {
+      showStatus("A group with that name already exists", "error");
+      return;
+    }
+
+    isCreating.current = true;
     try {
       const response = await fetch(`http://localhost:5000/classes/${id}/groups`, {
         method: "POST",
@@ -133,12 +157,20 @@ export default function ClassGroupManagement() {
     } catch (error) {
       console.error("Error creating group:", error);
       showStatus("Error creating group", "error");
+    } finally {
+      isCreating.current = false;
     }
   };
 
   const renameGroup = async (groupId: number, newName: string) => {
     if (!newName.trim()) {
       showStatus("Group name cannot be empty", "error");
+      return;
+    }
+
+    // Check for duplicate group name
+    if (groups.some(g => g.id !== groupId && g.name.toLowerCase() === newName.trim().toLowerCase())) {
+      showStatus("A group with that name already exists", "error");
       return;
     }
 
@@ -166,27 +198,32 @@ export default function ClassGroupManagement() {
   };
 
   const deleteGroup = async (groupId: number) => {
-    if (!confirm("Are you sure you want to delete this group? Members will become unassigned.")) {
-      return;
-    }
+    setConfirmDialog({
+      title: 'Delete Group',
+      message: 'Are you sure you want to delete this group? Members will become unassigned.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const response = await fetch(`http://localhost:5000/classes/${id}/groups/${groupId}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
 
-    try {
-      const response = await fetch(`http://localhost:5000/classes/${id}/groups/${groupId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        await loadData();
-        showStatus("Group deleted successfully", "success");
-      } else {
-        const error = await response.json();
-        showStatus(error.msg || "Failed to delete group", "error");
-      }
-    } catch (error) {
-      console.error("Error deleting group:", error);
-      showStatus("Error deleting group", "error");
-    }
+          if (response.ok) {
+            await loadData();
+            showStatus("Group deleted successfully", "success");
+          } else {
+            const error = await response.json();
+            showStatus(error.msg || "Failed to delete group", "error");
+          }
+        } catch (error) {
+          console.error("Error deleting group:", error);
+          showStatus("Error deleting group", "error");
+        }
+      },
+    });
   };
 
   const addStudentToGroup = async (studentId: number, groupId: number) => {
@@ -281,51 +318,58 @@ export default function ClassGroupManagement() {
       ? `Distribute ${shuffled.length} students across ${selectedGroups.length} of ${groups.length} groups? (${unusedCount} group(s) skipped to maintain minimum size of 2)`
       : `Randomly distribute ${shuffled.length} unassigned students across ${groups.length} groups?`;
 
-    if (!confirm(confirmMsg)) return;
+    setConfirmDialog({
+      title: 'Randomize Groups',
+      message: confirmMsg,
+      confirmLabel: 'Randomize',
+      variant: 'success',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const assignments: { studentId: number; groupId: number }[] = [];
+          let idx = 0;
 
-    try {
-      const assignments: { studentId: number; groupId: number }[] = [];
-      let idx = 0;
-
-      // Phase 1: bring every selected group up to minimum 2
-      for (const gi of selectedGroups) {
-        const needed = Math.max(0, 2 - gi.existing);
-        for (let j = 0; j < needed; j++) {
-          assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
-          idx++;
-        }
-      }
-
-      // Phase 2: round-robin remaining students across selected groups
-      while (idx < shuffled.length) {
-        for (const gi of selectedGroups) {
-          if (idx >= shuffled.length) break;
-          assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
-          idx++;
-        }
-      }
-
-      // Execute all assignments
-      let successCount = 0;
-      for (const { studentId, groupId } of assignments) {
-        const response = await fetch(
-          `http://localhost:5000/classes/${id}/groups/${groupId}/members`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ userID: studentId }),
+          // Phase 1: bring every selected group up to minimum 2
+          for (const gi of selectedGroups) {
+            const needed = Math.max(0, 2 - gi.existing);
+            for (let j = 0; j < needed; j++) {
+              assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
+              idx++;
+            }
           }
-        );
-        if (response.ok) successCount++;
-      }
 
-      await loadData();
-      showStatus(`Successfully distributed ${successCount} students across ${selectedGroups.length} groups`, "success");
-    } catch (error) {
-      console.error("Error randomizing groups:", error);
-      showStatus("Error randomizing groups", "error");
-    }
+          // Phase 2: round-robin remaining students across selected groups
+          while (idx < shuffled.length) {
+            for (const gi of selectedGroups) {
+              if (idx >= shuffled.length) break;
+              assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
+              idx++;
+            }
+          }
+
+          // Execute all assignments
+          let successCount = 0;
+          for (const { studentId, groupId } of assignments) {
+            const response = await fetch(
+              `http://localhost:5000/classes/${id}/groups/${groupId}/members`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ userID: studentId }),
+              }
+            );
+            if (response.ok) successCount++;
+          }
+
+          await loadData();
+          showStatus(`Successfully distributed ${successCount} students across ${selectedGroups.length} groups`, "success");
+        } catch (error) {
+          console.error("Error randomizing groups:", error);
+          showStatus("Error randomizing groups", "error");
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -351,6 +395,10 @@ export default function ClassGroupManagement() {
           {
             label: "Groups",
             path: `/classes/${id}/groups`,
+          },
+          {
+            label: "Student Submissions",
+            path: `/classes/${id}/student-submissions`,
           },
         ]}
       />
@@ -421,7 +469,7 @@ export default function ClassGroupManagement() {
                 onChange={(e) => setNewGroupName(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && createGroup()}
               />
-              <Button onClick={createGroup}>Create Group</Button>
+              <Button onClick={createGroup} disabled={isCreating.current}>Create Group</Button>
             </div>
           </div>
 
@@ -502,6 +550,17 @@ export default function ClassGroupManagement() {
           </div>
         </div>
       </div>
+
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </>
   );
 }

@@ -698,6 +698,181 @@ def test_concurrent_group_operations(test_client, teacher, course_with_students,
 # Randomize Min Group Size Tests
 # ========================
 
+# ========================
+# Duplicate Group Name Tests
+# ========================
+
+def test_create_group_duplicate_name_rejected(test_client, teacher, course_with_groups):
+    """Test that creating a group with an existing name returns 409"""
+    course, group1, _ = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.post(
+        f"/classes/{course.id}/groups",
+        json={"name": "Group 1"}
+    )
+    assert response.status_code == 409
+    data = json.loads(response.data)
+    assert "already exists" in data["msg"]
+
+
+def test_create_group_duplicate_name_case_insensitive(test_client, teacher, course_with_groups):
+    """Test that duplicate name check is case-insensitive ('group 1' == 'Group 1')"""
+    course, _, _ = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.post(
+        f"/classes/{course.id}/groups",
+        json={"name": "group 1"}
+    )
+    assert response.status_code == 409
+
+    response2 = test_client.post(
+        f"/classes/{course.id}/groups",
+        json={"name": "GROUP 1"}
+    )
+    assert response2.status_code == 409
+
+
+def test_create_group_duplicate_name_with_whitespace(test_client, teacher, course_with_groups):
+    """Test that leading/trailing whitespace is stripped before duplicate check"""
+    course, _, _ = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.post(
+        f"/classes/{course.id}/groups",
+        json={"name": "  Group 1  "}
+    )
+    assert response.status_code == 409
+
+
+def test_create_group_unique_name_allowed(test_client, teacher, course_with_groups):
+    """Test that a genuinely unique name is still accepted"""
+    course, _, _ = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.post(
+        f"/classes/{course.id}/groups",
+        json={"name": "Totally New Group"}
+    )
+    assert response.status_code == 201
+    data = json.loads(response.data)
+    assert data["name"] == "Totally New Group"
+
+
+def test_rename_group_duplicate_name_rejected(test_client, teacher, course_with_groups):
+    """Test that renaming a group to an existing name returns 409"""
+    course, group1, group2 = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    # Rename group2 to group1's name
+    response = test_client.put(
+        f"/classes/{course.id}/groups/{group2.id}",
+        json={"name": "Group 1"}
+    )
+    assert response.status_code == 409
+    data = json.loads(response.data)
+    assert "already exists" in data["msg"]
+
+
+def test_rename_group_duplicate_name_case_insensitive(test_client, teacher, course_with_groups):
+    """Test that rename duplicate check is case-insensitive"""
+    course, _, group2 = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.put(
+        f"/classes/{course.id}/groups/{group2.id}",
+        json={"name": "group 1"}
+    )
+    assert response.status_code == 409
+
+
+def test_rename_group_same_name_allowed(test_client, teacher, course_with_groups):
+    """Test that renaming a group to its own current name succeeds (not a duplicate)"""
+    course, group1, _ = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.put(
+        f"/classes/{course.id}/groups/{group1.id}",
+        json={"name": "Group 1"}
+    )
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["name"] == "Group 1"
+
+
+def test_rename_group_unique_name_allowed(test_client, teacher, course_with_groups):
+    """Test that renaming to a unique name works"""
+    course, group1, _ = course_with_groups
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    response = test_client.put(
+        f"/classes/{course.id}/groups/{group1.id}",
+        json={"name": "New Name"}
+    )
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["name"] == "New Name"
+
+
+def test_duplicate_name_across_courses_allowed(test_client, teacher, course_with_groups, db):
+    """Test that the same group name can exist in different courses"""
+    course, _, _ = course_with_groups
+
+    # Create a second course
+    course2 = Course(teacherID=teacher.id, name="Second Course")
+    db.session.add(course2)
+    db.session.commit()
+
+    test_client.post("/auth/login", json={
+        "email": "teacher@test.com",
+        "password": "password"
+    })
+
+    # "Group 1" already exists in course1 — should be allowed in course2
+    response = test_client.post(
+        f"/classes/{course2.id}/groups",
+        json={"name": "Group 1"}
+    )
+    assert response.status_code == 201
+
+
+# ========================
+# Randomize Min Group Size Tests
+# ========================
+
 def test_randomize_all_groups_get_at_least_two_members(test_client, teacher, db):
     """Randomize distribution must give every used group at least 2 members.
     Simulates the frontend randomize algorithm at the API level:

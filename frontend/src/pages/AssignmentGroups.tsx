@@ -3,6 +3,7 @@ import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Button from "../components/Button";
 import StatusMessage from "../components/StatusMessage";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { getAssignmentDetails, listClasses } from "../util/api";
 import { isTeacher } from "../util/login";
 import "./ClassGroupManagement.css";
@@ -28,6 +29,15 @@ export default function AssignmentGroups() {
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const isCreating = useRef(false);
+  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning' | 'info' | 'success';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -123,14 +133,27 @@ export default function AssignmentGroups() {
   }, [courseId, loadData]);
 
   const showStatus = (message: string, type: "error" | "success") => {
-    setStatusMessage(message);
-    setStatusType(type);
-    setTimeout(() => setStatusMessage(""), 3000);
+    // Cancel any pending clear timeout
+    if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+    setStatusMessage("");
+    setTimeout(() => {
+      setStatusMessage(message);
+      setStatusType(type);
+    }, 0);
+    statusTimeoutRef.current = setTimeout(() => setStatusMessage(""), 4100);
   };
 
   const createGroup = async () => {
+    if (isCreating.current) return;
+
     if (!newGroupName.trim()) {
       showStatus("Group name cannot be empty", "error");
+      return;
+    }
+
+    // Check for duplicate group name
+    if (groups.some(g => g.name.toLowerCase() === newGroupName.trim().toLowerCase())) {
+      showStatus("A group with that name already exists", "error");
       return;
     }
 
@@ -139,6 +162,7 @@ export default function AssignmentGroups() {
       return;
     }
 
+    isCreating.current = true;
     try {
       const response = await fetch(`http://localhost:5000/classes/${courseId}/groups`, {
         method: "POST",
@@ -158,12 +182,20 @@ export default function AssignmentGroups() {
     } catch (error) {
       console.error("Error creating group:", error);
       showStatus("Error creating group", "error");
+    } finally {
+      isCreating.current = false;
     }
   };
 
   const renameGroup = async (groupId: number, newName: string) => {
     if (!newName.trim()) {
       showStatus("Group name cannot be empty", "error");
+      return;
+    }
+
+    // Check for duplicate group name
+    if (groups.some(g => g.id !== groupId && g.name.toLowerCase() === newName.trim().toLowerCase())) {
+      showStatus("A group with that name already exists", "error");
       return;
     }
 
@@ -195,27 +227,32 @@ export default function AssignmentGroups() {
   const deleteGroupHandler = async (groupId: number) => {
     if (!courseId) return;
     
-    if (!confirm("Are you sure you want to delete this group? Members will become unassigned.")) {
-      return;
-    }
+    setConfirmDialog({
+      title: 'Delete Group',
+      message: 'Are you sure you want to delete this group? Members will become unassigned.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const response = await fetch(`http://localhost:5000/classes/${courseId}/groups/${groupId}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
 
-    try {
-      const response = await fetch(`http://localhost:5000/classes/${courseId}/groups/${groupId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        await loadData();
-        showStatus("Group deleted successfully", "success");
-      } else {
-        const error = await response.json();
-        showStatus(error.msg || "Failed to delete group", "error");
-      }
-    } catch (error) {
-      console.error("Error deleting group:", error);
-      showStatus("Error deleting group", "error");
-    }
+          if (response.ok) {
+            await loadData();
+            showStatus("Group deleted successfully", "success");
+          } else {
+            const error = await response.json();
+            showStatus(error.msg || "Failed to delete group", "error");
+          }
+        } catch (error) {
+          console.error("Error deleting group:", error);
+          showStatus("Error deleting group", "error");
+        }
+      },
+    });
   };
 
   const addMemberToGroup = async (userId: number, groupId: number) => {
@@ -316,51 +353,58 @@ export default function AssignmentGroups() {
       ? `Distribute ${shuffled.length} students across ${selectedGroups.length} of ${groups.length} groups? (${unusedCount} group(s) skipped to maintain minimum size of 2)`
       : `Randomly distribute ${shuffled.length} unassigned students across ${groups.length} groups?`;
 
-    if (!confirm(confirmMsg)) return;
+    setConfirmDialog({
+      title: 'Randomize Groups',
+      message: confirmMsg,
+      confirmLabel: 'Randomize',
+      variant: 'success',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const assignments: { studentId: number; groupId: number }[] = [];
+          let idx = 0;
 
-    try {
-      const assignments: { studentId: number; groupId: number }[] = [];
-      let idx = 0;
-
-      // Phase 1: bring every selected group up to minimum 2
-      for (const gi of selectedGroups) {
-        const needed = Math.max(0, 2 - gi.existing);
-        for (let j = 0; j < needed; j++) {
-          assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
-          idx++;
-        }
-      }
-
-      // Phase 2: round-robin remaining students across selected groups
-      while (idx < shuffled.length) {
-        for (const gi of selectedGroups) {
-          if (idx >= shuffled.length) break;
-          assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
-          idx++;
-        }
-      }
-
-      // Execute all assignments
-      let successCount = 0;
-      for (const { studentId, groupId } of assignments) {
-        const response = await fetch(
-          `http://localhost:5000/classes/${courseId}/groups/${groupId}/members`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ userID: studentId }),
+          // Phase 1: bring every selected group up to minimum 2
+          for (const gi of selectedGroups) {
+            const needed = Math.max(0, 2 - gi.existing);
+            for (let j = 0; j < needed; j++) {
+              assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
+              idx++;
+            }
           }
-        );
-        if (response.ok) successCount++;
-      }
 
-      await loadData();
-      showStatus(`Successfully distributed ${successCount} students across ${selectedGroups.length} groups`, "success");
-    } catch (error) {
-      console.error("Error randomizing groups:", error);
-      showStatus("Error randomizing groups", "error");
-    }
+          // Phase 2: round-robin remaining students across selected groups
+          while (idx < shuffled.length) {
+            for (const gi of selectedGroups) {
+              if (idx >= shuffled.length) break;
+              assignments.push({ studentId: shuffled[idx].id, groupId: gi.group.id });
+              idx++;
+            }
+          }
+
+          // Execute all assignments
+          let successCount = 0;
+          for (const { studentId, groupId } of assignments) {
+            const response = await fetch(
+              `http://localhost:5000/classes/${courseId}/groups/${groupId}/members`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ userID: studentId }),
+              }
+            );
+            if (response.ok) successCount++;
+          }
+
+          await loadData();
+          showStatus(`Successfully distributed ${successCount} students across ${selectedGroups.length} groups`, "success");
+        } catch (error) {
+          console.error("Error randomizing groups:", error);
+          showStatus("Error randomizing groups", "error");
+        }
+      },
+    });
   };
 
   if (loading && groups.length === 0) {
@@ -399,6 +443,10 @@ export default function AssignmentGroups() {
                   path: `/assignments/${id}/rubric`,
                 },
                 {
+                  label: "Student Submissions",
+                  path: `/assignments/${id}/student-submissions`,
+                },
+                {
                   label: "Manage",
                   path: `/assignments/${id}/manage`,
                 }
@@ -412,14 +460,6 @@ export default function AssignmentGroups() {
                   label: "Members",
                   path: `/assignments/${id}/members`,
                 },
-                {
-                  label: "Groups",
-                  path: `/assignments/${id}/groups`,
-                },
-                {
-                  label: "Rubric",
-                  path: `/assignments/${id}/rubric`,
-                }
               ]
         }
       />
@@ -491,7 +531,7 @@ export default function AssignmentGroups() {
                   onChange={(e) => setNewGroupName(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && createGroup()}
                 />
-                <Button onClick={createGroup}>Create Group</Button>
+                <Button onClick={createGroup} disabled={isCreating.current}>Create Group</Button>
               </div>
             )}
           </div>
@@ -577,6 +617,17 @@ export default function AssignmentGroups() {
           </div>
         </div>
       </div>
+
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </>
   );
 }

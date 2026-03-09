@@ -134,6 +134,10 @@ export default function ClassMembers() {
                   label: "Groups",
                   path: `/classes/${id}/groups`,
                 },
+                {
+                  label: "Student Submissions",
+                  path: `/classes/${id}/student-submissions`,
+                },
               ]
             : [
                 {
@@ -199,7 +203,6 @@ export default function ClassMembers() {
                     <div className="MemberNameRow">
                       <strong>{member.name}</strong>
                       {getRoleBadge(member.role)}
-                      <span> (ID: {member.student_id || 'NULL'})</span>
                       {groupName && (
                         <span style={{ 
                           marginLeft: '8px',
@@ -214,7 +217,10 @@ export default function ClassMembers() {
                       )}
                     </div>
                     {member.email && (
-                      <span style={{ color: '#6b7280', fontSize: '14px' }}>{member.email}</span>
+                      <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                        {member.email}
+                        {member.student_id && <span> | Student ID: {member.student_id}</span>}
+                      </span>
                     )}
                   </div>
                 </div>

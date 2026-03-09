@@ -51,13 +51,12 @@ export default function AssignmentRubric() {
                 { label: "Members", path: `/assignments/${id}/members` },
                 { label: "Groups", path: `/assignments/${id}/groups` },
                 { label: "Rubric", path: `/assignments/${id}/rubric` },
+                { label: "Student Submissions", path: `/assignments/${id}/student-submissions` },
                 { label: "Manage", path: `/assignments/${id}/manage` },
               ]
             : [
                 { label: "Home", path: `/assignments/${id}` },
                 { label: "Members", path: `/assignments/${id}/members` },
-                { label: "Groups", path: `/assignments/${id}/groups` },
-                { label: "Rubric", path: `/assignments/${id}/rubric` },
               ]
         }
       />

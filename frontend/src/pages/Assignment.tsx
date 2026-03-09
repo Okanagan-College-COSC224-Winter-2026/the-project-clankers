@@ -7,6 +7,8 @@ import AssignmentFileUpload from "../components/AssignmentFileUpload";
 import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
+import RubricDisplay from "../components/RubricDisplay";
+import RubricCreator from "../components/RubricCreator";
 import { isTeacher } from "../util/login";
 
 import { 
@@ -209,17 +211,9 @@ export default function Assignment() {
                   path: `/assignments/${id}/members`,
                 },
                 {
-                  label: "Groups",
-                  path: `/assignments/${id}/groups`,
-                },
-                {
                   label: "Submission",
                   path: `/assignments/${id}/submission`,
                 },
-                {
-                  label: "Rubric",
-                  path: `/assignments/${id}/rubric`,
-                }
               ]
         }
       />
@@ -235,7 +229,6 @@ export default function Assignment() {
       ) : (
         /* Home tab - default view */
         <>
-<<<<<<< HEAD
           {/* File upload/display section */}
           {isTeacher() ? (
             <AssignmentFileUpload 
@@ -250,12 +243,6 @@ export default function Assignment() {
           <div className='assignmentRubricDisplay'>
             <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
           </div>
-          {
-            isTeacher() && 
-              <div className='assignmentRubric'>
-                <RubricCreator id={Number(id)}/>
-              </div>
-          }
 
           {
             //List group members as radio buttons to select for given review

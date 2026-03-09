@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback } from "react";
-import { listCourseMembers, getAssignmentDetails, listClasses } from "../util/api";
+import { listCourseMembers, getAssignmentDetails, listClasses, getProfilePictureUrl } from "../util/api";
 import { isTeacher } from "../util/login";
 import './ClassMembers.css';
 import './Assignment.css';
@@ -102,6 +102,10 @@ export default function AssignmentMembers() {
                   path: `/assignments/${id}/rubric`,
                 },
                 {
+                  label: "Student Submissions",
+                  path: `/assignments/${id}/student-submissions`,
+                },
+                {
                   label: "Manage",
                   path: `/assignments/${id}/manage`,
                 }
@@ -115,14 +119,6 @@ export default function AssignmentMembers() {
                   label: "Members",
                   path: `/assignments/${id}/members`,
                 },
-                {
-                  label: "Groups",
-                  path: `/assignments/${id}/groups`,
-                },
-                {
-                  label: "Rubric",
-                  path: `/assignments/${id}/rubric`,
-                }
               ]
         }
       />
@@ -156,25 +152,37 @@ export default function AssignmentMembers() {
             const groupName = userGroups.get(member.id);
             return (
               <div key={member.id} className="Member">
-                <strong>{member.name}</strong>
-                {getRoleBadge(member.role)}
-                {groupName && (
-                  <span style={{ 
-                    marginLeft: '8px',
-                    padding: '2px 8px',
-                    backgroundColor: '#e5e7eb',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#374151'
-                  }}>
-                    Group: {groupName}
-                  </span>
-                )}
-                <br />
-                <span style={{ color: '#6b7280', fontSize: '14px' }}>
-                  {member.email}
-                  {member.student_id && <span> | Student ID: {member.student_id}</span>}
-                </span>
+                <div className="MemberContent">
+                  <img 
+                    src={getProfilePictureUrl(member.profile_picture_url)} 
+                    alt={`${member.name}'s profile`}
+                    className="MemberProfilePicture"
+                  />
+                  <div className="MemberInfo">
+                    <div className="MemberNameRow">
+                      <strong>{member.name}</strong>
+                      {getRoleBadge(member.role)}
+                      {groupName && (
+                        <span style={{ 
+                          marginLeft: '8px',
+                          padding: '2px 8px',
+                          backgroundColor: '#e5e7eb',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          color: '#374151'
+                        }}>
+                          Group: {groupName}
+                        </span>
+                      )}
+                    </div>
+                    {member.email && (
+                      <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                        {member.email}
+                        {member.student_id && <span> | Student ID: {member.student_id}</span>}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })

@@ -135,6 +135,10 @@ export default function ClassHome() {
                   label: "Groups",
                   path: `/classes/${id}/groups`,
                 },
+                {
+                  label: "Student Submissions",
+                  path: `/classes/${id}/student-submissions`,
+                },
               ]
             : [
                 {
