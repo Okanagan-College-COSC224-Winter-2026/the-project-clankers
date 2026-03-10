@@ -460,6 +460,10 @@ export default function AssignmentGroups() {
                   label: "Members",
                   path: `/assignments/${id}/members`,
                 },
+                {
+                  label: "Submission",
+                  path: `/assignments/${id}/submission`,
+                },
               ]
         }
       />

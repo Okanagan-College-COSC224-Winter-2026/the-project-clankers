@@ -57,6 +57,7 @@ export default function AssignmentRubric() {
             : [
                 { label: "Home", path: `/assignments/${id}` },
                 { label: "Members", path: `/assignments/${id}/members` },
+                { label: "Submission", path: `/assignments/${id}/submission` },
               ]
         }
       />
