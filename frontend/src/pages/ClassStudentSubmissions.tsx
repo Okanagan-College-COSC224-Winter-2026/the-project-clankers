@@ -1,9 +1,35 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
+import Button from "../components/Button";
 import { isTeacher } from "../util/login";
+import { importCSV } from "../util/csv";
 import { listClasses, getAssignmentsByClass, getStudentSubmissions, downloadStudentSubmission, listCourseMembers } from "../util/api";
+import RosterUploadResult from "../components/RosterUploadResult";
+import ErrorModal from "../components/ErrorModal";
 import "./ClassMembers.css"; // Reuse similar styling
+
+interface RosterUploadResultData {
+  message: string;
+  enrolled_count: number;
+  created_count: number;
+  existing_count?: number;
+  new_students?: Array<{
+    email: string;
+    student_id: string;
+    temp_password: string;
+  }>;
+  enrolled_existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
+  }>;
+  existing_students?: Array<{
+    email: string;
+    student_id: string;
+    name: string;
+  }>;
+}
 
 interface StudentSubmission {
   id: number;
@@ -34,6 +60,9 @@ export default function ClassStudentSubmissions() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<number | null>(null);
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingRoster, setIsUploadingRoster] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -107,10 +136,38 @@ export default function ClassStudentSubmissions() {
     return new Date(dateString).toLocaleString();
   };
 
+  const handleRosterUpload = () => {
+    if (isUploadingRoster) return;
+    setIsUploadingRoster(true);
+    importCSV(
+      id as string,
+      (result) => {
+        setIsUploadingRoster(false);
+        setRosterResult(result);
+        loadData();
+      },
+      (error) => {
+        setIsUploadingRoster(false);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setUploadError(errorMessage);
+      },
+      () => {
+        setIsUploadingRoster(false);
+      }
+    );
+  };
+
   return (
     <>
       <div className="ClassHeader">
         <h2>{className}</h2>
+        <div className="ClassHeaderRight">
+          {isTeacher() ? (
+            <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
+              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <TabNavigation
@@ -242,6 +299,26 @@ export default function ClassStudentSubmissions() {
           </div>
         )}
       </div>
+
+      {rosterResult && (
+        <RosterUploadResult
+          enrolledCount={rosterResult.enrolled_count}
+          createdCount={rosterResult.created_count}
+          existingCount={rosterResult.existing_count}
+          newStudents={rosterResult.new_students}
+          enrolledExistingStudents={rosterResult.enrolled_existing_students}
+          existingStudents={rosterResult.existing_students}
+          onClose={() => setRosterResult(null)}
+        />
+      )}
+
+      {uploadError && (
+        <ErrorModal
+          title="CSV Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
+        />
+      )}
     </>
   );
 }
