@@ -120,21 +120,39 @@
 
 ---
 
-## US6 – System Maintenance and Management — **Complete**
+## US6 – Admin User Management — **In-Progress**
 
-**As an administrator, I want the ability to maintain and manage the system, so that I can ensure it remains stable and updated.**
+**As an administrator, I want a complete Admin User Management feature so I can manage accounts and roles from both the backend API and a frontend dashboard.**
 
 ### Assumptions and Details
 
-- Admin is signed in with admin privileges  
-- System is running  
+- Admin is signed in with admin privileges
+- Role-based access control enforces admin-only actions
+- Backend CRUD endpoints exist and are documented (`/admin/users`, `/admin/users/create`, `/admin/users/<id>/role`, `/admin/users/<id>`)  
+- Frontend will provide an Admin Dashboard UI that uses the backend endpoints and enforces client-side safeguards (no self-delete/demote, confirmations)
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Admin can view all user accounts  
-- [ ] Admin can view system logs  
-- [ ] Admin-only options are not visible to non-admin users  
-- [ ] Admin has access to project files  
+Backend (already implemented)
+- [x] List all user accounts (`GET /admin/users`)
+- [x] Create a new user with any role (`POST /admin/users/create`)
+- [x] Update a user's role (`PUT /admin/users/<id>/role`)
+- [x] Delete a user account (`DELETE /admin/users/<id>`)
+- [x] Prevent admins from deleting or demoting themselves
+- [x] Duplicate-email validation on user creation
+- [x] Admin-only endpoints protected by `@jwt_admin_required`
+
+Frontend (dashboard tasks)
+- [ ] Admin dashboard page listing users (paginated/filterable) with role and status columns
+- [ ] Admin can create users of any role from the dashboard (form validation + server errors surfaced)
+- [ ] Admin can edit a user's name, email, or role inline or via edit form
+- [ ] Admin can deactivate or delete a user from the dashboard, with confirmation and safeguard against self-deletion
+- [ ] Search and filter users by name, email, or role
+- [ ] Admin receives clear success/error feedback on all actions (toasts/status messages)
+
+Notes
+- Keep backend tests as the source of truth; frontend features should call the implemented APIs and reuse existing response shapes.
+- If desired, split frontend tasks into smaller stories (create/edit/delete/search) for tracking in the board.
 
 ---
 
@@ -157,25 +175,44 @@
 
 ---
 
-## US8 – Cross-Platform Accessibility — **In-Progress**
+## US8 – UI Polish, Validation & Cross-Platform Accessibility — **In-Progress**
 
-**As a user, I want to be able to access the system on both desktop and mobile, so that I can use whatever device I have available to me.**
+**As a user, I want a polished, responsive interface with proper input validation so that I can use the application reliably on any device.**
 
 ### Assumptions and Details
 
-- User has valid credentials  
-- User has internet access  
-- Application has a responsive UI  
+- User has valid credentials and internet access  
+- Application uses responsive CSS (flexbox/grid, media queries)  
+- Form validation occurs on both client and server side  
+- Target devices: desktop (1024px+), tablet (768px–1023px), mobile (< 768px)  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] UI renders correctly on common desktop resolutions  
-- [ ] UI renders correctly on common mobile resolutions  
-- [ ] Core actions work on both form factors  
+**Responsiveness & Cross-Platform**
+- [ ] UI renders correctly on common desktop resolutions (1080p, 1440p)  
+- [ ] UI renders correctly on tablet resolutions (iPad, Surface)  
+- [ ] UI renders correctly on common mobile resolutions (iPhone, Android)  
+- [ ] Navigation adapts for smaller screens (e.g., hamburger menu or collapsible sidebar)  
+- [ ] Tables and data-heavy views are scrollable or restructured on mobile  
+- [ ] Core actions (login, view courses, submit reviews) work on all form factors  
+
+**UI Consistency & Polish**
+- [ ] Consistent color scheme, typography, and spacing across all pages  
+- [ ] Buttons, inputs, and interactive elements have clear hover/focus/active states  
+- [ ] Loading states shown during async operations (spinners, skeleton screens)  
+- [ ] Toast notifications for success/error feedback on all user actions  
+- [ ] Modals and dialogs are accessible and dismissible  
+
+**Form Validation**
+- [ ] All required fields show clear validation errors on empty or invalid input  
+- [ ] Email fields validate format before submission  
+- [ ] Password fields enforce minimum strength requirements with visual feedback  
+- [ ] Duplicate-entry errors (e.g., duplicate email, duplicate group name) display user-friendly messages  
+- [ ] Form submissions are disabled while a request is in-flight (prevent double-submit)  
 
 ---
 
-## US9 – Assignment Management Interface — **In-Progress**
+## US9 – Assignment Management Interface — **Complete**     
 
 **As an instructor, I want a simple tabbed interface for managing assignments, their settings, and student submissions, so that I can configure peer evaluations and monitor progress from one place.**
 
@@ -184,19 +221,24 @@
 - Instructor is signed in  
 - Instructor already has at least one class  
 - There are assignments to manage  
+- Tab layout: Home | Members | Groups | Rubric | Submissions | Settings (teacher view)  
+- Student view: Home | Members | Submission  
+- Settings tab contains peer evaluation configuration (anonymity, scope, deadline) per US29
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Assignment page uses a tabbed layout with: **Assignment** (details), **Settings**, and **Submissions** tabs  
-- [ ] **Assignment tab**: Instructor can view assignment description, attached files, rubric, and due dates  
-- [ ] **Settings tab**: Instructor can configure peer evaluation options including:  
-  - Anonymous / non-anonymous reviews (see US3)  
-  - Evaluation scope: own group vs. other groups (see US2)  
-  - Peer evaluation deadline  
-  - Start date / due date  
-- [ ] **Submissions tab**: Instructor can see all student submissions with status (submitted / late / missing) and download files  
-- [ ] Instructor can edit or delete the assignment from the interface  
-- [ ] Actions provide clear success or error toast messages  
+- [x] Assignment page uses a tabbed layout for organizing content  
+- [x] Instructor can view attached files and upload new files (PDF, DOCX, TXT, ZIP) with drag-and-drop  
+- [x] Instructor can view rubric on the Home tab  
+- [x] Instructor can view start date and due date  
+- [x] Submissions tab shows all student submissions with status icons (submitted / late / missing)  
+- [x] Instructor can download submitted files  
+- [x] Late submissions are detected by comparing to due date  
+- [x] Settings tab allows instructor to edit assignment name, rubric text, start date, and due date  
+- [x] Settings tab allows instructor to configure peer evaluation options (see US29)  
+- [x] Instructor can delete the assignment with a confirmation dialog  
+- [x] Edit/delete is blocked after the due date (`can_modify()` check)  
+- [x] Success/error feedback via StatusMessage (toast) on most actions  
 
 ---
 
@@ -217,7 +259,7 @@
 
 ---
 
-## US11 – Rubric Creation — **In-Progress**
+## US11 – Rubric Creation — **Complete**
 
 **As an instructor, I want to be able to create a rubric, so that students have a set of criteria to mark against.**
 
@@ -270,20 +312,46 @@
 
 ---
 
-## US14 – Teacher Dashboard Visibility — **In-Progress**
+## US14 – Teacher Dashboard — **In-Progress**
 
-**As a teacher, I want to see my dashboard so that I can view my teaching-related items.**
+**As a teacher, I want a dashboard that shows all my courses with key metrics, quick actions, and easy navigation, so that I can efficiently manage my classes and monitor student progress at a glance.**
 
 ### Assumptions and Details
 
-- A dashboard exists for teachers  
-- Teacher has at least one teaching-related item  
+- Teacher is signed in with teacher privileges  
+- Teacher may have zero or more courses  
+- Dashboard is the landing page after login (`/home`)  
+- Course data is fetched from `/class/classes` and `/assignment/{classId}`  
+- Dashboard should surface the most actionable information without requiring the teacher to drill into each course  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Given the teacher has accessed the system, when they open the dashboard, the expected widgets appear  
-- [ ] Dashboard reflects real-time data for the teacher’s classes and assignments  
-- [ ] Access to the dashboard respects teacher permissions  
+**Course Cards & Display**
+- [x] Dashboard displays a grid of course cards for all courses owned by the teacher  
+- [x] Each course card shows the course name and assignment count  
+- [x] Clicking a course card navigates to that course's detail page (`/classes/{id}/home`)  
+- [ ] Each course card shows the number of enrolled students  
+- [ ] Each course card shows upcoming due dates or next deadline  
+- [ ] Each course card shows pending peer evaluation count (reviews not yet completed)  
+- [ ] Course cards have distinct visuals or color coding (not all identical placeholder images)  
+
+**Course Creation & Management**
+- [x] "Create Class" button is visible and navigates to the course creation form  
+- [ ] Teacher can edit course name from the dashboard (inline or via quick action)  
+- [ ] Teacher can delete or archive a course from the dashboard with confirmation  
+
+**Search, Filter & Sort**
+- [ ] Teacher can search courses by name  
+- [ ] Teacher can sort courses (by name, date created, or assignment count)  
+
+**Empty & Edge States**
+- [ ] If the teacher has no courses, a helpful empty state message is shown with a prompt to create one  
+- [ ] Loading spinner or skeleton cards shown while data is fetched  
+
+**Navigation & Permissions**
+- [x] Dashboard is only accessible to authenticated teachers (and admins)  
+- [x] Sidebar provides navigation to Dashboard, Profile, and Logout  
+- [ ] "My Info" link navigates to the current user's profile (not hardcoded `/profile/1`)  
 
 ---
 
@@ -304,26 +372,26 @@
 
 ---
 
-## US16 – Student Login After Roster Upload
+## US16 – Student Login After Roster Upload — **Complete**
 
 ## Story
 As a student, I want to log in after my teacher uploads the roster so that I can access the system.
 
 ## Assumptions and Details
-* The student is included on a roster
-* Logging in is possible
+* The student is included on a roster uploaded by the teacher
+* Student receives temporary password from teacher
+* Logging in is possible with institutional email and temporary password
 
 ## Acceptance Criteria
-- [ ] Given the student is on the roster
-- [ ] When the student logs in
-- [ ] Then the student gains access to the system
+- [x] Given the student is on the roster uploaded by the teacher
+- [x] When the student logs in with their institutional email and temporary password
+- [x] Then the student gains access to the system
+- [x] Student is required to change password on first login
+- [x] Student receives appropriate error message if login fails
+- [x] Student is directed to their dashboard upon successful login
+- [x] Students not on roster cannot log in with roster credentials
 
----
-
-*Note: You may want to expand the acceptance criteria to include additional scenarios such as:*
-- [ ] Student not on roster cannot log in
-- [ ] Student receives appropriate error message if login fails
-- [ ] Student is directed to their dashboard upon successful login
+**Implementation:** See [US16_IMPLEMENTATION.md](User_story_implementations/US16_IMPLEMENTATION.md)
 
 ---
 
@@ -346,22 +414,47 @@ As a student, I want to log in after my teacher uploads the roster so that I can
 
 ## US18 – Student Registration (Roster-Matched) — **Backlog**
 
-**As a student, I want to register if my email is already part of the course roster so that I can join my course.**
+**As a student, I want to register with my email and be automatically enrolled in any courses where my teacher has already added me to the roster, so that I don't have to manually find and join my courses.**
 
 ### Assumptions and Details
 
-- Student’s email appears in the roster  
-- Registration is possible  
+- Teacher has previously uploaded a CSV roster containing the student's email (see US16)  
+- Roster upload currently creates a student account with a temporary password and `must_change_password = True`  
+- If a student self-registers with an email that already exists (from roster upload), registration currently **fails** with "User already registered"  
+- The system needs to handle two scenarios:  
+  1. **Roster uploaded first**: Student's account already exists — registration should recognize this and let them set their own password  
+  2. **Student registers first**: Account exists but has no enrollment — when the teacher later uploads the roster, the existing account should be enrolled (this path already works)  
+- Enrollment is tracked via the `User_Course` join table  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Given the student’s email is on the roster, when they register, the system links them to the course automatically  
-- [ ] Student receives confirmation of successful registration  
-- [ ] Duplicate registrations are prevented  
+**Registration with Existing Roster Account**
+- [ ] If a student registers with an email that already exists from a roster upload, the system updates the existing account's password instead of rejecting the registration  
+- [ ] After successful registration, `must_change_password` is set to `False` (student chose their own password)  
+- [ ] Student is automatically enrolled in all courses where their email appears on a roster  
+- [ ] Student receives confirmation of registration and is shown which courses they were enrolled in  
+
+**Registration Without Existing Roster Entry**
+- [ ] If the student's email is not on any roster, standard registration proceeds normally (account created, no course enrollment)  
+- [ ] Student can still be enrolled later when a teacher uploads a roster containing their email  
+
+**Duplicate & Edge Case Handling**
+- [ ] Duplicate registrations are prevented — a student cannot register twice with the same email  
+- [ ] If the student already has an active account (not from roster), registration is rejected with a clear message  
+- [ ] Email matching is case-insensitive (e.g., `Alice@school.edu` matches `alice@school.edu` on the roster)  
+
+**Frontend**
+- [ ] Registration form shows a success message indicating auto-enrollment when courses are matched  
+- [ ] If no courses are matched, the success message simply confirms account creation  
+
+**Backend**
+- [ ] `/auth/register` checks for existing roster-created accounts (where `must_change_password = True`) and updates rather than rejects  
+- [ ] `/auth/register` queries `User_Course` or a roster lookup to determine auto-enrollment  
+- [ ] Response includes list of enrolled course names (if any)  
 
 ---
 
-## US19 – Student Access Registered Courses — **In-Progress**
+## US19 – Student Access Registered Courses — **Complete**
 
 **As a student, I want to view courses I am registered for so that I can access course content.**
 
@@ -431,20 +524,30 @@ As a student, I want to log in after my teacher uploads the roster so that I can
 
 ---
 
-## US23 – Peer Review Team Members — **Backlog**
+## US23 – Peer Review Scope Configuration (Team Members or All Groups) — **Backlog**
 
-**As a student, I want to peer review my team members privately so that I can evaluate their contributions.**
+**As an instructor, I want to configure peer review assignments to allow students to review either their own team members only or all groups in the class, so that I can control the scope of peer evaluations based on the assignment type.**
 
 ### Assumptions and Details
 
-- Student has team members  
-- Peer reviews are allowed  
+- Instructor is signed in with valid credentials  
+- Instructor has created an assignment with peer review enabled  
+- Students are organized into groups within the class  
+- The review scope can be toggled between two modes:
+  - **Team Members Only**: Students review only members of their own group
+  - **All Groups**: Students review members across all groups in the class
+- Review assignments are automatically generated based on the selected scope
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Given the student has team members, they can submit a private review for each member  
-- [ ] Submitted reviews remain hidden from other students  
-- [ ] Instructor can monitor completion of the peer reviews  
+- [ ] Instructor can toggle peer review scope when creating or editing an assignment
+- [ ] When "Team Members Only" is selected, each student is assigned to review only their own group members (including self-evaluation)
+- [ ] When "All Groups" is selected, each student is assigned to review members from all groups in the class
+- [ ] The selected scope is clearly displayed on the assignment details
+- [ ] Students see only the peers they are assigned to review based on the configured scope
+- [ ] Submitted reviews remain private and hidden from other students
+- [ ] Instructor can monitor completion of peer reviews for all students
+- [ ] Changing the scope after reviews have been started warns the instructor and requires confirmation  
 
 ---
 
@@ -485,24 +588,9 @@ As a student, I want to log in after my teacher uploads the roster so that I can
 
 ---
 
-## US26 – Admin User Management — **Backlog**
+## US26 – Admin User Management — **Merged**
 
-**As an administrator, I want to manage user accounts from the admin dashboard so that I can keep the user base accurate and up to date.**
-
-### Assumptions and Details
-
-- Admin is signed in and on the admin dashboard  
-- System exposes CRUD operations over users via the frontend  
-- Role-based access control enforces that only admins can perform these actions  
-
-### Capabilities and Acceptance Criteria
-
-- [ ] Admin can view a paginated or filterable list of all users  
-- [ ] Admin can create a new user and assign an initial role  
-- [ ] Admin can edit an existing user’s name, email, or role  
-- [ ] Admin can deactivate or delete a user, with safeguards against self-deletion  
-- [ ] Admin receives success or error feedback for each action  
-- [ ] All actions go through the frontend admin page and persist to the backend
+This story has been consolidated into **US6 – Admin User Management** (backend + frontend). See US6 for the combined acceptance criteria and frontend tasks.
 
 ---
 
@@ -560,5 +648,32 @@ As a student, I want to log in after my teacher uploads the roster so that I can
 - **Frontend**: `ClassGroupManagement.tsx` (class-level), `AssignmentGroups.tsx` (assignment-level, same course groups)  
 - **Model**: `CourseGroup` with `courseID` foreign key; `Group_Members` join table  
 - **Tests**: 43 tests in `flask_backend/tests/test_groups.py` — all passing  
+
+---
+
+## US29 – Peer Evaluation Settings & Assignments— **Backlog**
+
+**As an instructor, I want to configure peer evaluation options (anonymity, scope, deadline) per assignment and have a polished assignment experience, so that I can control how students evaluate each other.**
+
+### Assumptions and Details
+
+- Instructor is signed in and has assignments (see US9)  
+- Assignment management interface is complete (US9)  
+- Peer evaluation settings are per-assignment configuration  
+- These settings feed into US1 (auto-assign reviews), US2 (scope), and US3 (anonymity)  
+
+### Capabilities and Acceptance Criteria
+
+**Peer Evaluation Settings**
+- [ ] Settings tab: anonymous / non-anonymous review toggle (see US3)  
+- [ ] Settings tab: evaluation scope — own group vs. other groups (see US2)  
+- [ ] Settings tab: separate peer evaluation deadline (distinct from assignment due date)  
+- [ ] Backend: `anonymous_review`, `evaluation_scope`, `peer_eval_deadline` fields added to Assignment model  
+- [ ] Backend: endpoint to update peer evaluation settings  
+- [ ] Settings are saved and reflected when viewing the assignment  
+
+**Assignment Polish**
+- [ ] Assignment tab shows a dedicated description field (currently only rubric text)  
+- [ ] Replace remaining `alert()` calls with toast notifications  
 
 ---
