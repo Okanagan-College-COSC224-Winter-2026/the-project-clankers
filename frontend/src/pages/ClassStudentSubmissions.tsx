@@ -79,7 +79,7 @@ export default function ClassStudentSubmissions() {
 
       // Get all students in the class
       const classMembersData = await listCourseMembers(id as string);
-      const students = (classMembersData || []).filter((member: any) => member.role === 'student');
+      const students = (classMembersData || []).filter((member: { role: string }) => member.role === 'student');
       const totalStudents = students.length;
 
       // Get all assignments for the class

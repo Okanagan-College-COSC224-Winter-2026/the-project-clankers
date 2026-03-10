@@ -8,7 +8,6 @@ import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
 import RubricDisplay from "../components/RubricDisplay";
-import RubricCreator from "../components/RubricCreator";
 import { isTeacher } from "../util/login";
 
 import { 
