@@ -1120,8 +1120,8 @@ def test_assignment_statistics_for_teacher(test_client, make_admin):
     db.session.commit()
     
     # Create groups
-    group1 = CourseGroup(assignmentID=assignment_id, name="Group 1")
-    group2 = CourseGroup(assignmentID=assignment_id, name="Group 2")
+    group1 = CourseGroup(courseID=class_id, name="Group 1")
+    group2 = CourseGroup(courseID=class_id, name="Group 2")
     db.session.add(group1)
     db.session.add(group2)
     db.session.commit()

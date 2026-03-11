@@ -109,7 +109,7 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Assignment
         load_instance = True
-        include_fk = False
+        include_fk = True  # Include courseID for assignment → course navigation
         sqla_session = db.session
 
     course = fields.Nested(CourseListSchema, dump_only=True)
@@ -225,7 +225,7 @@ class CourseGroupSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = CourseGroup
         load_instance = True
-        include_fk = False
+        include_fk = True  # Include courseID
         sqla_session = db.session
 
 

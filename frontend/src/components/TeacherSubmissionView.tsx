@@ -56,7 +56,7 @@ export default function TeacherSubmissionView({
       // Fetch all students in the class
       const classMembersData = await listCourseMembers(String(classId));
       // Filter to only include students (not the teacher)
-      const students: Student[] = (classMembersData || []).filter((member: any) => member.role === 'student');
+      const students: Student[] = (classMembersData || []).filter((member: { role: string }) => member.role === 'student');
 
       // Fetch all submissions for this assignment
       const submissionsData = await getStudentSubmissions(assignmentId);

@@ -249,6 +249,12 @@ export const listAssignments = async (classId: string) => {
   return await resp.json()
 }
 
+// Alias for listAssignments with number parameter
+export const getAssignmentsByClass = async (classId: number) => {
+  return listAssignments(String(classId));
+}
+
+
 export const listStuGroup = async (assignmentId : number, studentId : number) => {
   const resp = await fetch(`${BASE_URL}/list_stu_groups/`+ assignmentId + "/" + studentId, {
     method: 'GET',

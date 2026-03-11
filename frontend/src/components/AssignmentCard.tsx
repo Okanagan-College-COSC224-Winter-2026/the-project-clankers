@@ -26,14 +26,14 @@ export default function Button(props: Props) {
       try {
         // Fetch all students in the class
         const classMembersData = await listCourseMembers(String(props.classId));
-        const students = (classMembersData || []).filter((member: any) => member.role === 'student');
+        const students = (classMembersData || []).filter((member: { role: string }) => member.role === 'student');
         
         // Fetch all submissions for this assignment
         const submissionsData = await getStudentSubmissions(Number(props.id));
         
         // Count how many students have submitted
-        const submittedStudentIds = new Set(submissionsData.map((sub: any) => sub.student_id));
-        const allStudentsSubmitted = students.length > 0 && students.every((student: any) => submittedStudentIds.has(student.id));
+        const submittedStudentIds = new Set(submissionsData.map((sub: { student_id: number }) => sub.student_id));
+        const allStudentsSubmitted = students.length > 0 && students.every((student: { id: number }) => submittedStudentIds.has(student.id));
         
         // Determine status
         if (allStudentsSubmitted) {

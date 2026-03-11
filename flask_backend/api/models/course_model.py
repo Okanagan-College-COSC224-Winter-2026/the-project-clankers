@@ -36,6 +36,9 @@ class Course(db.Model):
         lazy="selectin",
         overlaps="user_courses",
     )
+    groups = db.relationship(
+        "CourseGroup", back_populates="course", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def __init__(self, teacherID, name):
         self.teacherID = teacherID
