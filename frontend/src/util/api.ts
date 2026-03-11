@@ -290,6 +290,24 @@ export const deleteClass = async (classId: number) => {
   return await response.json();
 }
 
+export const archiveClass = async (classId: number) => {
+  const response = await fetch(`${BASE_URL}/class/archive_class`, {
+    method: 'PUT',
+    body: JSON.stringify({ id: classId }),
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Error: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
 export const importStudentsForCourse = async (courseID: number, students: string) => {
   const response = await fetch(`${BASE_URL}/class/enroll_students`, {
     method: 'POST',

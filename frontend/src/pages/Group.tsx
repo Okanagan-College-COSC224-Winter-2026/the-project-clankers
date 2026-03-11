@@ -327,6 +327,7 @@ export default function Group() {
               Randomize
             </button>
             <button
+              style={{ backgroundColor: '#dc3545', color: 'white' }}
               onClick={() => {
                 if (selectedGroup == -1) return;
                 const localGroup = { ...groupTable}

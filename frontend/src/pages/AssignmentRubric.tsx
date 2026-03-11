@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+﻿import { useParams, Link } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState } from "react";
 import { getAssignmentDetails, listClasses } from "../util/api";
@@ -35,7 +35,7 @@ export default function AssignmentRubric() {
     <>
       {courseId && (
         <div className="assignment-breadcrumb">
-          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+          <Link to={`/classes/${courseId}/home`}>ΓåÉ {courseName || "Back to class"}</Link>
         </div>
       )}
 

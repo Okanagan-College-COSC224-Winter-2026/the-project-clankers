@@ -3,12 +3,12 @@ import Button from "../components/Button";
 import "./ClassHome.css";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { listAssignments, listClasses, createAssignment, updateClass, deleteClass } from "../util/api";
+import { listAssignments, listClasses, createAssignment, updateClass, deleteClass, archiveClass, getClassDetails } from "../util/api";
 import TabNavigation from "../components/TabNavigation";
 import { importCSV } from "../util/csv";
 import Textbox from "../components/Textbox";
 import StatusMessage from "../components/StatusMessage";
-import { isTeacher } from "../util/login";
+import { isTeacher, isAdmin } from "../util/login";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
 
@@ -55,6 +55,7 @@ export default function ClassHome() {
   const [isEditingClassName, setIsEditingClassName] = useState(false);
   const [editedClassName, setEditedClassName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [studentCount, setStudentCount] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -63,6 +64,12 @@ export default function ClassHome() {
       const currentClass = classes.find((c: { id: number }) => c.id === Number(id));
       setAssignments(resp);
       setClassName(currentClass?.name || null);
+      try {
+        const details = await getClassDetails(Number(id));
+        setStudentCount(details.student_count ?? 0);
+      } catch {
+        // non-critical, default stays 0
+      }
     })();
   }, [id]);
     
@@ -158,14 +165,25 @@ export default function ClassHome() {
         await deleteClass(idNew);
         setStatusType('success');
         setStatusMessage('Class deleted successfully!');
-        // Redirect to home after a short delay
-        setTimeout(() => {
-          navigate('/');
-        }, 1500);
+        setTimeout(() => { navigate('/'); }, 1500);
       } catch (error) {
         console.error('Error deleting class:', error);
         setStatusType('error');
         setStatusMessage(error instanceof Error ? error.message : 'Error deleting class');
+        setShowDeleteConfirm(false);
+      }
+    };
+
+    const handleArchiveClass = async () => {
+      try {
+        await archiveClass(idNew);
+        setStatusType('success');
+        setStatusMessage('Class archived successfully!');
+        setTimeout(() => { navigate('/'); }, 1500);
+      } catch (error) {
+        console.error('Error archiving class:', error);
+        setStatusType('error');
+        setStatusMessage(error instanceof Error ? error.message : 'Error archiving class');
         setShowDeleteConfirm(false);
       }
     };
@@ -200,7 +218,11 @@ export default function ClassHome() {
                     }}
                     title="Edit class name"
                   >
-                    ✏️
+                    <img
+                      src="/icons/edit-tool-pencil-svgrepo-com (1).svg"
+                      alt="Edit"
+                      style={{ width: '1.2rem', height: '1.2rem' }}
+                    />
                   </button>
                 )}
               </div>
@@ -388,10 +410,7 @@ export default function ClassHome() {
         <div
           style={{
             position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             display: 'flex',
             alignItems: 'center',
@@ -408,18 +427,37 @@ export default function ClassHome() {
               width: '90%'
             }}
           >
-            <h2>Delete Class</h2>
-            <p>Are you sure you want to delete "{className}"? This action cannot be undone.</p>
-            {assignments.length > 0 && (
-              <p style={{ color: '#dc3545', fontWeight: 'bold' }}>
-                ⚠️ This class has {assignments.length} assignment(s). You may not be able to delete it unless you're an admin.
+            <h2>Delete or Archive Class</h2>
+            <p>What would you like to do with <strong>"{className}"</strong>?</p>
+            <p style={{ color: '#666', fontSize: '0.9rem' }}>
+              <strong>Archive</strong> hides the class from your dashboard but preserves all data.
+              <br />
+              <strong>Delete</strong> permanently removes the class and cannot be undone.
+            </p>
+            {(assignments.length > 0 || studentCount > 0) && (
+              <p style={{ color: '#dc3545', fontWeight: 'bold', marginTop: '12px' }}>
+                ⚠️ This class cannot be deleted because it has
+                {assignments.length > 0 && ` ${assignments.length} assignment(s)`}
+                {assignments.length > 0 && studentCount > 0 && ' and'}
+                {studentCount > 0 && ` ${studentCount} enrolled student(s)`}
+                .{!isAdmin() && ' Archive it instead, or contact an admin to force delete.'}
               </p>
             )}
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
               <Button onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
               <Button
+                onClick={handleArchiveClass}
+                style={{ backgroundColor: '#f0ad4e' }}
+              >
+                Archive
+              </Button>
+              <Button
                 onClick={handleDeleteClass}
-                style={{ backgroundColor: '#dc3545' }}
+                style={{
+                  backgroundColor: (assignments.length > 0 || studentCount > 0) && !isAdmin() ? '#ccc' : '#dc3545',
+                  cursor: (assignments.length > 0 || studentCount > 0) && !isAdmin() ? 'not-allowed' : 'pointer'
+                }}
+                disabled={(assignments.length > 0 || studentCount > 0) && !isAdmin()}
               >
                 Delete
               </Button>

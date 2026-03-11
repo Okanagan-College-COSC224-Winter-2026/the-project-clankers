@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+﻿import { useParams, Link } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Button from "../components/Button";
@@ -415,7 +415,7 @@ export default function AssignmentGroups() {
     <>
       {courseId && (
         <div className="assignment-breadcrumb">
-          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+          <Link to={`/classes/${courseId}/home`}>ΓåÉ {courseName || "Back to class"}</Link>
         </div>
       )}
       <div className="AssignmentHeader">
@@ -497,7 +497,7 @@ export default function AssignmentGroups() {
                         className="group-dropdown-trigger"
                         onClick={() => setOpenDropdown(openDropdown === student.id ? null : student.id)}
                       >
-                        Add to group ▾
+                        Add to group Γû╛
                       </button>
                       {openDropdown === student.id && (
                         <div className="group-dropdown-menu">
@@ -563,10 +563,10 @@ export default function AssignmentGroups() {
                             autoFocus
                           />
                           <button onClick={() => renameGroup(group.id, editingGroupName)}>
-                            ✓
+                            Γ£ô
                           </button>
                           <button onClick={() => { setEditingGroupId(null); setEditingGroupName(""); }}>
-                            ✕
+                            Γ£ò
                           </button>
                         </div>
                       ) : (

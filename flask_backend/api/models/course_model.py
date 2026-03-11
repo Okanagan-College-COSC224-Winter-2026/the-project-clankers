@@ -15,6 +15,7 @@ class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     teacherID = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=True)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
     # relationships
     teacher = db.relationship("User", back_populates="teaching_courses", foreign_keys=[teacherID])
@@ -71,8 +72,8 @@ class Course(db.Model):
 
     @classmethod
     def get_courses_by_teacher(cls, teacher_id):
-        """Get all courses taught by a specific teacher"""
-        return cls.query.filter_by(teacherID=teacher_id).all()
+        """Get all non-archived courses taught by a specific teacher"""
+        return cls.query.filter_by(teacherID=teacher_id, is_archived=False).all()
 
     @classmethod
     def get_by_name(cls, name):
@@ -93,6 +94,11 @@ class Course(db.Model):
 
     def update(self):
         """Update course in the database"""
+        db.session.commit()
+
+    def archive(self):
+        """Archive course (hide from teacher dashboard without deleting data)"""
+        self.is_archived = True
         db.session.commit()
 
     def delete(self):
