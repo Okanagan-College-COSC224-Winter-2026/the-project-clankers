@@ -595,18 +595,25 @@ export const createAssignment = async (
   submissionType: 'individual' | 'group' = 'individual',
   internalReview: boolean = false,
   externalReview: boolean = false,
-  anonymousReview: boolean = false
+  anonymousReview: boolean = false,
+  startDate?: string,
+  dueDate?: string
 )=> {
+  const body: Record<string, unknown> = {
+    courseID,
+    name,
+    submission_type: submissionType,
+    internal_review: internalReview,
+    external_review: externalReview,
+    anonymous_review: anonymousReview
+  };
+
+  if (startDate) body.start_date = startDate;
+  if (dueDate) body.due_date = dueDate;
+
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
-    body: JSON.stringify({
-      courseID,
-      name,
-      submission_type: submissionType,
-      internal_review: internalReview,
-      external_review: externalReview,
-      anonymous_review: anonymousReview
-    }),
+    body: JSON.stringify(body),
     headers: {
       'Content-Type': 'application/json',
     },

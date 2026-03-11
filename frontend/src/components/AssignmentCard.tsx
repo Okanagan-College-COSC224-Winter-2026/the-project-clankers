@@ -9,6 +9,7 @@ interface Props {
   id: number | string
   dueDate?: string | null
   classId?: number | string
+  startDate?: string | null
 }
 
 export default function Button(props: Props) {
@@ -75,7 +76,12 @@ export default function Button(props: Props) {
     
     calculateStatus();
   }, [props.id, props.classId, props.dueDate]);
-  
+
+  const now = new Date();
+  // For students, use simple date-based logic
+  const isOverdue = !isTeacher() && props.dueDate ? new Date(props.dueDate) < now : false;
+  const isHiddenFromStudents = isTeacher() && props.startDate ? new Date(props.startDate) > now : false;
+
   // Determine badge class based on status
   const getBadgeClass = () => {
     if (status === 'Complete' || status === 'Submitted') return 'complete';
@@ -95,16 +101,21 @@ export default function Button(props: Props) {
   
   return (
     <div
-      onClick= {() => {
+      onClick={() => {
          window.location.href = `/assignments/${props.id}`
-      }
-    }
+      }}
       className='A_Card'
     >
       <img src="/icons/document.svg" alt="document" />
       
       <span className="assignment-name">{props.children}</span>
       
+      {isHiddenFromStudents && (
+        <span className="hidden-badge" title={`Visible to students from ${new Date(props.startDate!).toLocaleDateString()}`}>
+          Hidden until {new Date(props.startDate!).toLocaleDateString()}
+        </span>
+      )}
+
       {(props.dueDate || status) && (
         <span className={`due-date-badge ${getBadgeClass()}`}>
           {getBadgeText()}

@@ -44,6 +44,8 @@ export default function ClassHome() {
   const [internalReview, setInternalReview] = useState(false);
   const [externalReview, setExternalReview] = useState(false);
   const [anonymousReview, setAnonymousReview] = useState(false);
+  const [newAssignmentStartDate, setNewAssignmentStartDate] = useState("");
+  const [newAssignmentDueDate, setNewAssignmentDueDate] = useState("");
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -67,7 +69,9 @@ export default function ClassHome() {
     const tryCreateAssingment = async () => {
       try {
         setStatusMessage('');
-        const response = await createAssignment(idNew, newAssignmentName, submissionType, internalReview, externalReview, anonymousReview);
+        const startISO = newAssignmentStartDate ? new Date(newAssignmentStartDate).toISOString() : undefined;
+        const dueISO = newAssignmentDueDate ? new Date(newAssignmentDueDate).toISOString() : undefined;
+        const response = await createAssignment(idNew, newAssignmentName, submissionType, internalReview, externalReview, anonymousReview, startISO, dueISO);
         const createdAssignment = response?.assignment;
 
         if (!createdAssignment?.id) {
@@ -80,6 +84,8 @@ export default function ClassHome() {
         setInternalReview(false); // Reset review options
         setExternalReview(false); // Reset review options
         setAnonymousReview(false); // Reset anonymous option
+        setNewAssignmentStartDate("");
+        setNewAssignmentDueDate("");
         setStatusType('success');
         setStatusMessage('Assignment created successfully!');
       } catch (error) {
@@ -272,7 +278,7 @@ export default function ClassHome() {
             {assignments.map((assignment) => {
               return (
                 <li key={assignment.id}>
-                  <AssignmentCard id={assignment.id} dueDate={assignment.due_date} classId={id}>
+                  <AssignmentCard id={assignment.id} dueDate={assignment.due_date} classId={id} startDate={assignment.start_date}>
                     {assignment.name}
                   </AssignmentCard>
                 </li>
@@ -345,6 +351,20 @@ export default function ClassHome() {
                 Anonymous (Hide Reviewer Names from Students)
               </label>
             </div>
+            <span>Start Date (optional):</span>
+            <input
+              type="date"
+              value={newAssignmentStartDate}
+              onChange={(e) => setNewAssignmentStartDate(e.target.value)}
+              style={{ marginBottom: '8px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+            />
+            <span>Due Date (optional):</span>
+            <input
+              type="date"
+              value={newAssignmentDueDate}
+              onChange={(e) => setNewAssignmentDueDate(e.target.value)}
+              style={{ marginBottom: '8px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+            />
             <Button
               onClick={() =>
                 tryCreateAssingment()

@@ -92,9 +92,9 @@
 - [x] Instructor can view class details (students count, assignments count, teacher info)
 - [x] Instructor can edit/update a class name
 - [x] Instructor can delete a class (only if no assignments exist, or if user is admin)
-- [ ] Instructor can create an assignment under that class  
-- [ ] Students in that class can see the assignment  
-- [ ] Instructor can edit or delete the assignment before its start or due date  
+- [x] Instructor can create an assignment under that class  
+- [x] Students in that class can see the assignment  
+- [x] Instructor can edit or delete the assignment before its start or due date  
 
 ### Implementation Notes
 

@@ -59,6 +59,16 @@
   color: white;
 }
 
+.hidden-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background-color: #6c757d;
+  color: white;
+}
+
 /*TODO: add disabled functionality */
 .A_Card:hover{
   cursor: pointer;
