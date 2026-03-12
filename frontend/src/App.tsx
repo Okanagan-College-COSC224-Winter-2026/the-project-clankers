@@ -19,6 +19,7 @@ import Group from "./pages/Group";
 import RegisterPage from "./pages/RegisterPage";
 import ChangePassword from "./pages/ChangePassword";
 import CreateTeacher from "./pages/CreateTeacher";
+import Browse from "./pages/Browse";
 
 function AppContent() {
   const location = useLocation();
@@ -36,6 +37,12 @@ function AppContent() {
           <Route path="/home" element={
             <ProtectedRoute>
               <Home />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/browse" element={
+            <ProtectedRoute>
+              <Browse />
             </ProtectedRoute>
           } />
 

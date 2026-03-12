@@ -866,3 +866,19 @@ export const deleteStudentSubmission = async (submissionId: number) => {
 
   return await response.json();
 };
+
+// Browse all courses (for students to browse and enroll)
+export const browseAllClasses = async () => {
+  const response = await fetch(`${BASE_URL}/class/browse`, {
+    method: 'GET',
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
