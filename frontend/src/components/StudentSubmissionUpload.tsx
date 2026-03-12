@@ -1,12 +1,20 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
 import "./AssignmentFileUpload.css"; // Reuse the same styles
-import { uploadStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission } from "../util/api";
+import { uploadStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getUserId } from "../util/api";
 
 interface StudentSubmission {
   id: number;
   filename: string;
   file_path: string;
   submitted_at: string;
+  student_id: number;
+  student_name?: string;
+}
+
+interface Assignment {
+  id: number;
+  name: string;
+  submission_type?: string;
 }
 
 interface StudentSubmissionUploadProps {
@@ -22,13 +30,28 @@ export default function StudentSubmissionUpload({
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allowedExtensions = ["pdf", "docx", "txt", "zip"];
   const maxFileSize = 50 * 1024 * 1024; // 50MB
 
-  // Load existing submissions
+  // Load assignment details, current user ID, and existing submissions
   useEffect(() => {
+    const initialize = async () => {
+      try {
+        const [assignmentData, userId] = await Promise.all([
+          getAssignmentDetails(assignmentId),
+          getUserId()
+        ]);
+        setAssignment(assignmentData);
+        setCurrentUserId(userId);
+      } catch (err) {
+        console.error('Error loading assignment details:', err);
+      }
+    };
+    initialize();
     loadSubmissions();
   }, [assignmentId]);
 
@@ -162,37 +185,65 @@ export default function StudentSubmissionUpload({
   return (
     <div className="assignment-file-upload-container">
       <h3>My Submissions</h3>
+      {assignment?.submission_type === 'group' && (
+        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>
+          This is a group assignment. Any group member's submission will appear here.
+        </p>
+      )}
       
       {/* Existing submissions list */}
       {isLoadingSubmissions ? (
         <p className="loading-message">Loading submissions...</p>
       ) : submissions.length > 0 ? (
         <div className="files-list">
-          {submissions.map((submission) => (
-            <div key={submission.id} className="file-item">
-              <div className="file-info">
-                <span className="file-icon">📄</span>
-                <span className="file-name">{submission.filename}</span>
-                <span className="file-date">
-                  {new Date(submission.submitted_at).toLocaleDateString()}
-                </span>
+          {submissions.map((submission) => {
+            const isOwnSubmission = currentUserId === submission.student_id;
+            const isGroupAssignment = assignment?.submission_type === 'group';
+            
+            return (
+              <div key={submission.id} className="file-item">
+                <div className="file-info">
+                  <span className="file-icon">📄</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="file-name">{submission.filename}</span>
+                    {isGroupAssignment && submission.student_name && (
+                      <span style={{ fontSize: '0.85em', color: '#666' }}>
+                        Submitted by: {submission.student_name}
+                      </span>
+                    )}
+                  </div>
+                  <span className="file-date">
+                    {new Date(submission.submitted_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="file-actions">
+                  <button 
+                    className="download-file-button"
+                    onClick={() => handleDownload(submission.id, submission.filename)}
+                  >
+                    Download
+                  </button>
+                  {isOwnSubmission && (
+                    <button 
+                      className="delete-file-button-small"
+                      onClick={() => handleDelete(submission.id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                  {isGroupAssignment && !isOwnSubmission && (
+                    <span style={{ 
+                      fontSize: '0.85em', 
+                      color: '#999', 
+                      padding: '4px 8px' 
+                    }}>
+                      (Group submission)
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="file-actions">
-                <button 
-                  className="download-file-button"
-                  onClick={() => handleDownload(submission.id, submission.filename)}
-                >
-                  Download
-                </button>
-                <button 
-                  className="delete-file-button-small"
-                  onClick={() => handleDelete(submission.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="no-files-message">No submissions yet</p>

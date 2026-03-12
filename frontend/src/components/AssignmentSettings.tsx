@@ -16,6 +16,7 @@ interface AssignmentDetails {
   start_date: string | null;
   due_date: string | null;
   courseID: number;
+  submission_type?: string;
   rubrics: Array<{
     id: number;
     canComment: boolean;
@@ -226,6 +227,13 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                 {assignment.due_date 
                   ? new Date(assignment.due_date).toLocaleDateString() 
                   : "No due date set"}
+              </span>
+            </div>
+
+            <div className="detail-row">
+              <span className="detail-label">Assignment Type:</span>
+              <span className="detail-value">
+                {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
               </span>
             </div>
 

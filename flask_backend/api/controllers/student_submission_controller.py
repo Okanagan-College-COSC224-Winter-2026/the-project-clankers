@@ -15,6 +15,8 @@ from ..models import (
     StudentSubmission,
     StudentSubmissionSchema,
     User_Course,
+    CourseGroup,
+    Group_Members,
 )
 from .auth_controller import jwt_role_required
 
@@ -128,8 +130,30 @@ def get_assignment_submissions(assignment_id):
         enrollment = User_Course.query.filter_by(userID=user.id, courseID=course.id).first()
         if not enrollment:
             return jsonify({"msg": "Unauthorized: You are not enrolled in this course"}), 403
-        # Get only their own submissions
-        submissions = StudentSubmission.get_by_student_and_assignment(user.id, assignment_id)
+        
+        # Check if this is a group assignment
+        if assignment.submission_type == 'group':
+            # Find the student's group in this course
+            student_group_membership = Group_Members.query.filter_by(userID=user.id).join(
+                CourseGroup
+            ).filter(CourseGroup.courseID == course.id).first()
+            
+            if student_group_membership:
+                # Get all members of this group
+                group_id = student_group_membership.groupID
+                group_member_ids = [member.userID for member in Group_Members.query.filter_by(groupID=group_id).all()]
+                
+                # Get submissions from any group member
+                submissions = StudentSubmission.query.filter(
+                    StudentSubmission.assignment_id == assignment_id,
+                    StudentSubmission.student_id.in_(group_member_ids)
+                ).all()
+            else:
+                # Student is not in a group, return only their own submissions
+                submissions = StudentSubmission.get_by_student_and_assignment(user.id, assignment_id)
+        else:
+            # Individual assignment - get only their own submissions
+            submissions = StudentSubmission.get_by_student_and_assignment(user.id, assignment_id)
 
     return jsonify({
         "submissions": StudentSubmissionSchema(many=True).dump(submissions)
