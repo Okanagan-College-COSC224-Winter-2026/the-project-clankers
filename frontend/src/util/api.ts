@@ -20,6 +20,24 @@ export const getCurrentUserProfile = async () => {
   return await response.json();
 }
 
+export const getUserProfileById = async (userId: number) => {
+  const response = await fetch(`${BASE_URL}/user/${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
 export const getEnrolledCourses = async () => {
   const response = await fetch(`${BASE_URL}/class/classes`, {
     method: 'GET',
