@@ -1,6 +1,6 @@
 from werkzeug.security import generate_password_hash
 
-from api.models import User
+from api.models import User, Course
 
 
 def test_user_basic(dbsession):
@@ -156,3 +156,52 @@ def test_user_role_validation(dbsession):
 
     assert "Invalid role 'superuser'" in str(exc_info.value)
     assert "Must be one of: student, teacher, admin" in str(exc_info.value)
+
+def test_course_is_archived_default_false(dbsession):
+    """
+    GIVEN a new Course object created without specifying is_archived
+    WHEN the course is added to the database
+    THEN is_archived should default to False
+    """
+    teacher = User(
+        name="archivedefaultteacher",
+        hash_pass=generate_password_hash("pass"),
+        email="archivedefault@example.com",
+        role="teacher",
+    )
+    dbsession.add(teacher)
+    dbsession.flush()
+
+    course = Course(name="Default Archive Course", teacherID=teacher.id)
+    dbsession.add(course)
+    dbsession.flush()
+
+    assert course.is_archived is False
+
+
+def test_course_archive_method(dbsession):
+    """
+    GIVEN an existing Course in the database
+    WHEN course.archive() is called
+    THEN is_archived should be set to True and persisted to the database
+    """
+    teacher = User(
+        name="archivemethodteacher",
+        hash_pass=generate_password_hash("pass"),
+        email="archivemethod@example.com",
+        role="teacher",
+    )
+    dbsession.add(teacher)
+    dbsession.flush()
+
+    course = Course(name="Archivable Course", teacherID=teacher.id)
+    dbsession.add(course)
+    dbsession.commit()
+
+    assert course.is_archived is False
+
+    course.archive()
+
+    # Re-query from DB to confirm persistence
+    refreshed = Course.get_by_id(course.id)
+    assert refreshed.is_archived is True

@@ -637,3 +637,412 @@ def test_delete_class(test_client, make_admin):
     # Verify class is deleted
     response = test_client.get(f"/class/{class_id}", headers={"Content-Type": "application/json"})
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Archive class tests
+# ---------------------------------------------------------------------------
+
+
+def test_archive_class(test_client, make_admin):
+    """
+    GIVEN a logged-in teacher user who owns a class
+    WHEN PUT /class/archive_class is called with a valid class ID
+    THEN the class should be archived and the response should be 200
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "CS 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    response = test_client.put(
+        "/class/archive_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert "archived successfully" in response.json["msg"]
+
+
+def test_archive_class_missing_id(test_client, make_admin):
+    """
+    GIVEN a logged-in teacher user
+    WHEN PUT /class/archive_class is called without a class ID
+    THEN the response should be 400 with a descriptive message
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    response = test_client.put(
+        "/class/archive_class",
+        data=json.dumps({}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert response.json["msg"] == "Class ID is required"
+
+
+def test_archive_class_not_found(test_client, make_admin):
+    """
+    GIVEN a logged-in teacher user
+    WHEN PUT /class/archive_class is called with a non-existent class ID
+    THEN the response should be 404
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    response = test_client.put(
+        "/class/archive_class",
+        data=json.dumps({"id": 99999}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_archive_class_not_logged_in(test_client):
+    """
+    GIVEN a user who is not authenticated
+    WHEN PUT /class/archive_class is called
+    THEN the response should be 401
+    """
+    response = test_client.put(
+        "/class/archive_class",
+        data=json.dumps({"id": 1}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_archive_class_student_cannot_archive(test_client, make_admin):
+    """
+    GIVEN a student user
+    WHEN PUT /class/archive_class is called
+    THEN the response should be 403 (Insufficient permissions)
+    """
+    from api.models import User
+    from api.models.db import db as _db
+    from werkzeug.security import generate_password_hash
+
+    # Create class owner (admin/teacher)
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Bio 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    # Create and login as a student
+    student = User(
+        name="Student",
+        email="student@example.com",
+        hash_pass=generate_password_hash("studentpass"),
+        role="student",
+    )
+    _db.session.add(student)
+    _db.session.commit()
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "student@example.com", "password": "studentpass"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    response = test_client.put(
+        "/class/archive_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_archive_class_unauthorized_different_teacher(test_client, make_admin):
+    """
+    GIVEN two teachers where teacher2 does not own the class
+    WHEN teacher2 calls PUT /class/archive_class for teacher1's class
+    THEN the response should be 403
+    """
+    from api.models import User
+    from api.models.db import db as _db
+    from werkzeug.security import generate_password_hash
+
+    # Teacher1 (admin) creates a class
+    make_admin(email="teacher1@example.com", password="teacher", name="teacher1")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher1@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Owner's Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    # Create teacher2 with teacher role (not admin, so cannot bypass ownership check)
+    teacher2 = User(
+        name="teacher2",
+        email="teacher2@example.com",
+        hash_pass=generate_password_hash("teacher"),
+        role="teacher",
+    )
+    _db.session.add(teacher2)
+    _db.session.commit()
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher2@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    response = test_client.put(
+        "/class/archive_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_archived_class_hidden_from_teacher_list(test_client):
+    """
+    GIVEN a teacher who has one active class and one archived class
+    WHEN GET /class/classes is called
+    THEN only the active class should appear in the response
+    """
+    from api.models import User
+    from api.models.db import db as _db
+    from werkzeug.security import generate_password_hash
+
+    # Use teacher role (not admin) so get_courses_by_teacher is called, which filters archived
+    teacher = User(
+        name="listteacher",
+        email="listteacher@example.com",
+        hash_pass=generate_password_hash("teacherpass"),
+        role="teacher",
+    )
+    _db.session.add(teacher)
+    _db.session.commit()
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "listteacher@example.com", "password": "teacherpass"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Create two classes
+    test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Active Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    resp2 = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "To Be Archived"}),
+        headers={"Content-Type": "application/json"},
+    )
+    archived_class_id = resp2.json["class"]["id"]
+
+    # Archive the second class
+    test_client.put(
+        "/class/archive_class",
+        data=json.dumps({"id": archived_class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Fetch teacher's class list
+    response = test_client.get("/class/classes", headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 200
+    class_names = [c["name"] for c in response.json]
+    assert "Active Class" in class_names
+    assert "To Be Archived" not in class_names
+
+
+# ---------------------------------------------------------------------------
+# Delete class blocking tests (updated behaviour)
+# ---------------------------------------------------------------------------
+
+
+def test_delete_class_blocked_when_students_enrolled(test_client, enroll_user_in_course):
+    """
+    GIVEN a non-admin teacher with students enrolled in their class
+    WHEN DELETE /class/delete_class is called
+    THEN the response should be 400 with a message mentioning enrolled students
+    """
+    from api.models import User
+    from api.models.db import db as _db
+    from werkzeug.security import generate_password_hash
+
+    # Must be a teacher (not admin) so the blocking logic runs
+    teacher = User(
+        name="teacheruser",
+        email="teacher@example.com",
+        hash_pass=generate_password_hash("teacher"),
+        role="teacher",
+    )
+    _db.session.add(teacher)
+    _db.session.commit()
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Full Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    # Enroll a student directly via the DB fixture
+    student = User(
+        name="Student",
+        email="student@example.com",
+        hash_pass=generate_password_hash("pass"),
+        role="student",
+    )
+    _db.session.add(student)
+    _db.session.commit()
+    enroll_user_in_course(student.id, class_id)
+
+    # Attempt to delete — should be blocked
+    response = test_client.delete(
+        "/class/delete_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert "student" in response.json["msg"].lower()
+
+
+def test_delete_class_blocked_when_assignments_exist(test_client):
+    """
+    GIVEN a non-admin teacher with assignments in their class
+    WHEN DELETE /class/delete_class is called
+    THEN the response should be 400 with a message mentioning assignments
+    """
+    import datetime
+    from api.models import User
+    from api.models.db import db as _db
+    from werkzeug.security import generate_password_hash
+
+    # Must be a teacher (not admin) so the blocking logic runs
+    teacher = User(
+        name="teacheruser",
+        email="teacher@example.com",
+        hash_pass=generate_password_hash("teacher"),
+        role="teacher",
+    )
+    _db.session.add(teacher)
+    _db.session.commit()
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Class With Assignments"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    # Create an assignment in the class
+    test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps(
+            {
+                "courseID": class_id,
+                "name": "Essay 1",
+                "rubric": "Quality of writing",
+                "due_date": datetime.datetime(2025, 12, 31, 23, 59, 59).isoformat(),
+            }
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Attempt to delete — should be blocked
+    response = test_client.delete(
+        "/class/delete_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert "assignment" in response.json["msg"].lower()
+
+
+def test_admin_can_delete_class_with_students(test_client, make_admin, enroll_user_in_course):
+    """
+    GIVEN an admin user who owns a class with enrolled students
+    WHEN DELETE /class/delete_class is called
+    THEN the admin should be able to delete the class successfully (200)
+    """
+    from api.models import User
+    from api.models.db import db as _db
+    from werkzeug.security import generate_password_hash
+
+    make_admin(email="admin@example.com", password="admin", name="adminuser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "admin@example.com", "password": "admin"}),
+        headers={"Content-Type": "application/json"},
+    )
+    response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Admin's Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = response.json["class"]["id"]
+
+    # Enroll a student
+    student = User(
+        name="Student",
+        email="student@example.com",
+        hash_pass=generate_password_hash("pass"),
+        role="student",
+    )
+    _db.session.add(student)
+    _db.session.commit()
+    enroll_user_in_course(student.id, class_id)
+
+    # Admin deletes the class despite enrolled students — should succeed
+    response = test_client.delete(
+        "/class/delete_class",
+        data=json.dumps({"id": class_id}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert "deleted successfully" in response.json["msg"]
