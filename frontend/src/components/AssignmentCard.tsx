@@ -12,41 +12,56 @@ interface Props {
 }
 
 export default function Button(props: Props) {
-  const [status, setStatus] = useState<'In Progress' | 'Overdue' | 'Complete' | null>(null);
+  const [status, setStatus] = useState<'In Progress' | 'Overdue' | 'Complete' | 'Submitted' | 'Submitted Late' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Only calculate status for teachers
-    if (!isTeacher() || !props.classId) {
-      setIsLoading(false);
-      return;
-    }
-    
     const calculateStatus = async () => {
       try {
-        // Fetch all students in the class
-        const classMembersData = await listCourseMembers(String(props.classId));
-        const students = (classMembersData || []).filter((member: { role: string }) => member.role === 'student');
-        
-        // Fetch all submissions for this assignment
+        // Fetch submissions for this assignment
         const submissionsData = await getStudentSubmissions(Number(props.id));
         
-        // Count how many students have submitted
-        const submittedStudentIds = new Set(submissionsData.map((sub: { student_id: number }) => sub.student_id));
-        const allStudentsSubmitted = students.length > 0 && students.every((student: { id: number }) => submittedStudentIds.has(student.id));
-        
-        // Determine status
-        if (allStudentsSubmitted) {
-          setStatus('Complete');
-        } else if (props.dueDate) {
-          const isPastDue = new Date(props.dueDate) < new Date();
-          setStatus(isPastDue ? 'Overdue' : 'In Progress');
+        if (isTeacher() && props.classId) {
+          // Teacher view: check if all students submitted
+          const classMembersData = await listCourseMembers(String(props.classId));
+          const students = (classMembersData || []).filter((member: { role: string }) => member.role === 'student');
+          
+          const submittedStudentIds = new Set(submissionsData.map((sub: { student_id: number }) => sub.student_id));
+          const allStudentsSubmitted = students.length > 0 && students.every((student: { id: number }) => submittedStudentIds.has(student.id));
+          
+          if (allStudentsSubmitted) {
+            setStatus('Complete');
+          } else if (props.dueDate) {
+            const isPastDue = new Date(props.dueDate) < new Date();
+            setStatus(isPastDue ? 'Overdue' : 'In Progress');
+          } else {
+            setStatus('In Progress');
+          }
         } else {
-          setStatus('In Progress');
+          // Student view: check if current user has submitted
+          if (submissionsData.length > 0) {
+            // Student has submitted - check if it was on time
+            const submission = submissionsData[0]; // For students, getStudentSubmissions returns only their own
+            if (props.dueDate) {
+              const submittedAt = new Date(submission.submitted_at);
+              const dueDate = new Date(props.dueDate);
+              setStatus(submittedAt <= dueDate ? 'Submitted' : 'Submitted Late');
+            } else {
+              setStatus('Submitted');
+            }
+          } else {
+            // Student has not submitted
+            if (props.dueDate) {
+              const isPastDue = new Date(props.dueDate) < new Date();
+              setStatus(isPastDue ? 'Overdue' : null);
+            } else {
+              setStatus(null);
+            }
+          }
         }
       } catch (error) {
         console.error('Error calculating assignment status:', error);
-        // Fallback to simple date-based logic
+        // Fallback logic
         if (props.dueDate) {
           const isPastDue = new Date(props.dueDate) < new Date();
           setStatus(isPastDue ? 'Overdue' : 'In Progress');
@@ -61,24 +76,21 @@ export default function Button(props: Props) {
     calculateStatus();
   }, [props.id, props.classId, props.dueDate]);
   
-  // For students, use simple date-based logic
-  const isOverdue = !isTeacher() && props.dueDate ? new Date(props.dueDate) < new Date() : false;
-  
   // Determine badge class based on status
   const getBadgeClass = () => {
-    if (!isTeacher()) return isOverdue ? 'overdue' : '';
-    if (status === 'Complete') return 'complete';
+    if (status === 'Complete' || status === 'Submitted') return 'complete';
+    if (status === 'Submitted Late') return 'submitted-late';
     if (status === 'Overdue') return 'overdue';
-    return 'in-progress';
+    if (status === 'In Progress') return 'in-progress';
+    return '';
   };
   
   // Determine badge text
   const getBadgeText = () => {
-    if (!isTeacher()) {
-      return isOverdue ? 'Overdue' : (props.dueDate ? `Due: ${new Date(props.dueDate).toLocaleDateString()}` : '');
-    }
     if (isLoading) return 'Loading...';
-    return status || 'In Progress';
+    if (status) return status;
+    // Show due date if no status (not submitted, not overdue yet)
+    return props.dueDate ? `Due: ${new Date(props.dueDate).toLocaleDateString()}` : '';
   };
   
   return (

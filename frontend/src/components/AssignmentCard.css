@@ -49,6 +49,11 @@
   color: white;
 }
 
+.due-date-badge.submitted-late {
+  background-color: #ffc107;
+  color: #000;
+}
+
 .due-date-badge.in-progress {
   background-color: #007bff;
   color: white;
