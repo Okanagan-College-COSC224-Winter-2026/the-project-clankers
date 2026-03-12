@@ -39,6 +39,7 @@ export default function ClassHome() {
   const idNew = Number(id)
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [newAssignmentName, setNewAssignmentName] = useState("");
+  const [submissionType, setSubmissionType] = useState<'individual' | 'group'>('individual');
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -59,7 +60,7 @@ export default function ClassHome() {
     const tryCreateAssingment = async () => {
       try {
         setStatusMessage('');
-        const response = await createAssignment(idNew, newAssignmentName);
+        const response = await createAssignment(idNew, newAssignmentName, submissionType);
         const createdAssignment = response?.assignment;
 
         if (!createdAssignment?.id) {
@@ -68,6 +69,7 @@ export default function ClassHome() {
 
         setAssignments((prev) => [...prev, createdAssignment]);
         setNewAssignmentName("");
+        setSubmissionType('individual'); // Reset to default
         setStatusType('success');
         setStatusMessage('Assignment created successfully!');
       } catch (error) {
@@ -190,6 +192,27 @@ export default function ClassHome() {
               onInput={setNewAssignmentName}
               className="AssignmentInput"
             />
+            <div style={{ marginTop: '10px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <span>Submission Type:</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  value="individual"
+                  checked={submissionType === 'individual'}
+                  onChange={(e) => setSubmissionType(e.target.value as 'individual')}
+                />
+                Individual
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  value="group"
+                  checked={submissionType === 'group'}
+                  onChange={(e) => setSubmissionType(e.target.value as 'group')}
+                />
+                Group
+              </label>
+            </div>
             <Button
               onClick={() =>
                 tryCreateAssingment()

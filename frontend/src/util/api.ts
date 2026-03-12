@@ -327,6 +327,42 @@ export const listCourseMembers = async (classId: string) => {
   return await resp.json()
 } 
 
+export const getCourseGroups = async (courseId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+  
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+  
+  return await resp.json()
+}
+
+export const getGroupMembers = async (courseId: number, groupId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups/${groupId}/members`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+  
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+  
+  return await resp.json()
+} 
+
 
 
 
@@ -470,11 +506,13 @@ export const getRubric = async (rubricIDOrAssignmentID: number, useAsAssignmentI
 }
 
 
-export const createAssignment = async (courseID: number, name: string)=> {
+export const createAssignment = async (courseID: number, name: string, submissionType: 'individual' | 'group' = 'individual')=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
     body: JSON.stringify({
-      courseID, name
+      courseID, 
+      name,
+      submission_type: submissionType
     }),
     headers: {
       'Content-Type': 'application/json',

@@ -113,3 +113,5 @@ docker-compose.override.yml
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+/flask_backend/instance/uploads/assignments/submissions
+/flask_backend/instance/uploads/assignments/submissions
