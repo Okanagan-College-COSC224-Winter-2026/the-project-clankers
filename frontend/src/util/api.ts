@@ -869,7 +869,7 @@ export const deleteStudentSubmission = async (submissionId: number) => {
 
 // Browse all courses (for students to browse and enroll)
 export const browseAllClasses = async () => {
-  const response = await fetch(`${BASE_URL}/class/browse`, {
+  const response = await fetch(`${BASE_URL}/class/browse_classes`, {
     method: 'GET',
     credentials: 'include'
   })
