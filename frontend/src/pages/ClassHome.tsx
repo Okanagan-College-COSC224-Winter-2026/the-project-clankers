@@ -73,7 +73,8 @@ export default function ClassHome() {
       } catch (error) {
         console.error('Error creating assignment:', error);
         setStatusType('error');
-        setStatusMessage('Error creating assignment.');
+        const errorMessage = error instanceof Error ? error.message : 'Error creating assignment.';
+        setStatusMessage(errorMessage);
       }
     };
 
@@ -188,6 +189,7 @@ export default function ClassHome() {
             <Textbox
               placeholder="New Assignment..."
               onInput={setNewAssignmentName}
+              value={newAssignmentName}
               className="AssignmentInput"
             />
             <Button

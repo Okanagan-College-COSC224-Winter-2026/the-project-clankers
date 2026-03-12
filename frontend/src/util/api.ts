@@ -481,11 +481,13 @@ export const createAssignment = async (courseID: number, name: string)=> {
     },
     credentials: 'include'
   })
-  
+
   maybeHandleExpire(response);
 
   if (!response.ok) {
-      throw new Error(`Response status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.msg || `Response status: ${response.status}`;
+      throw new Error(errorMessage);
   }
 
   return await response.json();

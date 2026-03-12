@@ -16,17 +16,17 @@ with app.app_context():
                 print("Adding attachment_filename column...")
                 conn.execute(db.text("ALTER TABLE Assignment ADD COLUMN attachment_filename VARCHAR(255)"))
                 conn.commit()
-                print("✓ attachment_filename column added")
+                print("[OK] attachment_filename column added")
             else:
-                print("✓ attachment_filename column already exists")
-            
+                print("[OK] attachment_filename column already exists")
+
             if 'attachment_path' not in columns:
                 print("Adding attachment_path column...")
                 conn.execute(db.text("ALTER TABLE Assignment ADD COLUMN attachment_path VARCHAR(500)"))
                 conn.commit()
-                print("✓ attachment_path column added")
+                print("[OK] attachment_path column added")
             else:
-                print("✓ attachment_path column already exists")
+                print("[OK] attachment_path column already exists")
                 
             print("\nMigration completed successfully!")
             
