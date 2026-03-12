@@ -884,3 +884,27 @@ export const browseAllClasses = async () => {
 
   return await response.json();
 }
+
+// Self-enroll in a course (for students)
+export const enrollInCourse = async (courseId: number) => {
+  const response = await fetch(`${BASE_URL}/class/enroll`, {
+    method: 'POST',
+    body: JSON.stringify({
+      course_id: courseId
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Response status: ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
