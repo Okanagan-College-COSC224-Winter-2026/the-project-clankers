@@ -524,20 +524,28 @@ export const getRubric = async (rubricIDOrAssignmentID: number, useAsAssignmentI
 }
 
 
-export const createAssignment = async (courseID: number, name: string, submissionType: 'individual' | 'group' = 'individual')=> {
+export const createAssignment = async (
+  courseID: number,
+  name: string,
+  submissionType: 'individual' | 'group' = 'individual',
+  internalReview: boolean = false,
+  externalReview: boolean = false
+)=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
     body: JSON.stringify({
-      courseID, 
+      courseID,
       name,
-      submission_type: submissionType
+      submission_type: submissionType,
+      internal_review: internalReview,
+      external_review: externalReview
     }),
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: 'include'
   })
-  
+
   maybeHandleExpire(response);
 
   if (!response.ok) {

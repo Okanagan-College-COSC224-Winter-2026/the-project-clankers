@@ -19,7 +19,9 @@ def create_assignment():
     assignment_name = data.get("name")
     rubric_text = data.get("rubric")
     submission_type = data.get("submission_type", "individual")  # Default to individual
-    
+    internal_review = data.get("internal_review", False)  # Default to False
+    external_review = data.get("external_review", False)  # Default to False
+
     # Validate submission_type
     if submission_type not in ["individual", "group"]:
         return jsonify({"msg": "Invalid submission_type. Must be 'individual' or 'group'"}), 400
@@ -53,12 +55,14 @@ def create_assignment():
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
     new_assignment = Assignment(
-        courseID=course_id, 
-        name=assignment_name, 
-        rubric_text=rubric_text, 
-        start_date=start_date, 
+        courseID=course_id,
+        name=assignment_name,
+        rubric_text=rubric_text,
+        start_date=start_date,
         due_date=due_date,
-        submission_type=submission_type
+        submission_type=submission_type,
+        internal_review=internal_review,
+        external_review=external_review
     )
     Assignment.create(new_assignment)
     return (

@@ -8,6 +8,7 @@ import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
 import RubricDisplay from "../components/RubricDisplay";
+import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
 
 import { 
@@ -43,6 +44,7 @@ export default function Assignment() {
   const isManageTab = location.pathname.includes('/manage');
   const isSubmissionTab = location.pathname.includes('/submission');
   const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
+  const isPeerReviewsTab = location.pathname.includes('/peer-reviews');
 
   // Fetch assignment details to get the name
   useEffect(() => {
@@ -213,6 +215,10 @@ export default function Assignment() {
                   label: "Submission",
                   path: `/assignments/${id}/submission`,
                 },
+                {
+                  label: "Peer Reviews",
+                  path: `/assignments/${id}/peer-reviews`,
+                },
               ]
         }
       />
@@ -225,6 +231,9 @@ export default function Assignment() {
       ) : isStudentSubmissionsTab && isTeacher() ? (
         /* Teacher view of all student submissions */
         <TeacherSubmissionView assignmentId={Number(id)} />
+      ) : isPeerReviewsTab && !isTeacher() ? (
+        /* Student peer reviews tab */
+        <PeerReviews />
       ) : (
         /* Home tab - default view */
         <>

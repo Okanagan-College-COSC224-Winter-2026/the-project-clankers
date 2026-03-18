@@ -17,6 +17,8 @@ interface AssignmentDetails {
   due_date: string | null;
   courseID: number;
   submission_type?: string;
+  internal_review?: boolean;
+  external_review?: boolean;
   rubrics: Array<{
     id: number;
     canComment: boolean;
@@ -248,6 +250,20 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
 
       <div className="assignment-settings-section">
         <h3>Peer Review Settings</h3>
+        {assignment.submission_type === 'group' && (
+          <div className="detail-row">
+            <span className="detail-label">Internal Review:</span>
+            <span className="detail-value">
+              {assignment.internal_review ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+        )}
+        <div className="detail-row">
+          <span className="detail-label">External Review:</span>
+          <span className="detail-value">
+            {assignment.external_review ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
         <div className="detail-row">
           <span className="detail-label">Rubrics Created:</span>
           <span className="detail-value">{assignment.rubrics?.length || 0}</span>
