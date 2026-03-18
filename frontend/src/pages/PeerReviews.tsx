@@ -114,7 +114,7 @@ function PeerReviewModal({
             } else {
               const members = await listCourseMembers(String(courseId));
               const classmates = members
-                .filter((member: any) => member.id !== currentUserId)
+                .filter((member: any) => member.id !== currentUserId && member.role === 'student')
                 .map((member: any) => ({
                   id: member.id,
                   name: member.name || member.email
@@ -556,7 +556,7 @@ export default function PeerReviews() {
       // For individual assignments, fetch all students and check if they reviewed current user
       try {
         const members = await listCourseMembers(String(assignment.courseID));
-        const otherMembers = members.filter((member: any) => member.id !== userId);
+        const otherMembers = members.filter((member: any) => member.id !== userId && member.role === 'student');
 
         console.log('Fetching received reviews for individual assignment. Querying reviews from:',
           otherMembers.map((m: any) => ({ id: m.id, name: m.name || m.email }))
@@ -675,7 +675,7 @@ export default function PeerReviews() {
             } else {
               const members = await listCourseMembers(String(assignmentData.courseID));
               externalTargets = members
-                .filter((member: any) => member.id !== userId)
+                .filter((member: any) => member.id !== userId && member.role === 'student')
                 .map((member: any) => ({
                   id: member.id,
                   name: member.name || member.email
@@ -867,7 +867,7 @@ export default function PeerReviews() {
                     } else {
                       const members = await listCourseMembers(String(assignment.courseID));
                       externalTargets = members
-                        .filter((member: any) => member.id !== currentUserId)
+                        .filter((member: any) => member.id !== currentUserId && member.role === 'student')
                         .map((member: any) => ({
                           id: member.id,
                           name: member.name || member.email
