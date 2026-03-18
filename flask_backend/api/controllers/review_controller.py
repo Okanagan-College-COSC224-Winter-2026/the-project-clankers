@@ -6,13 +6,14 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from ..models import (
-    Review, 
-    Criterion, 
-    Assignment, 
-    User, 
+    Review,
+    Criterion,
+    Assignment,
+    User,
     CriteriaDescription,
     ReviewSchema,
-    CriterionSchema
+    CriterionSchema,
+    Group_Members
 )
 from ..models.db import db
 
@@ -175,7 +176,14 @@ def get_review():
 
     is_teacher = user.is_teacher() and assignment.course.teacherID == user.id
     is_participant = user.id in [reviewer_id, reviewee_id]
-    
+
+    # For group assignments, check if the user is a member of the reviewee group
+    if not is_participant and assignment.submission_type == 'group':
+        # Check if revieweeID is a group and user is a member of it
+        group_membership = Group_Members.get(user.id, reviewee_id)
+        if group_membership:
+            is_participant = True
+
     if not (is_teacher or is_participant):
         return jsonify({"msg": "Unauthorized"}), 403
 
