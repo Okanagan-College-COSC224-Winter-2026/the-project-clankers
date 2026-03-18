@@ -1,4 +1,4 @@
-import { useEffect, useState, ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
 import "./Assignment.css";
 import TabNavigation from "../components/TabNavigation";
@@ -11,13 +11,7 @@ import RubricDisplay from "../components/RubricDisplay";
 import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
 
-import { 
-  listStuGroup,
-  getUserId,
-  createReview,
-  createCriterion,
-  getReview,
-  getCriteria,
+import {
   getRubric,
   getAssignmentDetails
 } from "../util/api";
@@ -30,12 +24,9 @@ interface SelectedCriterion {
 export default function Assignment() {
   const { id } = useParams();
   const location = useLocation();
-  const [stuGroup, setStuGroup] = useState<StudentGroups[]>([]);
-  const [revieweeID, setRevieweeID] = useState<number>(0);
-  const [stuID, setStuID] = useState<number>(0);
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
   const [review, setReview] = useState<number[]>([]);
-  const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
+  // const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseName, setCourseName] = useState<string>("");
@@ -72,55 +63,12 @@ export default function Assignment() {
   useEffect(() => {
     (async () => {
       try {
-        const rubricResp = await getRubric(Number(id), true); // true = use as assignmentID
-        if (rubricResp && rubricResp.id) {
-          const criteriaResp = await getCriteria(rubricResp.id);
-          setCriteriaDescriptions(criteriaResp);
-        }
+        await getRubric(Number(id), true); // true = use as assignmentID
       } catch (error) {
-        console.error('Error fetching criteria descriptions:', error);
+        console.error('Error fetching rubric:', error);
       }
     })();
   }, [id]);
-
-  useEffect(() => {
-      (async () => {
-        const stuID = await getUserId();
-      setStuID(stuID);
-      const stus = await listStuGroup(Number(id), stuID);
-      setStuGroup(stus);
-        try {
-          if (revieweeID === 0) {
-            // No reviewee selected yet, clear the review data
-            setReview([]);
-            setSelectedCriteria([]);
-            return;
-          }
-          
-          const reviewResponse = await getReview(Number(id), stuID, revieweeID);
-          const reviewData = await reviewResponse.json();
-          setReview(reviewData.grades || []);
-          
-          // Convert grades array to selectedCriteria format
-          const loadedCriteria: SelectedCriterion[] = [];
-          if (reviewData.grades && Array.isArray(reviewData.grades)) {
-            reviewData.grades.forEach((grade: number | null, rowIndex: number) => {
-              if (grade !== null && grade !== undefined) {
-                loadedCriteria.push({ row: rowIndex, column: grade });
-              }
-            });
-          }
-          setSelectedCriteria(loadedCriteria);
-          
-          console.log("Review data:", reviewData);
-          console.log("Loaded criteria:", loadedCriteria);
-        } catch (error) {
-          console.error('Error fetching review:', error);
-          setReview([]);
-          setSelectedCriteria([]);
-        }
-      })();
-  }, [revieweeID, id]);
 
   const handleCriterionSelect = (row: number, column: number) => {
     // Check if this criterion is already selected
@@ -155,12 +103,6 @@ export default function Assignment() {
       });
     }
   };
-
-  function handleRadioChange(event: ChangeEvent<HTMLInputElement>): void {
-    const selectedID = Number(event.target.value);
-    setRevieweeID(selectedID);
-    console.log(`Selected group member ID: ${selectedID}`);
-  }
 
   return (
     <>
@@ -251,49 +193,6 @@ export default function Assignment() {
           <div className='assignmentRubricDisplay'>
             <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
           </div>
-
-          {
-            //List group members as radio buttons to select for given review
-            !isTeacher() && <div className='groupMembers'>
-              <h3>Select a group member to review</h3>
-                {stuGroup.map((stus) => {
-                      return (
-                        <>
-                        <input type='radio' id={stus.userID.toString()} value={stus.userID} name='groupMembers' onChange={handleRadioChange}></input>
-                        <label htmlFor={stus.userID.toString()}>{stus.userID}</label>
-                        <br></br>
-                        </>
-                      )
-                    }
-                  )
-                }
-                <button className='submitReview' onClick={async () => {
-                  console.log("Submitting review with selected criteria:", selectedCriteria);
-                  try {
-                    const reviewResponse = await createReview(Number(id), stuID, revieweeID);
-                    const reviewData = await reviewResponse.json();
-                    console.log("Review response:", reviewData);
-                    
-                    // Submit each criterion using the criteria description ID
-                    for (const criterion of selectedCriteria) {
-                      // Get the criteria description ID from the row index
-                      const criteriaDesc = criteriaDescriptions[criterion.row];
-                      if (criteriaDesc && criteriaDesc.id) {
-                        await createCriterion(reviewData.id, criteriaDesc.id, criterion.column, "");
-                      } else {
-                        console.warn(`Could not find criteria description for row ${criterion.row}`);
-                      }
-                    }
-                    
-                    console.log('Review submitted successfully');
-                    alert('Review submitted successfully!');
-                  } catch (error) {
-                    console.error('Error submitting review:', error);
-                    alert('Error submitting review. Please try again.');
-                  }
-                }}>Submit Review</button>
-            </div>
-          }
         </>
       )}
     </>
