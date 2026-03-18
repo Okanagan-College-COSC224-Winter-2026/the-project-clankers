@@ -153,6 +153,13 @@ function PeerReviewModal({
         setIsSubmitting(true);
 
         // Create the review
+        console.log('Creating review:', {
+          assignmentId,
+          reviewerID: currentUserId,
+          revieweeID: selectedTarget.id,
+          targetName: selectedTarget.name,
+          targetType: selectedTarget.type
+        });
         const reviewResponse = await createReview(assignmentId, currentUserId, selectedTarget.id);
         const reviewData = await reviewResponse.json();
         const reviewId = reviewData.id;
@@ -363,34 +370,48 @@ export default function PeerReviews() {
   };
 
   const fetchSubmittedReviews = async (userId: number, assignmentId: number, targets: Array<{ id: number; name: string }>, type: 'internal' | 'external', criteriaToUse?: Criterion[]) => {
-    const reviews: SubmittedReview[] = [];
-    for (const target of targets) {
-      try {
-        const reviewResponse = await getReview(assignmentId, userId, target.id);
-        const reviewData = await reviewResponse.json();
-        // Check if a review exists by looking for the id field (which is present on the review object)
-        if (reviewData.id) {
-          const averageGrade = calculateAverageGrade(reviewData.grades, criteriaToUse);
+    // Fetch all reviews in parallel
+    const reviewPromises = targets.map(target =>
+      getReview(assignmentId, userId, target.id)
+        .then(response => response.json())
+        .then(reviewData => ({
+          target,
+          reviewData,
+          error: null
+        }))
+        .catch(error => ({
+          target,
+          reviewData: null,
+          error
+        }))
+    );
 
-          reviews.push({
-            revieweeId: target.id,
-            revieweeName: target.name,
-            type: type,
-            grade: averageGrade
-          });
-        }
-      } catch (error) {
-        // Review doesn't exist, skip
-      }
-    }
+    const results = await Promise.all(reviewPromises);
+
+    const reviews: SubmittedReview[] = results
+      .filter(result => result.reviewData?.id)
+      .map(result => ({
+        revieweeId: result.target.id,
+        revieweeName: result.target.name,
+        type: type,
+        grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
+      }));
+
     return reviews;
   };
 
   const fetchReceivedReviews = async (userId: number, assignmentId: number, assignment: AssignmentDetails, criteriaToUse?: Criterion[]) => {
     const reviews: ReceivedReview[] = [];
 
+    console.log('fetchReceivedReviews called with:', {
+      userId,
+      assignmentId,
+      submissionType: assignment.submission_type,
+      internalReview: assignment.internal_review,
+      externalReview: assignment.external_review
+    });
+
     if (assignment.submission_type === 'group') {
-      // For group assignments, need to check if users from other groups reviewed current user's group
       try {
         const groups = await getCourseGroups(assignment.courseID);
 
@@ -414,28 +435,47 @@ export default function PeerReviews() {
         if (assignment.internal_review) {
           try {
             const groupMembers = await listStuGroup(assignmentId, userId);
-            for (const member of groupMembers) {
-              if (member.id === userId) continue; // Skip self
 
-              try {
-                const reviewResponse = await getReview(assignmentId, member.id, userId);
-                const reviewData = await reviewResponse.json();
-                console.log('Internal review data for member', member.id, ':', reviewData);
-                if (reviewData.id) {
-                  const averageGrade = calculateAverageGrade(reviewData.grades, criteriaToUse);
-                  console.log('Calculated average grade:', averageGrade, 'from grades:', reviewData.grades);
+            console.log('Fetching internal reviews. Group members:', groupMembers);
 
-                  reviews.push({
-                    reviewerId: member.id,
-                    reviewerName: member.name || `User ${member.id}`,
-                    type: 'internal',
-                    grade: averageGrade
-                  });
-                }
-              } catch (error) {
-                // Review doesn't exist, skip
+            // For internal reviews: teammates review each other as INDIVIDUALS
+            // revieweeID should be the USER ID (not group ID)
+            const internalReviewPromises = groupMembers
+              .filter((m: any) => m.id !== userId)
+              .map((member: any) =>
+                getReview(assignmentId, member.id, userId)  // Query with userId as reviewee
+                  .then(response => response.json())
+                  .then(reviewData => {
+                    console.log(`Internal review from teammate ${member.id}:`, reviewData);
+                    return {
+                      reviewer: member,
+                      reviewData,
+                      error: null
+                    };
+                  })
+                  .catch(error => {
+                    console.log(`Failed to get internal review from ${member.id}:`, error);
+                    return {
+                      reviewer: member,
+                      reviewData: null,
+                      error
+                    };
+                  })
+              );
+
+            const internalResults = await Promise.all(internalReviewPromises);
+
+            internalResults.forEach(result => {
+              if (result.reviewData?.id) {
+                console.log('Adding internal review from teammate:', result.reviewer.name || `User ${result.reviewer.id}`, result.reviewData);
+                reviews.push({
+                  reviewerId: result.reviewer.id,
+                  reviewerName: result.reviewer.name || `User ${result.reviewer.id}`,
+                  type: 'internal',
+                  grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
+                });
               }
-            }
+            });
           } catch (error) {
             console.error('Error fetching received internal reviews:', error);
           }
@@ -443,38 +483,70 @@ export default function PeerReviews() {
 
         // Check if external reviews are enabled (other groups reviewing current user's group)
         if (assignment.external_review) {
-          // For each group (except current user's), check if any member reviewed the user's group
-          for (const group of groups) {
-            if (group.id === userGroupId) continue; // Skip own group
+          try {
+            const otherGroups = groups.filter((group: any) => group.id !== userGroupId);
 
-            try {
-              // Get members of this group
-              const groupMembers = await getGroupMembers(assignment.courseID, group.id);
+            console.log('Fetching external reviews. User group ID:', userGroupId, 'Other groups:', otherGroups);
 
-              // Check if any member of this group reviewed the current user's group
-              for (const member of groupMembers) {
-                try {
-                  const reviewResponse = await getReview(assignmentId, member.id, userGroupId);
-                  const reviewData = await reviewResponse.json();
-                  console.log('External review data from member', member.id, ':', reviewData);
-                  if (reviewData.id) {
-                    const averageGrade = calculateAverageGrade(reviewData.grades, criteriaToUse);
-                    console.log('Calculated average grade:', averageGrade, 'from grades:', reviewData.grades);
+            // Fetch all group members in parallel
+            const groupMembersPromises = otherGroups.map((group: any) =>
+              getGroupMembers(assignment.courseID, group.id)
+                .then(members => ({ groupId: group.id, members, error: null }))
+                .catch(error => ({ groupId: group.id, members: [], error }))
+            );
 
-                    reviews.push({
-                      reviewerId: member.id,
-                      reviewerName: member.name || `User ${member.id}`,
-                      type: 'external',
-                      grade: averageGrade
-                    });
-                  }
-                } catch (error) {
-                  // Review doesn't exist, skip
-                }
+            const groupMembersResults = await Promise.all(groupMembersPromises);
+
+            // Flatten to get all members from other groups
+            const allOtherMembers: Array<{ groupId: number; member: any }> = [];
+            groupMembersResults.forEach(result => {
+              if (result.members && result.members.length > 0) {
+                result.members.forEach((member: any) => {
+                  allOtherMembers.push({ groupId: result.groupId, member });
+                });
               }
-            } catch (error) {
-              // Skip if error fetching members
-            }
+            });
+
+            console.log('Members from other groups:', allOtherMembers.length);
+
+            // Fetch all external reviews in parallel
+            // For external reviews: revieweeID is the GROUP ID (other groups reviewing your group)
+            const externalReviewPromises = allOtherMembers.map(({ member }) =>
+              getReview(assignmentId, member.id, userGroupId)
+                .then(response => response.json())
+                .then(reviewData => {
+                  console.log(`External review from user ${member.id} in other group:`, reviewData);
+                  return {
+                    member,
+                    reviewData,
+                    error: null
+                  };
+                })
+                .catch(error => {
+                  console.log(`Failed to get external review from ${member.id}:`, error);
+                  return {
+                    member,
+                    reviewData: null,
+                    error
+                  };
+                })
+            );
+
+            const externalResults = await Promise.all(externalReviewPromises);
+
+            externalResults.forEach(result => {
+              if (result.reviewData?.id) {
+                console.log('Adding external review from:', result.member.name || `User ${result.member.id}`, result.reviewData);
+                reviews.push({
+                  reviewerId: result.member.id,
+                  reviewerName: result.member.name || `User ${result.member.id}`,
+                  type: 'external',
+                  grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
+                });
+              }
+            });
+          } catch (error) {
+            console.error('Error fetching received external reviews:', error);
           }
         }
       } catch (error) {
@@ -484,34 +556,53 @@ export default function PeerReviews() {
       // For individual assignments, fetch all students and check if they reviewed current user
       try {
         const members = await listCourseMembers(String(assignment.courseID));
+        const otherMembers = members.filter((member: any) => member.id !== userId);
 
-        for (const member of members) {
-          if (member.id === userId) continue; // Skip self
+        console.log('Fetching received reviews for individual assignment. Querying reviews from:',
+          otherMembers.map((m: any) => ({ id: m.id, name: m.name || m.email }))
+        );
 
-          try {
-            const reviewResponse = await getReview(assignmentId, member.id, userId);
-            const reviewData = await reviewResponse.json();
-            console.log('Individual review data from member', member.id, ':', reviewData);
-            if (reviewData.id) {
-              const averageGrade = calculateAverageGrade(reviewData.grades, criteriaToUse);
-              console.log('Calculated average grade:', averageGrade, 'from grades:', reviewData.grades);
+        // Fetch all reviews in parallel
+        const reviewPromises = otherMembers.map((member: any) =>
+          getReview(assignmentId, member.id, userId)
+            .then(response => response.json())
+            .then(reviewData => {
+              console.log(`Review from user ${member.id} (${member.name || member.email}):`, reviewData);
+              return {
+                member,
+                reviewData,
+                error: null
+              };
+            })
+            .catch(error => {
+              console.log(`Failed to get review from user ${member.id}:`, error);
+              return {
+                member,
+                reviewData: null,
+                error
+              };
+            })
+        );
 
-              reviews.push({
-                reviewerId: member.id,
-                reviewerName: member.name || member.email,
-                type: 'external',
-                grade: averageGrade
-              });
-            }
-          } catch (error) {
-            // Review doesn't exist, skip
+        const results = await Promise.all(reviewPromises);
+
+        results.forEach(result => {
+          if (result.reviewData?.id) {
+            console.log('Adding received review from:', result.member.name || result.member.email, result.reviewData);
+            reviews.push({
+              reviewerId: result.member.id,
+              reviewerName: result.member.name || result.member.email,
+              type: 'external',
+              grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
+            });
           }
-        }
+        });
       } catch (error) {
         console.error('Error fetching received individual reviews:', error);
       }
     }
 
+    console.log('Total received reviews found:', reviews.length, reviews);
     return reviews;
   };
 
