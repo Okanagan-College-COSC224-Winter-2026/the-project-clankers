@@ -40,6 +40,8 @@ export default function ClassHome() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [newAssignmentName, setNewAssignmentName] = useState("");
   const [submissionType, setSubmissionType] = useState<'individual' | 'group'>('individual');
+  const [internalReview, setInternalReview] = useState(false);
+  const [externalReview, setExternalReview] = useState(false);
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -60,7 +62,7 @@ export default function ClassHome() {
     const tryCreateAssingment = async () => {
       try {
         setStatusMessage('');
-        const response = await createAssignment(idNew, newAssignmentName, submissionType);
+        const response = await createAssignment(idNew, newAssignmentName, submissionType, internalReview, externalReview);
         const createdAssignment = response?.assignment;
 
         if (!createdAssignment?.id) {
@@ -70,6 +72,8 @@ export default function ClassHome() {
         setAssignments((prev) => [...prev, createdAssignment]);
         setNewAssignmentName("");
         setSubmissionType('individual'); // Reset to default
+        setInternalReview(false); // Reset review options
+        setExternalReview(false); // Reset review options
         setStatusType('success');
         setStatusMessage('Assignment created successfully!');
       } catch (error) {
@@ -201,7 +205,10 @@ export default function ClassHome() {
                   type="radio"
                   value="individual"
                   checked={submissionType === 'individual'}
-                  onChange={(e) => setSubmissionType(e.target.value as 'individual')}
+                  onChange={(e) => {
+                    setSubmissionType(e.target.value as 'individual');
+                    setInternalReview(false); // Clear internal review for individual assignments
+                  }}
                 />
                 Individual
               </label>
@@ -213,6 +220,27 @@ export default function ClassHome() {
                   onChange={(e) => setSubmissionType(e.target.value as 'group')}
                 />
                 Group
+              </label>
+            </div>
+            <div style={{ marginTop: '10px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <span>Peer Review:</span>
+              {submissionType === 'group' && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={internalReview}
+                    onChange={(e) => setInternalReview(e.target.checked)}
+                  />
+                  Internal Review
+                </label>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={externalReview}
+                  onChange={(e) => setExternalReview(e.target.checked)}
+                />
+                External Review
               </label>
             </div>
             <Button

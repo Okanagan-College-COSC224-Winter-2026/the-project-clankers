@@ -23,7 +23,11 @@ class Assignment(db.Model):
     
     # Submission type: 'individual' or 'group'
     submission_type = db.Column(db.String(20), default='individual', nullable=False)
-    
+
+    # Peer review options
+    internal_review = db.Column(db.Boolean, default=False, nullable=False)  # Group only: teammates review each other
+    external_review = db.Column(db.Boolean, default=False, nullable=False)  # Group: groups review other groups; Individual: classmates review each other
+
     # File attachment fields
     attachment_filename = db.Column(db.String(255), nullable=True)  # Original filename
     attachment_path = db.Column(db.String(500), nullable=True)  # Server-side path
@@ -46,13 +50,15 @@ class Assignment(db.Model):
         "StudentSubmission", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, submission_type='individual', attachment_filename=None, attachment_path=None):
+    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, submission_type='individual', internal_review=False, external_review=False, attachment_filename=None, attachment_path=None):
         self.courseID = courseID
         self.name = name
         self.rubric_text = rubric_text
         self.start_date = start_date
         self.due_date = due_date
         self.submission_type = submission_type
+        self.internal_review = internal_review
+        self.external_review = external_review
         self.attachment_filename = attachment_filename
         self.attachment_path = attachment_path
 

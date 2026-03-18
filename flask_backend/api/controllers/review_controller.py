@@ -19,6 +19,18 @@ from ..models.db import db
 bp = Blueprint("review", __name__, url_prefix="")
 
 
+@bp.route("/user_id", methods=["GET"])
+@jwt_required()
+def get_current_user_id():
+    """Get current authenticated user's ID"""
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+    return jsonify({"id": user.id}), 200
+
+
 @bp.route("/create_review", methods=["POST"])
 @jwt_required()
 def create_review():
