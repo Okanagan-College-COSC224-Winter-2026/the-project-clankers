@@ -164,9 +164,9 @@ function PeerReviewModal({
         const reviewData = await reviewResponse.json();
         const reviewId = reviewData.id;
 
-        // Create criterion entries for each scored criterion
+        // Create criterion entries for each criterion with a grade
         for (let i = 0; i < criteria.length; i++) {
-          if (criteria[i].hasScore && grades[i] !== null && criteria[i].id) {
+          if (grades[i] !== null && criteria[i].id) {
             await createCriterion(reviewId, criteria[i].id!, grades[i], "");
           }
         }
@@ -268,28 +268,33 @@ function PeerReviewModal({
                 {criteria.length > 0 ? (
                   <>
                     <div className="rubric-scoring">
-                      {criteria.map((criterion, index) => (
-                        <div key={index} className="criterion-slider-group">
-                          <div className="criterion-header">
-                            <label>{criterion.question}</label>
-                            <span className="criterion-score">
-                              {grades[index] !== null ? grades[index] : 0} / {criterion.scoreMax}
-                            </span>
+                      {criteria.map((criterion, index) => {
+                        // If no score or scoreMax is 0, default to 100
+                        const maxScore = (!criterion.hasScore || criterion.scoreMax === 0) ? 100 : criterion.scoreMax;
+
+                        return (
+                          <div key={index} className="criterion-slider-group">
+                            <div className="criterion-header">
+                              <label>{criterion.question}</label>
+                              <span className="criterion-score">
+                                {grades[index] !== null ? grades[index] : 0} / {maxScore}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max={maxScore}
+                              value={grades[index] !== null ? grades[index] : 0}
+                              onChange={(e) => {
+                                const newGrades = [...grades];
+                                newGrades[index] = Number(e.target.value);
+                                setGrades(newGrades);
+                              }}
+                              className="criterion-slider"
+                            />
                           </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max={criterion.scoreMax}
-                            value={grades[index] !== null ? grades[index] : 0}
-                            onChange={(e) => {
-                              const newGrades = [...grades];
-                              newGrades[index] = Number(e.target.value);
-                              setGrades(newGrades);
-                            }}
-                            className="criterion-slider"
-                          />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <Button onClick={handleSubmitReview} disabled={isSubmitting}>
                       {isSubmitting ? 'Submitting...' : 'Submit Review'}
@@ -312,6 +317,7 @@ function PeerReviewModal({
 }
 
 interface SubmittedReview {
+  reviewId: number;
   revieweeId: number;
   revieweeName: string;
   type: 'internal' | 'external';
@@ -356,8 +362,10 @@ export default function PeerReviews() {
     const normalizedGrades = grades
       .map((grade, index) => {
         if (grade === null || !criteriaNow[index]) return null;
+        // Use 100 as default max if scoreMax is 0 or hasScore is false
+        const maxScore = (!criteriaNow[index].hasScore || criteriaNow[index].scoreMax === 0) ? 100 : criteriaNow[index].scoreMax;
         // Convert to percentage (0-100)
-        return (grade / criteriaNow[index].scoreMax) * 100;
+        return (grade / maxScore) * 100;
       })
       .filter((g) => g !== null) as number[];
 
@@ -391,6 +399,7 @@ export default function PeerReviews() {
     const reviews: SubmittedReview[] = results
       .filter(result => result.reviewData?.id)
       .map(result => ({
+        reviewId: result.reviewData.id,
         revieweeId: result.target.id,
         revieweeName: result.target.name,
         type: type,
@@ -688,7 +697,12 @@ export default function PeerReviews() {
           }
         }
 
-        setSubmittedReviews(allReviews);
+        // Deduplicate reviews by reviewId (in case user IDs and group IDs overlap)
+        const uniqueReviews = allReviews.filter((review, index, self) =>
+          index === self.findIndex((r) => r.reviewId === review.reviewId)
+        );
+
+        setSubmittedReviews(uniqueReviews);
 
         // Fetch received reviews
         const receivedReviewsList = await fetchReceivedReviews(userId, Number(id), assignmentData, criteriaData);
@@ -761,7 +775,7 @@ export default function PeerReviews() {
         ) : (
           <div className="reviews-list">
             {submittedReviews.map((review) => (
-              <div key={`${review.type}-${review.revieweeId}`} className="review-item">
+              <div key={review.reviewId} className="review-item">
                 <div className="review-item-info">
                   <span className="review-target-name">{review.revieweeName}</span>
                   <span className="review-type-badge">{review.type === 'internal' ? 'Internal' : 'External'}</span>
@@ -880,7 +894,12 @@ export default function PeerReviews() {
                   }
                 }
 
-                setSubmittedReviews(allReviews);
+                // Deduplicate reviews by reviewId (in case user IDs and group IDs overlap)
+                const uniqueReviews = allReviews.filter((review, index, self) =>
+                  index === self.findIndex((r) => r.reviewId === review.reviewId)
+                );
+
+                setSubmittedReviews(uniqueReviews);
 
                 // Also refresh received reviews (since others may have submitted reviews after this user submitted)
                 const updatedReceivedReviews = await fetchReceivedReviews(currentUserId, assignment.id, assignment, criteria);
