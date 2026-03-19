@@ -57,7 +57,8 @@ CREATE TABLE Review (
     id SERIAL PRIMARY KEY,
     assignmentID INT NOT NULL,
     reviewerID INT NOT NULL,
-    revieweeID INT NOT NULL
+    revieweeID INT NOT NULL,
+    reviewee_type VARCHAR(10) NOT NULL DEFAULT 'user' CHECK (reviewee_type IN ('user', 'group'))
 );
 
 CREATE TABLE Criterion (
