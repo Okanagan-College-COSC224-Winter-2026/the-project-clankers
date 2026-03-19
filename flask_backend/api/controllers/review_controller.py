@@ -40,9 +40,14 @@ def create_review():
     assignment_id = data.get("assignmentID")
     reviewer_id = data.get("reviewerID")
     reviewee_id = data.get("revieweeID")
+    reviewee_type = data.get("revieweeType", "user")  # Default to 'user' for backwards compatibility
 
     if not all([assignment_id, reviewer_id, reviewee_id]):
         return jsonify({"msg": "Missing required fields"}), 400
+
+    # Validate reviewee_type
+    if reviewee_type not in ['user', 'group']:
+        return jsonify({"msg": "Invalid reviewee_type. Must be 'user' or 'group'"}), 400
 
     # Verify the assignment exists
     assignment = Assignment.get_by_id(assignment_id)
@@ -59,7 +64,8 @@ def create_review():
     existing_review = Review.query.filter_by(
         assignmentID=assignment_id,
         reviewerID=reviewer_id,
-        revieweeID=reviewee_id
+        revieweeID=reviewee_id,
+        reviewee_type=reviewee_type
     ).first()
 
     if existing_review:
@@ -70,7 +76,8 @@ def create_review():
     new_review = Review(
         assignmentID=assignment_id,
         reviewerID=reviewer_id,
-        revieweeID=reviewee_id
+        revieweeID=reviewee_id,
+        reviewee_type=reviewee_type
     )
     Review.create_review(new_review)
 
@@ -134,12 +141,13 @@ def create_criterion():
 @jwt_required()
 def get_review():
     """Get a review with its criteria grades and comments
-    
+
     Query params:
         assignmentID: ID of the assignment
         reviewerID: ID of the reviewer
         revieweeID: ID of the reviewee
-    
+        revieweeType: Type of reviewee ('user' or 'group'), defaults to 'user'
+
     Returns:
         - grades: array of grades indexed by criteria row position
         - comments: array of comments indexed by criteria row position
@@ -148,15 +156,21 @@ def get_review():
     assignment_id = request.args.get("assignmentID", type=int)
     reviewer_id = request.args.get("reviewerID", type=int)
     reviewee_id = request.args.get("revieweeID", type=int)
+    reviewee_type = request.args.get("revieweeType", "user")  # Default to 'user' for backwards compatibility
 
     if not all([assignment_id, reviewer_id, reviewee_id]):
         return jsonify({"msg": "Missing required query parameters"}), 400
+
+    # Validate reviewee_type
+    if reviewee_type not in ['user', 'group']:
+        return jsonify({"msg": "Invalid revieweeType. Must be 'user' or 'group'"}), 400
 
     # Find the review
     review = Review.query.filter_by(
         assignmentID=assignment_id,
         reviewerID=reviewer_id,
-        revieweeID=reviewee_id
+        revieweeID=reviewee_id,
+        reviewee_type=reviewee_type
     ).first()
 
     if not review:
@@ -207,12 +221,12 @@ def get_review():
             reviewID=review.id,
             criterionRowID=criteria_desc.id
         ).first()
-        
+
         if criterion and criterion.grade is not None:
             grades.append(criterion.grade)
         else:
             grades.append(None)  # No grade selected for this row
-        
+
         if criterion and criterion.comments:
             comments.append(criterion.comments)
         else:
