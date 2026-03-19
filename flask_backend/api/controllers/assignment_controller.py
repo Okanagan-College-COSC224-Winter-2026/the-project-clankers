@@ -21,17 +21,18 @@ def create_assignment():
     submission_type = data.get("submission_type", "individual")  # Default to individual
     internal_review = data.get("internal_review", False)  # Default to False
     external_review = data.get("external_review", False)  # Default to False
+    anonymous_review = data.get("anonymous_review", False)  # Default to False
 
     # Validate submission_type
     if submission_type not in ["individual", "group"]:
         return jsonify({"msg": "Invalid submission_type. Must be 'individual' or 'group'"}), 400
-    
+
     start_date = data.get("start_date")
     if not start_date:
         start_date = None
     else:
         start_date = datetime.fromisoformat(start_date)
-    
+
     due_date = data.get("due_date")
     if not due_date:
         due_date = None
@@ -62,7 +63,8 @@ def create_assignment():
         due_date=due_date,
         submission_type=submission_type,
         internal_review=internal_review,
-        external_review=external_review
+        external_review=external_review,
+        anonymous_review=anonymous_review
     )
     Assignment.create(new_assignment)
     return (
@@ -92,7 +94,7 @@ def edit_assignment(assignment_id):
     course = Course.get_by_id(assignment.courseID)
     if course is None:
         return jsonify({"msg": "Course not found"}), 404
-    
+
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
@@ -102,14 +104,29 @@ def edit_assignment(assignment_id):
 
     assignment.name = data.get("name", assignment.name)
     assignment.rubric_text = data.get("rubric", assignment.rubric_text)
-    
+
     start_date = data.get("start_date")
     if start_date:
         assignment.start_date = datetime.fromisoformat(start_date)
-    
+
     due_date = data.get("due_date")
     if due_date:
         assignment.due_date = datetime.fromisoformat(due_date)
+
+    if "submission_type" in data:
+        submission_type = data.get("submission_type")
+        if submission_type not in ["individual", "group"]:
+            return jsonify({"msg": "Invalid submission_type. Must be 'individual' or 'group'"}), 400
+        assignment.submission_type = submission_type
+
+    if "internal_review" in data:
+        assignment.internal_review = data.get("internal_review", assignment.internal_review)
+
+    if "external_review" in data:
+        assignment.external_review = data.get("external_review", assignment.external_review)
+
+    if "anonymous_review" in data:
+        assignment.anonymous_review = data.get("anonymous_review", assignment.anonymous_review)
 
     assignment.update()
     return (

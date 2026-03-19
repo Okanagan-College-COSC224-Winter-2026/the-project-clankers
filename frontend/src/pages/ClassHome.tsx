@@ -42,6 +42,7 @@ export default function ClassHome() {
   const [submissionType, setSubmissionType] = useState<'individual' | 'group'>('individual');
   const [internalReview, setInternalReview] = useState(false);
   const [externalReview, setExternalReview] = useState(false);
+  const [anonymousReview, setAnonymousReview] = useState(false);
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -62,7 +63,7 @@ export default function ClassHome() {
     const tryCreateAssingment = async () => {
       try {
         setStatusMessage('');
-        const response = await createAssignment(idNew, newAssignmentName, submissionType, internalReview, externalReview);
+        const response = await createAssignment(idNew, newAssignmentName, submissionType, internalReview, externalReview, anonymousReview);
         const createdAssignment = response?.assignment;
 
         if (!createdAssignment?.id) {
@@ -74,6 +75,7 @@ export default function ClassHome() {
         setSubmissionType('individual'); // Reset to default
         setInternalReview(false); // Reset review options
         setExternalReview(false); // Reset review options
+        setAnonymousReview(false); // Reset anonymous option
         setStatusType('success');
         setStatusMessage('Assignment created successfully!');
       } catch (error) {
@@ -239,6 +241,17 @@ export default function ClassHome() {
                   onChange={(e) => setExternalReview(e.target.checked)}
                 />
                 External Review
+              </label>
+            </div>
+            <div style={{ marginTop: '10px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <span>Review Options:</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={anonymousReview}
+                  onChange={(e) => setAnonymousReview(e.target.checked)}
+                />
+                Anonymous (Hide Reviewer Names from Students)
               </label>
             </div>
             <Button
