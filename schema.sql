@@ -20,7 +20,11 @@ CREATE TABLE Assignment (
     courseID INT,
     name VARCHAR(255),
     rubric VARCHAR(255),
-    due_date TIMESTAMP NULL
+    due_date TIMESTAMP NULL,
+    submission_type VARCHAR(20) DEFAULT 'individual',
+    internal_review BOOLEAN DEFAULT FALSE,
+    external_review BOOLEAN DEFAULT FALSE,
+    anonymous_review BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE CourseGroup (

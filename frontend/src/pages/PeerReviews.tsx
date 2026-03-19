@@ -338,6 +338,7 @@ interface AssignmentDetails {
   submission_type?: 'individual' | 'group';
   internal_review?: boolean;
   external_review?: boolean;
+  anonymous_review?: boolean;
   due_date?: string;
 }
 
@@ -479,7 +480,7 @@ export default function PeerReviews() {
                 console.log('Adding internal review from teammate:', result.reviewer.name || `User ${result.reviewer.id}`, result.reviewData);
                 reviews.push({
                   reviewerId: result.reviewer.id,
-                  reviewerName: result.reviewer.name || `User ${result.reviewer.id}`,
+                  reviewerName: assignment.anonymous_review ? "Anonymous" : (result.reviewer.name || `User ${result.reviewer.id}`),
                   type: 'internal',
                   grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
                 });
@@ -548,7 +549,7 @@ export default function PeerReviews() {
                 console.log('Adding external review from:', result.member.name || `User ${result.member.id}`, result.reviewData);
                 reviews.push({
                   reviewerId: result.member.id,
-                  reviewerName: result.member.name || `User ${result.member.id}`,
+                  reviewerName: assignment.anonymous_review ? "Anonymous" : (result.member.name || `User ${result.member.id}`),
                   type: 'external',
                   grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
                 });
@@ -600,7 +601,7 @@ export default function PeerReviews() {
             console.log('Adding received review from:', result.member.name || result.member.email, result.reviewData);
             reviews.push({
               reviewerId: result.member.id,
-              reviewerName: result.member.name || result.member.email,
+              reviewerName: assignment.anonymous_review ? "Anonymous" : (result.member.name || result.member.email),
               type: 'external',
               grade: calculateAverageGrade(result.reviewData.grades, criteriaToUse)
             });

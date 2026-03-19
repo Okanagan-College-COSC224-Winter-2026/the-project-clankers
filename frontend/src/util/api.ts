@@ -529,7 +529,8 @@ export const createAssignment = async (
   name: string,
   submissionType: 'individual' | 'group' = 'individual',
   internalReview: boolean = false,
-  externalReview: boolean = false
+  externalReview: boolean = false,
+  anonymousReview: boolean = false
 )=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
@@ -538,7 +539,8 @@ export const createAssignment = async (
       name,
       submission_type: submissionType,
       internal_review: internalReview,
-      external_review: externalReview
+      external_review: externalReview,
+      anonymous_review: anonymousReview
     }),
     headers: {
       'Content-Type': 'application/json',
@@ -576,7 +578,16 @@ export const getAssignmentDetails = async (assignmentId: number) => {
   return await response.json();
 }
 
-export const editAssignment = async (assignmentId: number, data: { name?: string, rubric?: string, start_date?: string, due_date?: string }) => {
+export const editAssignment = async (assignmentId: number, data: {
+  name?: string,
+  rubric?: string,
+  start_date?: string,
+  due_date?: string,
+  submission_type?: string,
+  internal_review?: boolean,
+  external_review?: boolean,
+  anonymous_review?: boolean
+}) => {
   const response = await fetch(`${BASE_URL}/assignment/edit_assignment/${assignmentId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
