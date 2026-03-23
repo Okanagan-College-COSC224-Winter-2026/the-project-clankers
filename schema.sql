@@ -20,7 +20,11 @@ CREATE TABLE Assignment (
     courseID INT,
     name VARCHAR(255),
     rubric VARCHAR(255),
-    due_date TIMESTAMP NULL
+    due_date TIMESTAMP NULL,
+    submission_type VARCHAR(20) DEFAULT 'individual',
+    internal_review BOOLEAN DEFAULT FALSE,
+    external_review BOOLEAN DEFAULT FALSE,
+    anonymous_review BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE CourseGroup (
@@ -53,7 +57,8 @@ CREATE TABLE Review (
     id SERIAL PRIMARY KEY,
     assignmentID INT NOT NULL,
     reviewerID INT NOT NULL,
-    revieweeID INT NOT NULL
+    revieweeID INT NOT NULL,
+    reviewee_type VARCHAR(10) NOT NULL DEFAULT 'user' CHECK (reviewee_type IN ('user', 'group'))
 );
 
 CREATE TABLE Criterion (

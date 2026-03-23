@@ -51,6 +51,12 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+
           <Route path="/profile/:id" element={
             <ProtectedRoute>
               <Profile />
@@ -124,6 +130,12 @@ function AppContent() {
           } />
 
           <Route path="/assignments/:id/student-submissions" element={
+            <ProtectedRoute>
+              <Assignment />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/assignments/:id/peer-reviews" element={
             <ProtectedRoute>
               <Assignment />
             </ProtectedRoute>

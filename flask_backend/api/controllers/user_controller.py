@@ -54,7 +54,7 @@ def get_user_by_id(user_id):
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    # Users can view their own info, teachers and admins can view anyone
+    # Students can only view their own profile, teachers/admins can view anyone
     if current_user.id != user_id and not current_user.has_role("teacher", "admin"):
         return jsonify({"msg": "Insufficient permissions"}), 403
 

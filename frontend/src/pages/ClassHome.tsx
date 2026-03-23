@@ -39,6 +39,10 @@ export default function ClassHome() {
   const idNew = Number(id)
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [newAssignmentName, setNewAssignmentName] = useState("");
+  const [submissionType, setSubmissionType] = useState<'individual' | 'group'>('individual');
+  const [internalReview, setInternalReview] = useState(false);
+  const [externalReview, setExternalReview] = useState(false);
+  const [anonymousReview, setAnonymousReview] = useState(false);
   const [className, setClassName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
@@ -59,7 +63,7 @@ export default function ClassHome() {
     const tryCreateAssingment = async () => {
       try {
         setStatusMessage('');
-        const response = await createAssignment(idNew, newAssignmentName);
+        const response = await createAssignment(idNew, newAssignmentName, submissionType, internalReview, externalReview, anonymousReview);
         const createdAssignment = response?.assignment;
 
         if (!createdAssignment?.id) {
@@ -68,6 +72,10 @@ export default function ClassHome() {
 
         setAssignments((prev) => [...prev, createdAssignment]);
         setNewAssignmentName("");
+        setSubmissionType('individual'); // Reset to default
+        setInternalReview(false); // Reset review options
+        setExternalReview(false); // Reset review options
+        setAnonymousReview(false); // Reset anonymous option
         setStatusType('success');
         setStatusMessage('Assignment created successfully!');
       } catch (error) {
@@ -190,6 +198,62 @@ export default function ClassHome() {
               onInput={setNewAssignmentName}
               className="AssignmentInput"
             />
+            <div style={{ marginTop: '10px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <span>Submission Type:</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  value="individual"
+                  checked={submissionType === 'individual'}
+                  onChange={(e) => {
+                    setSubmissionType(e.target.value as 'individual');
+                    setInternalReview(false); // Clear internal review for individual assignments
+                  }}
+                />
+                Individual
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  value="group"
+                  checked={submissionType === 'group'}
+                  onChange={(e) => setSubmissionType(e.target.value as 'group')}
+                />
+                Group
+              </label>
+            </div>
+            <div style={{ marginTop: '10px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <span>Peer Review:</span>
+              {submissionType === 'group' && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={internalReview}
+                    onChange={(e) => setInternalReview(e.target.checked)}
+                  />
+                  Internal Review
+                </label>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={externalReview}
+                  onChange={(e) => setExternalReview(e.target.checked)}
+                />
+                External Review
+              </label>
+            </div>
+            <div style={{ marginTop: '10px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <span>Review Options:</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={anonymousReview}
+                  onChange={(e) => setAnonymousReview(e.target.checked)}
+                />
+                Anonymous (Hide Reviewer Names from Students)
+              </label>
+            </div>
             <Button
               onClick={() =>
                 tryCreateAssingment()

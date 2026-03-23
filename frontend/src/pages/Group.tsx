@@ -36,7 +36,7 @@ function fisherYates<T>(array: T[]): T[] {
 export default function Group() {
   const { id } = useParams();
   const [classMembers, setclassMembers] = useState<User[]>([]);
-  const [stuGroup, setStuGroup] = useState<StudentGroups[]>([]);
+  const [stuGroup, setStuGroup] = useState<User[]>([]);
   const [groups, setGroups] = useState<CourseGroup[]>([]);
   const [groupTable, setGroupTable] = useState<GroupTable>({});
   const [selectedGroup, setSelectedGroup] = useState<number>(-1);
@@ -118,8 +118,8 @@ export default function Group() {
       const groups = await listGroups(Number(id));
       setGroups(groups);
       const ua = await listUnassignedGroups(Number(id));
-      const stuId = await getUserId();
-      const stus = await listStuGroup(Number(id), stuId);
+      const stuIdResponse = await getUserId();
+      const stus = await listStuGroup(Number(id), stuIdResponse.id);
       setStuGroup(stus);
 
       const groupMembers: {
@@ -360,12 +360,16 @@ export default function Group() {
         ) : (
           <div className="assignment">
             <table className="studentTable">
+              <thead>
               <tr>
                 <th>My group</th>
               </tr>
+              </thead>
+              <tbody>
               {stuGroup.map((stus) => {
-                return <tr>{stus.userID}</tr>;
+                return <tr key={stus.id}><td>{stus.name || stus.id}</td></tr>;
               })}
+              </tbody>
             </table>
           </div>
         )}

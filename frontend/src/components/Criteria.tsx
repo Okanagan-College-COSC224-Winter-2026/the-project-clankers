@@ -15,11 +15,12 @@ export default function Criteria(props: props) {
     return (
         <div className="Criteria">
             <table className='criteriaTable'>
+                <tbody>
                 {props.questions.map((question, i) => (
-                    <Criterion 
+                    <Criterion
                         key={i}
-                        question={question} 
-                        scoreMax={props.scoreMaxes[i]} 
+                        question={question}
+                        scoreMax={props.scoreMaxes[i]}
                         hasScore={props.hasScores[i]}
                         description={props.descriptions?.[i]}
                         onCriterionSelect={props.onCriterionSelect}
@@ -27,6 +28,7 @@ export default function Criteria(props: props) {
                         grade={props.grades[i]}
                     />
                 ))}
+                </tbody>
             </table>
             {props.canComment && 
             <textarea className="criteriaText" />}

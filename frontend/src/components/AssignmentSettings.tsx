@@ -16,6 +16,10 @@ interface AssignmentDetails {
   start_date: string | null;
   due_date: string | null;
   courseID: number;
+  submission_type?: string;
+  internal_review?: boolean;
+  external_review?: boolean;
+  anonymous_review?: boolean;
   rubrics: Array<{
     id: number;
     canComment: boolean;
@@ -32,6 +36,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   const [editedRubric, setEditedRubric] = useState("");
   const [editedStartDate, setEditedStartDate] = useState("");
   const [editedDueDate, setEditedDueDate] = useState("");
+  const [editedSubmissionType, setEditedSubmissionType] = useState<'individual' | 'group'>('individual');
+  const [editedInternalReview, setEditedInternalReview] = useState(false);
+  const [editedExternalReview, setEditedExternalReview] = useState(false);
+  const [editedAnonymousReview, setEditedAnonymousReview] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +52,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setEditedRubric(data.rubric_text || "");
       setEditedStartDate(data.start_date ? data.start_date.split('T')[0] : "");
       setEditedDueDate(data.due_date ? data.due_date.split('T')[0] : "");
+      setEditedSubmissionType((data.submission_type as 'individual' | 'group') || 'individual');
+      setEditedInternalReview(data.internal_review || false);
+      setEditedExternalReview(data.external_review || false);
+      setEditedAnonymousReview(data.anonymous_review || false);
     } catch (error) {
       console.error("Error loading assignment details:", error);
       setStatusType('error');
@@ -71,9 +83,22 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     setStatusMessage("");
 
     try {
-      const updateData: { name?: string, rubric?: string, start_date?: string, due_date?: string } = {
+      const updateData: {
+        name?: string,
+        rubric?: string,
+        start_date?: string,
+        due_date?: string,
+        submission_type?: string,
+        internal_review?: boolean,
+        external_review?: boolean,
+        anonymous_review?: boolean
+      } = {
         name: editedName,
         rubric: editedRubric,
+        submission_type: editedSubmissionType,
+        internal_review: editedInternalReview,
+        external_review: editedExternalReview,
+        anonymous_review: editedAnonymousReview,
       };
 
       if (editedStartDate) {
@@ -85,7 +110,9 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
         updateData.due_date = new Date(editedDueDate).toISOString();
       }
 
+      console.log("Sending update data:", updateData);
       const response = await editAssignment(assignmentId, updateData);
+      console.log("Response from backend:", response);
       setAssignment(response.assignment);
       setIsEditing(false);
       setStatusType('success');
@@ -107,6 +134,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setEditedRubric(assignment.rubric_text || "");
       setEditedStartDate(assignment.start_date ? assignment.start_date.split('T')[0] : "");
       setEditedDueDate(assignment.due_date ? assignment.due_date.split('T')[0] : "");
+      setEditedSubmissionType((assignment.submission_type as 'individual' | 'group') || 'individual');
+      setEditedInternalReview(assignment.internal_review || false);
+      setEditedExternalReview(assignment.external_review || false);
+      setEditedAnonymousReview(assignment.anonymous_review || false);
     }
   };
 
@@ -190,6 +221,68 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
               />
             </div>
 
+            <div className="form-group">
+              <label>Submission Type:</label>
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    value="individual"
+                    checked={editedSubmissionType === 'individual'}
+                    onChange={(e) => {
+                      setEditedSubmissionType(e.target.value as 'individual');
+                      setEditedInternalReview(false); // Clear internal review for individual assignments
+                    }}
+                  />
+                  Individual
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    value="group"
+                    checked={editedSubmissionType === 'group'}
+                    onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
+                  />
+                  Group
+                </label>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Peer Review Settings:</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {editedSubmissionType === 'group' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={editedInternalReview}
+                      onChange={(e) => setEditedInternalReview(e.target.checked)}
+                    />
+                    Internal Review (Teammates Review Each Other)
+                  </label>
+                )}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={editedExternalReview}
+                    onChange={(e) => setEditedExternalReview(e.target.checked)}
+                  />
+                  External Review
+                </label>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editedAnonymousReview}
+                  onChange={(e) => setEditedAnonymousReview(e.target.checked)}
+                />
+                Anonymous Reviews (Hide Reviewer Names from Students)
+              </label>
+            </div>
+
             <div className="form-actions">
               <Button onClick={handleSave} disabled={isLoading}>
                 {isLoading ? "Saving..." : "Save Changes"}
@@ -229,6 +322,13 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
               </span>
             </div>
 
+            <div className="detail-row">
+              <span className="detail-label">Assignment Type:</span>
+              <span className="detail-value">
+                {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
+              </span>
+            </div>
+
             <div className="form-actions">
               <Button onClick={handleEdit} disabled={isLoading}>
                 Edit Assignment
@@ -240,6 +340,26 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
 
       <div className="assignment-settings-section">
         <h3>Peer Review Settings</h3>
+        {assignment.submission_type === 'group' && (
+          <div className="detail-row">
+            <span className="detail-label">Internal Review:</span>
+            <span className="detail-value">
+              {assignment.internal_review ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+        )}
+        <div className="detail-row">
+          <span className="detail-label">External Review:</span>
+          <span className="detail-value">
+            {assignment.external_review ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Anonymous Reviews:</span>
+          <span className="detail-value">
+            {assignment.anonymous_review ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
         <div className="detail-row">
           <span className="detail-label">Rubrics Created:</span>
           <span className="detail-value">{assignment.rubrics?.length || 0}</span>

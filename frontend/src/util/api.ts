@@ -20,6 +20,24 @@ export const getCurrentUserProfile = async () => {
   return await response.json();
 }
 
+export const getUserProfileById = async (userId: number) => {
+  const response = await fetch(`${BASE_URL}/user/${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
 export const getEnrolledCourses = async () => {
   const response = await fetch(`${BASE_URL}/class/classes`, {
     method: 'GET',
@@ -327,6 +345,42 @@ export const listCourseMembers = async (classId: string) => {
   return await resp.json()
 } 
 
+export const getCourseGroups = async (courseId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+  
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+  
+  return await resp.json()
+}
+
+export const getGroupMembers = async (courseId: number, groupId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups/${groupId}/members`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+  
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+  
+  return await resp.json()
+} 
+
 
 
 
@@ -470,18 +524,30 @@ export const getRubric = async (rubricIDOrAssignmentID: number, useAsAssignmentI
 }
 
 
-export const createAssignment = async (courseID: number, name: string)=> {
+export const createAssignment = async (
+  courseID: number,
+  name: string,
+  submissionType: 'individual' | 'group' = 'individual',
+  internalReview: boolean = false,
+  externalReview: boolean = false,
+  anonymousReview: boolean = false
+)=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
     body: JSON.stringify({
-      courseID, name
+      courseID,
+      name,
+      submission_type: submissionType,
+      internal_review: internalReview,
+      external_review: externalReview,
+      anonymous_review: anonymousReview
     }),
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: 'include'
   })
-  
+
   maybeHandleExpire(response);
 
   if (!response.ok) {
@@ -510,7 +576,16 @@ export const getAssignmentDetails = async (assignmentId: number) => {
   return await response.json();
 }
 
-export const editAssignment = async (assignmentId: number, data: { name?: string, rubric?: string, start_date?: string, due_date?: string }) => {
+export const editAssignment = async (assignmentId: number, data: {
+  name?: string,
+  rubric?: string,
+  start_date?: string,
+  due_date?: string,
+  submission_type?: string,
+  internal_review?: boolean,
+  external_review?: boolean,
+  anonymous_review?: boolean
+}) => {
   const response = await fetch(`${BASE_URL}/assignment/edit_assignment/${assignmentId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
