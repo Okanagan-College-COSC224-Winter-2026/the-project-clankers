@@ -10,6 +10,7 @@ from .db import db, ma
 from .group_members_model import Group_Members
 from .review_model import Review
 from .rubric_model import Rubric
+from .student_submission_model import StudentSubmission
 from .submission_model import Submission
 from .user_course_model import User_Course
 from .user_model import User
@@ -238,3 +239,16 @@ class SubmissionSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = False
         sqla_session = db.session
+
+
+class StudentSubmissionSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for student assignment submissions"""
+
+    class Meta:
+        model = StudentSubmission
+        load_instance = True
+        include_fk = False
+        sqla_session = db.session
+
+    student = fields.Nested(UserListSchema, dump_only=True)
+    assignment = fields.Nested(AssignmentSchema, dump_only=True)

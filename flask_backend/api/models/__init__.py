@@ -64,4 +64,5 @@ __all__ = [
     "GroupMembersSchema",
     "UserCourseSchema",
     "SubmissionSchema",
+    "StudentSubmissionSchema",
 ]
