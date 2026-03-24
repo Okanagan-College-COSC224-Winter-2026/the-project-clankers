@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
-import "./Assignment.css";
+import { Card, CardContent } from "@/components/ui/card";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
 import AssignmentFileUpload from "../components/AssignmentFileUpload";
@@ -105,14 +105,19 @@ export default function Assignment() {
   };
 
   return (
-    <>
+    <div className="flex flex-1 flex-col">
       {courseId && (
-        <div className="assignment-breadcrumb">
-          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+        <div className="px-3 py-2">
+          <Link
+            to={`/classes/${courseId}/home`}
+            className="text-sm text-muted-foreground no-underline hover:text-foreground transition-colors"
+          >
+            ← {courseName || "Back to class"}
+          </Link>
         </div>
       )}
-      <div className="AssignmentHeader">
-        <h2>{assignmentName || "Loading..."}</h2>
+      <div className="flex flex-row items-center justify-between px-3 pb-3">
+        <h2 className="text-xl font-semibold">{assignmentName || "Loading..."}</h2>
       </div>
 
       <TabNavigation
@@ -178,23 +183,25 @@ export default function Assignment() {
         <PeerReviews />
       ) : (
         /* Home tab - default view */
-        <>
+        <div className="flex-1 space-y-6 p-6">
           {/* File upload/display section */}
           {isTeacher() ? (
-            <AssignmentFileUpload 
+            <AssignmentFileUpload
               assignmentId={Number(id)}
             />
           ) : (
-            <AssignmentFileDisplay 
+            <AssignmentFileDisplay
               assignmentId={Number(id)}
             />
           )}
 
-          <div className='assignmentRubricDisplay'>
-            <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
-          </div>
-        </>
+          <Card>
+            <CardContent className="p-4">
+              <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
+            </CardContent>
+          </Card>
+        </div>
       )}
-    </>
+    </div>
   );
 }

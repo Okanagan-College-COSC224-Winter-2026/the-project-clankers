@@ -1,6 +1,7 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
-import "./AssignmentFileUpload.css"; // Reuse the same styles
 import { uploadStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile } from "../util/api";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 interface StudentSubmission {
   id: number;
@@ -22,7 +23,7 @@ interface StudentSubmissionUploadProps {
   assignmentId: number;
 }
 
-export default function StudentSubmissionUpload({ 
+export default function StudentSubmissionUpload({
   assignmentId
 }: StudentSubmissionUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -168,7 +169,7 @@ export default function StudentSubmissionUpload({
   const handleDownload = async (submissionId: number, filename: string) => {
     try {
       const blob = await downloadStudentSubmission(submissionId);
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -183,18 +184,18 @@ export default function StudentSubmissionUpload({
     }
   };
 
-  const getSubmissionStatus = (submittedAt: string): { text: string; color: string } => {
+  const getSubmissionStatus = (submittedAt: string): { text: string; colorClass: string; bgClass: string } => {
     if (!assignment?.due_date) {
-      return { text: "Submitted", color: "#2196f3" }; // Blue for no due date
+      return { text: "Submitted", colorClass: "text-blue-500", bgClass: "bg-blue-500/10" };
     }
 
     const dueDate = new Date(assignment.due_date);
     const submissionDate = new Date(submittedAt);
 
     if (submissionDate <= dueDate) {
-      return { text: "On Time", color: "#4caf50" }; // Green
+      return { text: "On Time", colorClass: "text-green-500", bgClass: "bg-green-500/10" };
     } else {
-      return { text: "Late", color: "#f44336" }; // Red
+      return { text: "Late", colorClass: "text-red-500", bgClass: "bg-red-500/10" };
     }
   };
 
@@ -211,156 +212,148 @@ export default function StudentSubmissionUpload({
   };
 
   return (
-    <div className="assignment-file-upload-container">
-      <h3>My Submissions</h3>
-      {assignment?.submission_type === 'group' && (
-        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>
-          This is a group assignment. Any group member's submission will appear here.
-        </p>
-      )}
-      
-      {/* Existing submissions list */}
-      {isLoadingSubmissions ? (
-        <p className="loading-message">Loading submissions...</p>
-      ) : submissions.length > 0 ? (
-        <div className="files-list">
-          {submissions.map((submission) => {
-            const isOwnSubmission = currentUserId === submission.student_id;
-            const isGroupAssignment = assignment?.submission_type === 'group';
-            const status = getSubmissionStatus(submission.submitted_at);
-            
-            return (
-              <div key={submission.id} className="file-item" style={{ padding: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {/* File name and icon */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span className="file-icon" style={{ fontSize: '1.5em' }}>📄</span>
-                    <div style={{ flex: 1 }}>
-                      <div className="file-name" style={{ fontWeight: 600, fontSize: '1.05em', marginBottom: '4px' }}>
-                        {submission.filename}
+    <Card className="w-full my-5">
+      <CardHeader>
+        <CardTitle>My Submissions</CardTitle>
+        {assignment?.submission_type === 'group' && (
+          <p className="text-sm text-muted-foreground">
+            This is a group assignment. Any group member's submission will appear here.
+          </p>
+        )}
+      </CardHeader>
+      <CardContent>
+        {/* Existing submissions list */}
+        {isLoadingSubmissions ? (
+          <p className="text-center text-muted-foreground italic py-5">Loading submissions...</p>
+        ) : submissions.length > 0 ? (
+          <div className="flex flex-col gap-2.5 mb-5">
+            {submissions.map((submission) => {
+              const isOwnSubmission = currentUserId === submission.student_id;
+              const isGroupAssignment = assignment?.submission_type === 'group';
+              const status = getSubmissionStatus(submission.submitted_at);
+
+              return (
+                <div key={submission.id} className="flex items-center justify-between p-4 bg-white border-2 border-green-500 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex flex-col gap-3">
+                    {/* File name and icon */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">📄</span>
+                      <div className="flex-1">
+                        <div className="text-base font-semibold mb-1">
+                          {submission.filename}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Submission details */}
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: '12px',
-                    padding: '12px',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '6px',
-                    fontSize: '0.9em'
-                  }}>
-                    {isGroupAssignment && submission.student_name && (
+                    {/* Submission details */}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 p-3 bg-gray-100 rounded-md text-sm">
+                      {isGroupAssignment && submission.student_name && (
+                        <div>
+                          <div className="text-muted-foreground text-xs mb-0.5">Submitted by</div>
+                          <div className="font-medium">{submission.student_name}</div>
+                        </div>
+                      )}
                       <div>
-                        <div style={{ color: '#666', fontSize: '0.85em', marginBottom: '2px' }}>Submitted by</div>
-                        <div style={{ fontWeight: 500 }}>{submission.student_name}</div>
+                        <div className="text-muted-foreground text-xs mb-0.5">Submitted at</div>
+                        <div className="font-medium">{formatSubmissionTime(submission.submitted_at)}</div>
                       </div>
-                    )}
-                    <div>
-                      <div style={{ color: '#666', fontSize: '0.85em', marginBottom: '2px' }}>Submitted at</div>
-                      <div style={{ fontWeight: 500 }}>{formatSubmissionTime(submission.submitted_at)}</div>
-                    </div>
-                    <div>
-                      <div style={{ color: '#666', fontSize: '0.85em', marginBottom: '2px' }}>Status</div>
-                      <div style={{ 
-                        fontWeight: 600,
-                        color: status.color,
-                        display: 'inline-block',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: `${status.color}15`
-                      }}>
-                        {status.text}
+                      <div>
+                        <div className="text-muted-foreground text-xs mb-0.5">Status</div>
+                        <div className={`font-semibold inline-block px-2 py-0.5 rounded ${status.colorClass} ${status.bgClass}`}>
+                          {status.text}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Action buttons */}
-                  <div className="file-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button 
-                      className="download-file-button"
-                      onClick={() => handleDownload(submission.id, submission.filename)}
-                    >
-                      Download
-                    </button>
-                    {isOwnSubmission && (
-                      <button 
-                        className="delete-file-button-small"
-                        onClick={() => handleDelete(submission.id)}
+                    {/* Action buttons */}
+                    <div className="flex gap-2 items-center">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleDownload(submission.id, submission.filename)}
                       >
-                        Delete
-                      </button>
-                    )}
-                    {isGroupAssignment && !isOwnSubmission && (
-                      <span style={{ 
-                        fontSize: '0.85em', 
-                        color: '#999', 
-                        padding: '4px 8px' 
-                      }}>
-                        (Group submission)
-                      </span>
-                    )}
+                        Download
+                      </Button>
+                      {isOwnSubmission && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(submission.id)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                      {isGroupAssignment && !isOwnSubmission && (
+                        <span className="text-xs text-muted-foreground px-2 py-1">
+                          (Group submission)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="no-files-message">No submissions yet</p>
-      )}
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No submissions yet</p>
+        )}
 
-      {/* Upload new submission section */}
-      <div className="upload-section">
-        <h4>Submit New File</h4>
-        <div
-          className={`file-drop-zone ${isDragging ? "dragging" : ""}`}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileInputChange}
-            accept=".pdf,.docx,.txt,.zip"
-            style={{ display: "none" }}
-          />
-          
-          <div className="drop-zone-content">
-            <div className="upload-icon">📁</div>
-            <p className="drop-zone-text">
-              {isDragging ? "Drop file here..." : "Drag and drop a file here"}
-            </p>
-            <p className="drop-zone-or">or</p>
-            <button
-              className="browse-button"
-              onClick={handleBrowseClick}
-              disabled={isUploading}
-            >
-              {isUploading ? "Uploading..." : "Browse Files"}
-            </button>
-            <p className="file-requirements">
-              Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
-            </p>
+        {/* Upload new submission section */}
+        <div className="mt-5 pt-5 border-t-2 border-gray-300">
+          <h4 className="text-lg font-semibold mb-4">Submit New File</h4>
+          <div
+            className={`w-full min-h-[200px] border-3 border-dashed rounded-lg flex items-center justify-center bg-white cursor-pointer transition-all ${
+              isDragging
+                ? "border-green-500 bg-green-50 border-solid"
+                : "border-gray-300 hover:border-green-500 hover:bg-blue-50"
+            }`}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileInputChange}
+              accept=".pdf,.docx,.txt,.zip"
+              className="hidden"
+            />
+
+            <div className="text-center p-5">
+              <div className="text-5xl mb-4">📁</div>
+              <p className="text-lg text-muted-foreground my-2.5">
+                {isDragging ? "Drop file here..." : "Drag and drop a file here"}
+              </p>
+              <p className="text-sm text-muted-foreground my-4">or</p>
+              <Button
+                variant="default"
+                size="lg"
+                onClick={handleBrowseClick}
+                disabled={isUploading}
+                className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white"
+              >
+                {isUploading ? "Uploading..." : "Browse Files"}
+              </Button>
+              <p className="text-sm text-muted-foreground mt-4">
+                Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {uploadError && (
-        <div className="upload-message error">
-          ❌ {uploadError}
-        </div>
-      )}
+        {uploadError && (
+          <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
+            {uploadError}
+          </div>
+        )}
 
-      {uploadSuccess && (
-        <div className="upload-message success">
-          ✅ File submitted successfully!
-        </div>
-      )}
-    </div>
+        {uploadSuccess && (
+          <div className="mt-4 p-3 rounded bg-green-50 text-green-800 border border-green-400">
+            File submitted successfully!
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

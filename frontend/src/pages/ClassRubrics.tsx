@@ -8,8 +8,13 @@ import { isTeacher } from "../util/login";
 import { importCSV } from "../util/csv";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
-import "./ClassMembers.css";
-import "./ClassRubrics.css";
+import { Card } from "@/components/ui/card";
+
+interface Assignment {
+  id: number;
+  name: string;
+  due_date?: string;
+}
 
 interface RosterUploadResultData {
   message: string;
@@ -67,7 +72,7 @@ export default function ClassRubrics() {
   }, [loadData]);
 
   if (loading) {
-    return <div className="loading">Loading rubrics...</div>;
+    return <div className="p-6 text-center">Loading rubrics...</div>;
   }
 
   const handleRosterUpload = () => {
@@ -92,9 +97,9 @@ export default function ClassRubrics() {
 
   return (
     <>
-      <div className="ClassHeader">
-        <h2>{className}</h2>
-        <div className="ClassHeaderRight">
+      <div className="flex items-center justify-between border-b bg-background px-6 py-4">
+        <h2 className="text-xl font-semibold">{className}</h2>
+        <div>
           {isTeacher() ? (
             <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
               {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
@@ -120,36 +125,36 @@ export default function ClassRubrics() {
         }
       />
 
-      <div className="rubrics-container">
+      <div className="p-3 md:p-4">
         {assignments.length === 0 ? (
-          <p style={{ padding: "1rem", color: "var(--text-secondary)" }}>
+          <p className="p-4 text-muted-foreground">
             No assignments yet. Create an assignment first to manage its rubric.
           </p>
         ) : (
           assignments.map((assignment) => (
-            <div key={assignment.id} className="rubric-assignment-card">
+            <Card key={assignment.id} className="mb-3 overflow-hidden">
               <div
-                className="rubric-assignment-header"
+                className="flex cursor-pointer items-center gap-2 px-4 py-3 transition-colors hover:bg-secondary"
                 onClick={() =>
                   setExpandedId(expandedId === assignment.id ? null : assignment.id)
                 }
               >
-                <span className="rubric-expand-icon">
+                <span className="w-4 flex-shrink-0 text-sm text-muted-foreground">
                   {expandedId === assignment.id ? "▾" : "▸"}
                 </span>
-                <h3>{assignment.name}</h3>
+                <h3 className="flex-1 text-sm text-foreground">{assignment.name}</h3>
                 {assignment.due_date && (
-                  <span className="rubric-due-date">
+                  <span className="flex-shrink-0 text-xs text-muted-foreground">
                     Due: {new Date(assignment.due_date).toLocaleDateString()}
                   </span>
                 )}
               </div>
               {expandedId === assignment.id && (
-                <div className="rubric-assignment-body">
+                <div className="border-t px-4 py-3">
                   <RubricCreator id={assignment.id} />
                 </div>
               )}
-            </div>
+            </Card>
           ))
         )}
       </div>

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
-import Button from "../components/Button";
+import { Button } from "../components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
 import { isTeacher } from "../util/login";
 import { importCSV } from "../util/csv";
 import { listClasses, getAssignmentsByClass, getStudentSubmissions, downloadStudentSubmission, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
-import "./ClassMembers.css"; // Reuse similar styling
 
 interface RosterUploadResultData {
   message: string;
@@ -84,6 +84,17 @@ interface SubmissionByAssignment {
   isGroupAssignment: boolean;
 }
 
+const getStatusBadgeClasses = (status: string): string => {
+  switch (status) {
+    case "Submitted":
+      return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    case "Submitted Late":
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+    default:
+      return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+  }
+};
+
 export default function ClassStudentSubmissions() {
   const { id } = useParams();
   const [className, setClassName] = useState<string | null>(null);
@@ -103,14 +114,14 @@ export default function ClassStudentSubmissions() {
     if (!submission) {
       return "Not Submitted";
     }
-    
+
     if (!dueDate) {
       return "Submitted";
     }
-    
+
     const submittedAt = new Date(submission.submitted_at);
     const due = new Date(dueDate);
-    
+
     if (submittedAt <= due) {
       return "Submitted";
     } else {
@@ -140,7 +151,7 @@ export default function ClassStudentSubmissions() {
 
       // Get all groups in the class
       const courseGroups: Group[] = await getCourseGroups(Number(id));
-      
+
       // Load members for each group
       const groupsWithMembers = await Promise.all(
         courseGroups.map(async (group) => {
@@ -163,18 +174,18 @@ export default function ClassStudentSubmissions() {
           try {
             const submissions = await getStudentSubmissions(assignment.id);
             const isGroupAssignment = assignment.submission_type === 'group';
-            
+
             if (isGroupAssignment) {
               // Build group rows
               const rows: GroupSubmissionRow[] = groupsWithMembers.map(group => {
                 // Check if any member of this group has submitted
                 const groupMemberIds = (group.members || []).map((m: Student) => m.id);
-                const groupSubmission = submissions.find((sub: StudentSubmission) => 
+                const groupSubmission = submissions.find((sub: StudentSubmission) =>
                   groupMemberIds.includes(sub.student_id)
                 );
-                
+
                 const status = getSubmissionStatus(groupSubmission, assignment.due_date);
-                
+
                 return {
                   groupId: group.id,
                   groupName: group.name,
@@ -183,7 +194,7 @@ export default function ClassStudentSubmissions() {
                   submission: groupSubmission
                 };
               });
-              
+
               return {
                 assignment,
                 rows,
@@ -195,11 +206,11 @@ export default function ClassStudentSubmissions() {
               submissions.forEach((sub: StudentSubmission) => {
                 submissionMap.set(sub.student_id, sub);
               });
-              
+
               const rows: IndividualSubmissionRow[] = students.map(student => {
                 const submission = submissionMap.get(student.id);
                 const status = getSubmissionStatus(submission, assignment.due_date);
-                
+
                 return {
                   studentId: student.id,
                   studentName: student.name,
@@ -209,7 +220,7 @@ export default function ClassStudentSubmissions() {
                   submission
                 };
               });
-              
+
               return {
                 assignment,
                 rows,
@@ -239,7 +250,7 @@ export default function ClassStudentSubmissions() {
   const handleDownload = async (submissionId: number, filename: string) => {
     try {
       const blob = await downloadStudentSubmission(submissionId);
-      
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -280,9 +291,9 @@ export default function ClassStudentSubmissions() {
 
   return (
     <>
-      <div className="ClassHeader">
-        <h2>{className}</h2>
-        <div className="ClassHeaderRight">
+      <div className="flex flex-row justify-between items-center p-3">
+        <h2 className="text-xl font-semibold">{className}</h2>
+        <div className="flex items-center gap-2">
           {isTeacher() ? (
             <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
               {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
@@ -323,197 +334,144 @@ export default function ClassStudentSubmissions() {
                 },
               ]
         }
-      /> 
+      />
 
-      <div style={{ padding: '20px' }}>
+      <div className="p-5">
         {isLoading ? (
-          <p style={{ color: '#6b7280' }}>Loading submissions...</p>
+          <p className="text-muted-foreground">Loading submissions...</p>
         ) : error ? (
-          <p style={{ color: '#ef4444' }}>{error}</p>
+          <p className="text-destructive">{error}</p>
         ) : submissionsByAssignment.length === 0 ? (
-          <p style={{ color: '#6b7280' }}>No assignments found.</p>
+          <p className="text-muted-foreground">No assignments found.</p>
         ) : (
-          <div>
+          <div className="space-y-5">
             {submissionsByAssignment.map(({ assignment, rows, isGroupAssignment }) => {
               const submittedCount = rows.filter((row: any) => row.status !== "Not Submitted").length;
               const total = rows.length;
               const entityType = isGroupAssignment ? 'groups' : 'students';
-              
+              const isExpanded = expandedAssignmentId === assignment.id;
+
               return (
-                <div key={assignment.id} style={{
-                  marginBottom: '20px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  overflow: 'hidden'
-                }}>
-                  <div
-                    onClick={() => setExpandedAssignmentId(
-                      expandedAssignmentId === assignment.id ? null : assignment.id
-                    )}
-                    style={{
-                      padding: '16px',
-                      backgroundColor: '#f9fafb',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
+                <Card key={assignment.id} className="overflow-hidden">
+                  <CardHeader
+                    onClick={() => setExpandedAssignmentId(isExpanded ? null : assignment.id)}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors flex-row justify-between items-center"
                   >
                     <div>
-                      <strong>{assignment.name}</strong>
-                      <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
+                      <CardTitle>{assignment.name}</CardTitle>
+                      <CardDescription className="mt-1">
                         {submittedCount} of {total} {entityType} submitted
                         {assignment.due_date && (
-                          <span> • Due: {formatDate(assignment.due_date)}</span>
+                          <span> - Due: {formatDate(assignment.due_date)}</span>
                         )}
-                      </div>
+                      </CardDescription>
                     </div>
-                    <span style={{ fontSize: '20px' }}>
-                      {expandedAssignmentId === assignment.id ? '▼' : '▶'}
+                    <span className="text-xl text-muted-foreground">
+                      {isExpanded ? '\u25BC' : '\u25B6'}
                     </span>
-                  </div>
+                  </CardHeader>
 
-                  {expandedAssignmentId === assignment.id && (
-                    <div style={{ padding: '16px' }}>
+                  {isExpanded && (
+                    <CardContent>
                       {rows.length === 0 ? (
-                        <p style={{ color: '#6b7280', margin: 0 }}>
+                        <p className="text-muted-foreground m-0">
                           No {entityType} found in this class.
                         </p>
                       ) : isGroupAssignment ? (
                         // Group assignment table
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Group Name</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Status</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Grade</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>File</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(rows as GroupSubmissionRow[]).map((row) => (
-                              <tr key={row.groupId} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                <td style={{ padding: '8px' }}>{row.groupName}</td>
-                                <td style={{ padding: '8px' }}>
-                                  <span style={{
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '14px',
-                                    backgroundColor: 
-                                      row.status === "Submitted" ? '#d1fae5' :
-                                      row.status === "Submitted Late" ? '#fed7aa' :
-                                      '#f3f4f6',
-                                    color:
-                                      row.status === "Submitted" ? '#065f46' :
-                                      row.status === "Submitted Late" ? '#9a3412' :
-                                      '#6b7280'
-                                  }}>
-                                    {row.status}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px', color: '#6b7280' }}>
-                                  {row.grade || '—'}
-                                </td>
-                                <td style={{ padding: '8px' }}>
-                                  {row.submission ? (
-                                    <button
-                                      onClick={() => handleDownload(row.submission!.id, row.submission!.filename)}
-                                      style={{
-                                        padding: '4px 12px',
-                                        backgroundColor: '#3b82f6',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '14px'
-                                      }}
-                                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
-                                    >
-                                      Download
-                                    </button>
-                                  ) : (
-                                    <span style={{ color: '#9ca3af', fontSize: '14px' }}>—</span>
-                                  )}
-                                </td>
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b border-border">
+                                <th className="text-left p-2 text-foreground font-medium">Group Name</th>
+                                <th className="text-left p-2 text-foreground font-medium">Status</th>
+                                <th className="text-left p-2 text-foreground font-medium">Grade</th>
+                                <th className="text-left p-2 text-foreground font-medium">File</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {(rows as GroupSubmissionRow[]).map((row) => (
+                                <tr key={row.groupId} className="border-b border-border/50 hover:bg-muted/30">
+                                  <td className="p-2">{row.groupName}</td>
+                                  <td className="p-2">
+                                    <span className={`inline-flex px-2 py-0.5 rounded text-sm ${getStatusBadgeClasses(row.status)}`}>
+                                      {row.status}
+                                    </span>
+                                  </td>
+                                  <td className="p-2 text-muted-foreground">
+                                    {row.grade || '\u2014'}
+                                  </td>
+                                  <td className="p-2">
+                                    {row.submission ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleDownload(row.submission!.id, row.submission!.filename)}
+                                      >
+                                        Download
+                                      </Button>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">{'\u2014'}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : (
                         // Individual assignment table
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Name</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Student ID</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Email</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>Status</th>
-                              <th style={{ textAlign: 'left', padding: '8px', color: '#374151' }}>File</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(rows as IndividualSubmissionRow[]).map((row) => (
-                              <tr key={row.studentId} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                <td style={{ padding: '8px' }}>{row.studentName}</td>
-                                <td style={{ padding: '8px', fontSize: '14px', color: '#6b7280' }}>
-                                  {row.studentIdNumber}
-                                </td>
-                                <td style={{ padding: '8px', fontSize: '14px', color: '#6b7280' }}>
-                                  {row.email}
-                                </td>
-                                <td style={{ padding: '8px' }}>
-                                  <span style={{
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '14px',
-                                    backgroundColor: 
-                                      row.status === "Submitted" ? '#d1fae5' :
-                                      row.status === "Submitted Late" ? '#fed7aa' :
-                                      '#f3f4f6',
-                                    color:
-                                      row.status === "Submitted" ? '#065f46' :
-                                      row.status === "Submitted Late" ? '#9a3412' :
-                                      '#6b7280'
-                                  }}>
-                                    {row.status}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px' }}>
-                                  {row.submission ? (
-                                    <button
-                                      onClick={() => handleDownload(row.submission!.id, row.submission!.filename)}
-                                      style={{
-                                        padding: '4px 12px',
-                                        backgroundColor: '#3b82f6',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '14px'
-                                      }}
-                                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
-                                    >
-                                      Download
-                                    </button>
-                                  ) : (
-                                    <span style={{ color: '#9ca3af', fontSize: '14px' }}>—</span>
-                                  )}
-                                </td>
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b border-border">
+                                <th className="text-left p-2 text-foreground font-medium">Name</th>
+                                <th className="text-left p-2 text-foreground font-medium">Student ID</th>
+                                <th className="text-left p-2 text-foreground font-medium">Email</th>
+                                <th className="text-left p-2 text-foreground font-medium">Status</th>
+                                <th className="text-left p-2 text-foreground font-medium">File</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {(rows as IndividualSubmissionRow[]).map((row) => (
+                                <tr key={row.studentId} className="border-b border-border/50 hover:bg-muted/30">
+                                  <td className="p-2">{row.studentName}</td>
+                                  <td className="p-2 text-sm text-muted-foreground">
+                                    {row.studentIdNumber}
+                                  </td>
+                                  <td className="p-2 text-sm text-muted-foreground">
+                                    {row.email}
+                                  </td>
+                                  <td className="p-2">
+                                    <span className={`inline-flex px-2 py-0.5 rounded text-sm ${getStatusBadgeClasses(row.status)}`}>
+                                      {row.status}
+                                    </span>
+                                  </td>
+                                  <td className="p-2">
+                                    {row.submission ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleDownload(row.submission!.id, row.submission!.filename)}
+                                      >
+                                        Download
+                                      </Button>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">{'\u2014'}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
-                    </div>
+                    </CardContent>
                   )}
-                </div>
+                </Card>
               );
             })}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
       {rosterResult && (
         <RosterUploadResult

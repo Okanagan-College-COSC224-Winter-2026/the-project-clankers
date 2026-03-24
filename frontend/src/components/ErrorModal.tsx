@@ -1,29 +1,36 @@
-import Button from './Button';
-import './ErrorModal.css';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { XCircle } from 'lucide-react'
 
 interface Props {
-  title: string;
-  message: string;
-  onClose: () => void;
+  title: string
+  message: string
+  onClose: () => void
 }
 
 export default function ErrorModal(props: Props) {
   return (
-    <div className="ErrorModal-Overlay">
-      <div className="ErrorModal">
-        <div className="ErrorModal-Header">
-          <h2>❌ {props.title}</h2>
-          <button className="ErrorModal-Close" onClick={props.onClose}>×</button>
-        </div>
-
-        <div className="ErrorModal-Content">
-          <pre className="ErrorModal-Message">{props.message}</pre>
-        </div>
-
-        <div className="ErrorModal-Footer">
+    <Dialog open onOpenChange={props.onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <XCircle className="h-5 w-5" />
+            {props.title}
+          </DialogTitle>
+        </DialogHeader>
+        <pre className="whitespace-pre-wrap rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+          {props.message}
+        </pre>
+        <DialogFooter>
           <Button onClick={props.onClose}>Close</Button>
-        </div>
-      </div>
-    </div>
-  );
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }

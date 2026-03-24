@@ -1,4 +1,3 @@
-import './Criteria.css';
 import Criterion from '../components/Criterion';
 
 interface props {
@@ -13,8 +12,8 @@ interface props {
 
 export default function Criteria(props: props) {
     return (
-        <div className="Criteria">
-            <table className='criteriaTable'>
+        <div className="flex flex-col items-center justify-center mt-5">
+            <table className='text-center w-full max-w-[700px] border border-black border-collapse'>
                 <tbody>
                 {props.questions.map((question, i) => (
                     <Criterion
@@ -30,8 +29,8 @@ export default function Criteria(props: props) {
                 ))}
                 </tbody>
             </table>
-            {props.canComment && 
-            <textarea className="criteriaText" />}
+            {props.canComment &&
+            <textarea className="w-full min-h-[80px] resize-y p-1 border border-gray-300 rounded bg-background" />}
         </div>
     )
 }

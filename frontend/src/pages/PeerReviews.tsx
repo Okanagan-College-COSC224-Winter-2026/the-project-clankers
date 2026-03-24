@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
-import "./PeerReviews.css";
 import {
   getAssignmentDetails,
   getUserId,
@@ -282,33 +281,37 @@ function PeerReviewModal({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content-large" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{assignmentName} - Peer Review</h2>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg w-[85%] max-w-6xl h-[85vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-5 border-b shrink-0">
+          <h2 className="m-0 text-2xl">{assignmentName} - Peer Review</h2>
+          <button className="bg-transparent border-none text-3xl cursor-pointer text-gray-400 hover:text-gray-800 p-0 w-8 h-8 flex items-center justify-center transition-colors" onClick={onClose}>&times;</button>
         </div>
 
-        <div className="modal-split-container">
+        <div className="flex flex-1 overflow-hidden">
           {/* Left side - Selection dropdowns */}
-          <div className="modal-left-panel">
-            <h3>Select Review Target</h3>
+          <div className="w-1/3 border-r p-5 overflow-y-auto">
+            <h3 className="mt-0 mb-5 text-gray-800 text-lg">Select Review Target</h3>
 
             {isLoading ? (
-              <div className="review-loading">Loading...</div>
+              <div className="text-center text-gray-500">Loading...</div>
             ) : (
               <>
                 {internalReviewEnabled && submissionType === 'group' && (
-                  <div className="review-section">
-                    <label>Internal Review</label>
+                  <div className="mb-6">
+                    <label className="block font-semibold text-gray-800 text-base mb-3">Internal Review</label>
                     {groupMembers.length === 0 ? (
-                      <p className="no-targets">No teammates available</p>
+                      <p className="text-gray-400">No teammates available</p>
                     ) : (
-                      <div className="review-list">
+                      <div className="flex flex-col gap-2">
                         {groupMembers.map((member) => (
                           <div
                             key={member.id}
-                            className={`review-list-item ${selectedTarget?.id === member.id && selectedTarget?.type === 'internal' ? 'active' : ''}`}
+                            className={`p-3 border-2 rounded-md cursor-pointer transition-all text-sm ${
+                              selectedTarget?.id === member.id && selectedTarget?.type === 'internal'
+                                ? 'border-blue-500 bg-blue-50 text-blue-500 font-medium'
+                                : 'border-gray-300 bg-white hover:border-blue-500 hover:bg-gray-100'
+                            }`}
                             onClick={() => handleInternalSelect(member.id)}
                           >
                             {member.name}
@@ -320,18 +323,22 @@ function PeerReviewModal({
                 )}
 
                 {externalReviewEnabled && (
-                  <div className="review-section">
-                    <label>External Review</label>
+                  <div className="mb-6">
+                    <label className="block font-semibold text-gray-800 text-base mb-3">External Review</label>
                     {externalTargets.length === 0 ? (
-                      <p className="no-targets">
+                      <p className="text-gray-400">
                         {submissionType === 'group' ? 'No other groups available' : 'No other students available'}
                       </p>
                     ) : (
-                      <div className="review-list">
+                      <div className="flex flex-col gap-2">
                         {externalTargets.map((target) => (
                           <div
                             key={target.id}
-                            className={`review-list-item ${selectedTarget?.id === target.id && selectedTarget?.type === 'external' ? 'active' : ''}`}
+                            className={`p-3 border-2 rounded-md cursor-pointer transition-all text-sm ${
+                              selectedTarget?.id === target.id && selectedTarget?.type === 'external'
+                                ? 'border-blue-500 bg-blue-50 text-blue-500 font-medium'
+                                : 'border-gray-300 bg-white hover:border-blue-500 hover:bg-gray-100'
+                            }`}
                             onClick={() => handleExternalSelect(target.id)}
                           >
                             {target.name}
@@ -346,26 +353,26 @@ function PeerReviewModal({
           </div>
 
           {/* Right side - Rubric scoring */}
-          <div className="modal-right-panel">
+          <div className="flex-1 p-5 flex items-center justify-center overflow-y-auto">
             {selectedTarget ? (
-              <div className="review-grade-panel">
-                <h3>Review for: {selectedTarget.name}</h3>
-                <p className="review-type-label">
+              <div className="w-full max-w-md flex flex-col gap-8">
+                <h3 className="m-0 text-2xl text-gray-800">Review for: {selectedTarget.name}</h3>
+                <p className="text-gray-500 m-0 text-base">
                   {selectedTarget.type === 'internal' ? 'Internal Review' : 'External Review'}
                 </p>
 
                 {criteria.length > 0 ? (
                   <>
-                    <div className="rubric-scoring">
+                    <div className="w-full max-h-[500px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
                       {criteria.map((criterion, index) => {
                         // If no score or scoreMax is 0, default to 100
                         const maxScore = (!criterion.hasScore || criterion.scoreMax === 0) ? 100 : criterion.scoreMax;
 
                         return (
-                          <div key={index} className="criterion-slider-group">
-                            <div className="criterion-header">
-                              <label>{criterion.question}</label>
-                              <span className="criterion-score">
+                          <div key={index} className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center">
+                              <label className="font-medium text-gray-800 m-0 text-sm">{criterion.question}</label>
+                              <span className="font-semibold text-blue-600 text-sm bg-blue-100 px-2 py-1 rounded">
                                 {grades[index] !== null ? grades[index] : 0} / {maxScore}
                               </span>
                             </div>
@@ -379,7 +386,7 @@ function PeerReviewModal({
                                 newGrades[index] = Number(e.target.value);
                                 setGrades(newGrades);
                               }}
-                              className="criterion-slider"
+                              className="w-full h-1.5 appearance-none bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-md"
                             />
                           </div>
                         );
@@ -390,11 +397,11 @@ function PeerReviewModal({
                     </Button>
                   </>
                 ) : (
-                  <p className="no-rubric">No rubric available for this assignment</p>
+                  <p className="text-center text-gray-400 text-base p-5">No rubric available for this assignment</p>
                 )}
               </div>
             ) : (
-              <div className="review-grade-panel-empty">
+              <div className="text-center text-gray-400 text-lg">
                 <p>Select a person or group from the left to begin reviewing</p>
               </div>
             )}
@@ -790,19 +797,19 @@ export default function PeerReviews() {
   }, [id]);
 
   if (isLoading) {
-    return <div className="peer-reviews-container">Loading...</div>;
+    return <div className="p-5 max-w-6xl mx-auto">Loading...</div>;
   }
 
   if (!assignment) {
-    return <div className="peer-reviews-container">Assignment not found</div>;
+    return <div className="p-5 max-w-6xl mx-auto">Assignment not found</div>;
   }
 
   const hasReviewsEnabled = assignment.internal_review || assignment.external_review;
 
   if (!hasReviewsEnabled) {
     return (
-      <div className="peer-reviews-container">
-        <div className="no-reviews">
+      <div className="p-5 max-w-6xl mx-auto">
+        <div className="text-center py-10 text-gray-400">
           <p>Peer reviews are not enabled for this assignment</p>
         </div>
       </div>
@@ -810,26 +817,26 @@ export default function PeerReviews() {
   }
 
   return (
-    <div className="peer-reviews-container">
-      <div className="peer-reviews-header">
-        <h2>Peer Reviews Dashboard</h2>
-        <p>Submit reviews for this assignment</p>
+    <div className="p-5 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h2 className="mb-1">Peer Reviews Dashboard</h2>
+        <p className="text-gray-500 m-0">Submit reviews for this assignment</p>
       </div>
 
-      <div className="peer-review-options">
-        <div className="peer-review-card">
-          <div className="peer-review-info">
-            <h3>Submit a Review</h3>
-            <div className="peer-review-details">
+      <div className="mb-8">
+        <div className="flex justify-between items-center p-5 border rounded-lg bg-white hover:shadow-md transition-shadow">
+          <div className="flex-1">
+            <h3 className="m-0 mb-2.5 text-xl">Submit a Review</h3>
+            <div className="flex gap-2.5 mb-2.5">
               {assignment.internal_review && (
-                <span className="review-badge">Internal Review Enabled</span>
+                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">Internal Review Enabled</span>
               )}
               {assignment.external_review && (
-                <span className="review-badge">External Review Enabled</span>
+                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">External Review Enabled</span>
               )}
             </div>
             {assignment.due_date && (
-              <p className="due-date">
+              <p className="text-gray-500 text-sm m-0">
                 Due: {new Date(assignment.due_date).toLocaleDateString()}
               </p>
             )}
@@ -840,26 +847,26 @@ export default function PeerReviews() {
         </div>
       </div>
 
-      <div className="peer-reviews-list">
-        <h3>Your Submitted Reviews</h3>
+      <div className="flex flex-col gap-4">
+        <h3 className="mb-4 text-gray-800">Your Submitted Reviews</h3>
         {submittedReviews.length === 0 ? (
-          <div className="no-reviews">
+          <div className="text-center py-10 text-gray-400">
             <p>No reviews submitted yet</p>
           </div>
         ) : (
-          <div className="reviews-list">
+          <div className="flex flex-col gap-3">
             {submittedReviews.map((review) => (
-              <div key={review.reviewId} className="review-item">
-                <div className="review-item-info">
-                  <span className="review-target-name">{review.revieweeName}</span>
-                  <span className="review-type-badge">{review.type === 'internal' ? 'Internal' : 'External'}</span>
+              <div key={review.reviewId} className="flex justify-between items-center p-4 border rounded-md bg-gray-50 transition-all hover:shadow-md hover:border-gray-400">
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="font-medium text-gray-800 text-base">{review.revieweeName}</span>
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">{review.type === 'internal' ? 'Internal' : 'External'}</span>
                 </div>
                 {review.grade !== undefined ? (
-                  <div className="review-grade-display">
+                  <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
                     {review.grade.toFixed(1)}
                   </div>
                 ) : (
-                  <div className="review-grade-display" style={{ backgroundColor: '#f5f5f5', color: '#999' }}>
+                  <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
                     N/A
                   </div>
                 )}
@@ -869,26 +876,26 @@ export default function PeerReviews() {
         )}
       </div>
 
-      <div className="peer-reviews-list">
-        <h3>Reviews Received</h3>
+      <div className="flex flex-col gap-4 mt-8">
+        <h3 className="mb-4 text-gray-800">Reviews Received</h3>
         {receivedReviews.length === 0 ? (
-          <div className="no-reviews">
+          <div className="text-center py-10 text-gray-400">
             <p>No reviews received yet</p>
           </div>
         ) : (
-          <div className="reviews-list">
+          <div className="flex flex-col gap-3">
             {receivedReviews.map((review) => (
-              <div key={`${review.type}-${review.reviewerId}`} className="review-item">
-                <div className="review-item-info">
-                  <span className="review-target-name">{review.reviewerName}</span>
-                  <span className="review-type-badge">{review.type === 'internal' ? 'Internal' : 'External'}</span>
+              <div key={`${review.type}-${review.reviewerId}`} className="flex justify-between items-center p-4 border rounded-md bg-gray-50 transition-all hover:shadow-md hover:border-gray-400">
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="font-medium text-gray-800 text-base">{review.reviewerName}</span>
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">{review.type === 'internal' ? 'Internal' : 'External'}</span>
                 </div>
                 {review.grade !== undefined ? (
-                  <div className="review-grade-display">
+                  <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
                     {review.grade.toFixed(1)}
                   </div>
                 ) : (
-                  <div className="review-grade-display" style={{ backgroundColor: '#f5f5f5', color: '#999' }}>
+                  <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
                     N/A
                   </div>
                 )}

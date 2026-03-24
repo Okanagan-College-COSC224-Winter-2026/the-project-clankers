@@ -1,84 +1,90 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import './LoginPage.css';
-import Textbox from '../components/Textbox';
-import PasswordInput from '../components/PasswordInput';
-import Button from '../components/Button';
-import StatusMessage from '../components/StatusMessage';
-import { tryLogin } from '../util/api';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import PasswordInput from '../components/PasswordInput'
+import StatusMessage from '../components/StatusMessage'
+import { tryLogin } from '../util/api'
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
   const attemptLogin = async () => {
     try {
-      const result = await tryLogin(email, password);
+      const result = await tryLogin(email, password)
       if (result) {
-        // Check if user must change password
         if (result.must_change_password) {
-          navigate('/change-password');
+          navigate('/change-password')
         } else {
-          navigate('/home');
+          navigate('/home')
         }
       } else {
-        setError('Invalid email or password');
+        setError('Invalid email or password')
       }
     } catch {
-      setError('Invalid email or password');
+      setError('Invalid email or password')
     }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    attemptLogin();
+    e.preventDefault()
+    attemptLogin()
   }
 
   return (
-    <div className="LoginPage">
-      {error && <StatusMessage message={error} type="error" className="LoginError" />}
-      <div className="LoginBlock">  
-        <h1>Login</h1>
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && <StatusMessage message={error} type="error" className="mb-4" />}
 
-        <form onSubmit={handleSubmit}>
-          <div className="LoginInner">
-            <div className="LoginInputs">
-              <div className="LoginInputChunk">
-                <span>Email</span>
-                <Textbox
-                  placeholder='Email...'
-                  onInput={setEmail}
-                  className='LoginInput'
-                />
-              </div>
-
-              <div className="LoginInputChunk">
-                <span>Password</span>
-                <PasswordInput
-                  value={password}
-                  placeholder='Password...'
-                  onInput={setPassword}
-                  className='LoginInput'
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
 
-          </div>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center'}}>
-            <Button
-              type='submit'
-              children="Login"
-            />
-            <Button
-              onClick={() => navigate('/register')}
-              type='secondary'
-              children="Register"
-            />
-          </div>
-        </form>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <PasswordInput
+                value={password}
+                placeholder="Enter your password"
+                onInput={setPassword}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1">
+                Login
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => navigate('/register')}
+              >
+                Register
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }

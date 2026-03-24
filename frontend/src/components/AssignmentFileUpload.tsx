@@ -1,5 +1,4 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
-import "./AssignmentFileUpload.css";
 import { uploadAssignmentFile, deleteAssignmentFile, getAssignmentFiles, downloadAssignmentFile } from "../util/api";
 
 interface AssignmentFile {
@@ -13,7 +12,7 @@ interface AssignmentFileUploadProps {
   assignmentId: number;
 }
 
-export default function AssignmentFileUpload({ 
+export default function AssignmentFileUpload({
   assignmentId
 }: AssignmentFileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -144,7 +143,7 @@ export default function AssignmentFileUpload({
   const handleDownload = async (fileId: number, filename: string) => {
     try {
       const blob = await downloadAssignmentFile(fileId);
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -160,32 +159,32 @@ export default function AssignmentFileUpload({
   };
 
   return (
-    <div className="assignment-file-upload-container">
+    <div className="w-full my-5 p-5 bg-gray-50 rounded-lg">
       <h3>Assignment Files</h3>
-      
+
       {/* Existing files list */}
       {isLoadingFiles ? (
-        <p className="loading-message">Loading files...</p>
+        <p className="text-center text-gray-500 italic p-5">Loading files...</p>
       ) : files.length > 0 ? (
-        <div className="files-list">
+        <div className="flex flex-col gap-2.5 mb-5">
           {files.map((file) => (
-            <div key={file.id} className="file-item">
-              <div className="file-info">
-                <span className="file-icon">📄</span>
-                <span className="file-name">{file.filename}</span>
-                <span className="file-date">
+            <div key={file.id} className="flex items-center justify-between p-4 bg-white border-2 border-green-500 rounded-lg hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3 flex-1">
+                <span className="text-2xl">📄</span>
+                <span className="text-base font-medium text-gray-800 flex-1">{file.filename}</span>
+                <span>
                   {new Date(file.uploaded_at).toLocaleDateString()}
                 </span>
               </div>
-              <div className="file-actions">
-                <button 
-                  className="download-file-button"
+              <div className="flex gap-2">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
                   onClick={() => handleDownload(file.id, file.filename)}
                 >
                   Download
                 </button>
-                <button 
-                  className="delete-file-button-small"
+                <button
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
                   onClick={() => handleDelete(file.id)}
                 >
                   Delete
@@ -195,14 +194,18 @@ export default function AssignmentFileUpload({
           ))}
         </div>
       ) : (
-        <p className="no-files-message">No files uploaded yet</p>
+        <p className="text-center text-gray-400 italic p-4 bg-white rounded border border-dashed border-gray-300">No files uploaded yet</p>
       )}
 
       {/* Upload new file section */}
-      <div className="upload-section">
+      <div className="mt-5 pt-5 border-t-2 border-gray-300">
         <h4>Add New File</h4>
         <div
-          className={`file-drop-zone ${isDragging ? "dragging" : ""}`}
+          className={`w-full min-h-[200px] border-[3px] rounded-lg flex items-center justify-center cursor-pointer transition-all ${
+            isDragging
+              ? "border-green-500 bg-green-50 border-solid"
+              : "border-dashed border-gray-300 bg-white hover:border-green-500 hover:bg-blue-50"
+          }`}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -213,23 +216,23 @@ export default function AssignmentFileUpload({
             ref={fileInputRef}
             onChange={handleFileInputChange}
             accept=".pdf,.docx,.txt,.zip"
-            style={{ display: "none" }}
+            className="hidden"
           />
-          
-          <div className="drop-zone-content">
-            <div className="upload-icon">📁</div>
-            <p className="drop-zone-text">
+
+          <div className="text-center p-5">
+            <div className="text-5xl mb-4">📁</div>
+            <p className="text-lg text-gray-600 my-2.5">
               {isDragging ? "Drop file here..." : "Drag and drop a file here"}
             </p>
-            <p className="drop-zone-or">or</p>
+            <p className="text-sm text-gray-400 my-4">or</p>
             <button
-              className="browse-button"
+              className="px-8 py-3 text-base bg-green-500 text-white rounded font-medium hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               onClick={handleBrowseClick}
               disabled={isUploading}
             >
               {isUploading ? "Uploading..." : "Browse Files"}
             </button>
-            <p className="file-requirements">
+            <p className="text-sm text-gray-500 mt-4">
               Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
             </p>
           </div>
@@ -237,14 +240,14 @@ export default function AssignmentFileUpload({
       </div>
 
       {uploadError && (
-        <div className="upload-message error">
-          ❌ {uploadError}
+        <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
+          {uploadError}
         </div>
       )}
 
       {uploadSuccess && (
-        <div className="upload-message success">
-          ✅ File uploaded successfully!
+        <div className="mt-4 p-3 rounded bg-green-50 text-green-800 border border-green-400">
+          File uploaded successfully!
         </div>
       )}
     </div>
