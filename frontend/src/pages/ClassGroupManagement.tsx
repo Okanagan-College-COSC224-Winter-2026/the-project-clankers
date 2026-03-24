@@ -1,7 +1,6 @@
 import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback, useRef } from "react";
-import Button from "../components/Button";
 import StatusMessage from "../components/StatusMessage";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { listClasses } from "../util/api";
@@ -9,7 +8,15 @@ import { importCSV } from "../util/csv";
 import { isTeacher } from "../util/login";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
-import "./ClassGroupManagement.css";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 interface RosterUploadResultData {
   message: string;
@@ -51,12 +58,10 @@ export default function ClassGroupManagement() {
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<"error" | "success">("success");
   const [loading, setLoading] = useState(true);
-  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [className, setClassName] = useState<string>("");
   const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
   const [isUploadingRoster, setIsUploadingRoster] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const isCreating = useRef(false);
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -67,17 +72,6 @@ export default function ClassGroupManagement() {
     onConfirm: () => void;
   } | null>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const loadGroups = useCallback(async () => {
     try {
       const response = await fetch(`http://localhost:5000/classes/${id}/groups`, {
@@ -86,7 +80,7 @@ export default function ClassGroupManagement() {
       if (response.ok) {
         const data = await response.json();
         setGroups(data);
-        
+
         // Load members for each group
         const membersMap = new Map();
         for (const group of data) {
@@ -423,14 +417,14 @@ export default function ClassGroupManagement() {
   };
 
   if (loading) {
-    return <div className="loading">Loading groups...</div>;
+    return <div className="text-center py-12">Loading groups...</div>;
   }
 
   return (
     <>
-      <div className="ClassHeader">
-        <h2>{className || "Loading..."}</h2>
-        <div className="ClassHeaderRight">
+      <div className="flex flex-row justify-between items-center p-3">
+        <h2 className="text-xl font-semibold">{className || "Loading..."}</h2>
+        <div>
           {isTeacher() ? (
             <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
               {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
@@ -462,150 +456,152 @@ export default function ClassGroupManagement() {
 
       {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}
 
-      <div className="group-management-container">
+      <div className="grid grid-cols-2 gap-6 p-5 max-w-7xl mx-auto">
         {/* Left side: Unassigned Students */}
-        <div className="unassigned-section">
-          <h3>Unassigned Students ({unassignedStudents.length})</h3>
-          {unassignedStudents.length > 0 && groups.length > 0 && (
-            <button
-              onClick={randomizeGroups}
-              className="randomize-btn"
-            >
-              Randomize Groups
-            </button>
-          )}
-          <div className="student-list">
+        <Card className="h-[72vh] flex flex-col">
+          <CardHeader className="border-b pb-4">
+            <CardTitle>Unassigned Students ({unassignedStudents.length})</CardTitle>
+            {unassignedStudents.length > 0 && groups.length > 0 && (
+              <Button onClick={randomizeGroups} className="mt-2">
+                Randomize Groups
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto">
             {unassignedStudents.length === 0 ? (
-              <p className="empty-message">All students are assigned to groups</p>
+              <p className="text-center text-muted-foreground italic py-8">All students are assigned to groups</p>
             ) : (
-              unassignedStudents.map((student) => (
-                <div key={student.id} className="student-card">
-                  <div className="student-info">
-                    <strong>{student.name}</strong>
-                    <span className="student-email">{student.email}</span>
-                  </div>
-                  <div className="student-actions" ref={openDropdown === student.id ? dropdownRef : null}>
-                    <button
-                      className="group-dropdown-trigger"
-                      onClick={() => setOpenDropdown(openDropdown === student.id ? null : student.id)}
-                    >
-                      Add to group ▾
-                    </button>
-                    {openDropdown === student.id && (
-                      <div className="group-dropdown-menu">
+              <div className="flex flex-col gap-1">
+                {unassignedStudents.map((student) => (
+                  <div key={student.id} className="flex justify-between items-center px-3 py-2 border-b gap-4 rounded-md hover:bg-muted/50">
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <strong className="truncate">{student.name}</strong>
+                      <span className="text-sm text-muted-foreground truncate">{student.email}</span>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Add to group
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
                         {groups.map((group) => (
-                          <button
+                          <DropdownMenuItem
                             key={group.id}
-                            className="group-dropdown-item"
-                            onClick={() => {
-                              addStudentToGroup(student.id, group.id);
-                              setOpenDropdown(null);
-                            }}
+                            onClick={() => addStudentToGroup(student.id, group.id)}
                           >
                             {group.name}
-                          </button>
+                          </DropdownMenuItem>
                         ))}
-                      </div>
-                    )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Right side: Groups */}
-        <div className="groups-section">
-          <div className="groups-header">
-            <h3>Groups ({groups.length})</h3>
-            <div className="create-group">
-              <input
-                type="text"
-                placeholder="New group name"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && createGroup()}
-              />
-              <Button onClick={createGroup} disabled={isCreating.current}>Create Group</Button>
+        <Card className="h-[72vh] flex flex-col">
+          <CardHeader className="border-b pb-4">
+            <div className="flex justify-between items-center flex-wrap gap-2">
+              <CardTitle>Groups ({groups.length})</CardTitle>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="text"
+                  placeholder="New group name"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && createGroup()}
+                  className="w-40"
+                />
+                <Button onClick={createGroup} disabled={isCreating.current}>Create Group</Button>
+              </div>
             </div>
-          </div>
-
-          <div className="groups-list">
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto">
             {groups.length === 0 ? (
-              <p className="empty-message">No groups created yet</p>
+              <p className="text-center text-muted-foreground italic py-8">No groups created yet</p>
             ) : (
-              groups.map((group) => {
-                const members = groupMembers.get(group.id) || [];
-                const isEditing = editingGroupId === group.id;
+              <div className="flex flex-col gap-2">
+                {groups.map((group) => {
+                  const members = groupMembers.get(group.id) || [];
+                  const isEditing = editingGroupId === group.id;
 
-                return (
-                  <div key={group.id} className="group-card">
-                    <div className="group-header">
-                      {isEditing ? (
-                        <div className="group-edit">
-                          <input
-                            type="text"
-                            value={editingGroupName}
-                            onChange={(e) => setEditingGroupName(e.target.value)}
-                            onKeyPress={(e) =>
-                              e.key === "Enter" && renameGroup(group.id, editingGroupName)
-                            }
-                            autoFocus
-                          />
-                          <button onClick={() => renameGroup(group.id, editingGroupName)}>
-                            ✓
-                          </button>
-                          <button onClick={() => { setEditingGroupId(null); setEditingGroupName(""); }}>
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <h4>{group.name} ({members.length})</h4>
-                          <div className="group-actions">
-                            <button
-                              onClick={() => {
-                                setEditingGroupId(group.id);
-                                setEditingGroupName(group.name);
-                              }}
-                              className="edit-btn"
-                            >
-                              Edit
-                            </button>
-                            <button onClick={() => deleteGroup(group.id)} className="delete-btn">
-                              Delete
-                            </button>
+                  return (
+                    <Card key={group.id} size="sm">
+                      <CardHeader className="border-b pb-2">
+                        {isEditing ? (
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="text"
+                              value={editingGroupName}
+                              onChange={(e) => setEditingGroupName(e.target.value)}
+                              onKeyPress={(e) =>
+                                e.key === "Enter" && renameGroup(group.id, editingGroupName)
+                              }
+                              autoFocus
+                              className="flex-1"
+                            />
+                            <Button size="sm" onClick={() => renameGroup(group.id, editingGroupName)}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setEditingGroupId(null); setEditingGroupName(""); }}>
+                              Cancel
+                            </Button>
                           </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="group-members">
-                      {members.length === 0 ? (
-                        <p className="empty-message">No members in this group</p>
-                      ) : (
-                        members.map((member) => (
-                          <div key={member.id} className="member-card">
-                            <div className="member-info">
-                              <strong>{member.name}</strong>
-                              <span className="member-email">{member.email}</span>
+                        ) : (
+                          <div className="flex justify-between items-center">
+                            <CardTitle>{group.name} ({members.length})</CardTitle>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingGroupId(group.id);
+                                  setEditingGroupName(group.name);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => deleteGroup(group.id)}>
+                                Delete
+                              </Button>
                             </div>
-                            <button
-                              onClick={() => removeStudentFromGroup(member.id, group.id)}
-                              className="remove-btn"
-                            >
-                              Remove
-                            </button>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        {members.length === 0 ? (
+                          <p className="text-center text-muted-foreground italic py-4 text-sm">No members in this group</p>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {members.map((member) => (
+                              <div key={member.id} className="flex justify-between items-center px-3 py-2 border-b gap-4 rounded-md hover:bg-muted/50">
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <strong className="truncate text-sm">{member.name}</strong>
+                                  <span className="text-xs text-muted-foreground truncate">{member.email}</span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => removeStudentFromGroup(member.id, group.id)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {confirmDialog && (

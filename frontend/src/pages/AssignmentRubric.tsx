@@ -1,71 +1,86 @@
-import { useParams, Link } from "react-router-dom";
-import TabNavigation from "../components/TabNavigation";
-import { useEffect, useState } from "react";
-import { getAssignmentDetails, listClasses } from "../util/api";
-import RubricCreator from "../components/RubricCreator";
-import RubricDisplay from "../components/RubricDisplay";
-import { isTeacher } from "../util/login";
-import "./Assignment.css";
+import { useParams, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Card } from '@/components/ui/card'
+import { ArrowLeft, FileSpreadsheet } from 'lucide-react'
+import TabNavigation from '../components/TabNavigation'
+import RubricCreator from '../components/RubricCreator'
+import RubricDisplay from '../components/RubricDisplay'
+import { getAssignmentDetails, listClasses } from '../util/api'
+import { isTeacher } from '../util/login'
 
 export default function AssignmentRubric() {
-  const { id } = useParams();
-  const [assignmentName, setAssignmentName] = useState("");
-  const [courseId, setCourseId] = useState<number | null>(null);
-  const [courseName, setCourseName] = useState("");
+  const { id } = useParams()
+  const [assignmentName, setAssignmentName] = useState('')
+  const [courseId, setCourseId] = useState<number | null>(null)
+  const [courseName, setCourseName] = useState('')
 
   useEffect(() => {
-    (async () => {
+    ;(async () => {
       try {
-        const data = await getAssignmentDetails(Number(id));
-        setAssignmentName(data.name);
+        const data = await getAssignmentDetails(Number(id))
+        setAssignmentName(data.name)
 
         if (data.courseID) {
-          setCourseId(data.courseID);
-          const classes = await listClasses();
-          const cls = classes.find((c: { id: number }) => c.id === data.courseID);
-          if (cls) setCourseName(cls.name);
+          setCourseId(data.courseID)
+          const classes = await listClasses()
+          const cls = classes.find((c: { id: number }) => c.id === data.courseID)
+          if (cls) setCourseName(cls.name)
         }
       } catch (error) {
-        console.error("Error loading assignment:", error);
+        console.error('Error loading assignment:', error)
       }
-    })();
-  }, [id]);
+    })()
+  }, [id])
 
   return (
-    <>
+    <div className="flex flex-1 flex-col">
       {courseId && (
-        <div className="assignment-breadcrumb">
-          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+        <div className="border-b px-6 py-2">
+          <Link
+            to={`/classes/${courseId}/home`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {courseName || 'Back to class'}
+          </Link>
         </div>
       )}
 
-      <div className="AssignmentHeader">
-        <h2>{assignmentName || "Loading..."}</h2>
+      <div className="border-b bg-background px-6 py-4">
+        <h2 className="text-xl font-semibold">{assignmentName || 'Loading...'}</h2>
       </div>
 
       <TabNavigation
         tabs={
           isTeacher()
             ? [
-                { label: "Home", path: `/assignments/${id}` },
-                { label: "Members", path: `/assignments/${id}/members` },
-                { label: "Groups", path: `/assignments/${id}/groups` },
-                { label: "Rubric", path: `/assignments/${id}/rubric` },
-                { label: "Student Submissions", path: `/assignments/${id}/student-submissions` },
-                { label: "Manage", path: `/assignments/${id}/manage` },
+                { label: 'Home', path: `/assignments/${id}` },
+                { label: 'Members', path: `/assignments/${id}/members` },
+                { label: 'Groups', path: `/assignments/${id}/groups` },
+                { label: 'Rubric', path: `/assignments/${id}/rubric` },
+                { label: 'Student Submissions', path: `/assignments/${id}/student-submissions` },
+                { label: 'Manage', path: `/assignments/${id}/manage` },
               ]
             : [
-                { label: "Home", path: `/assignments/${id}` },
-                { label: "Members", path: `/assignments/${id}/members` },
-                { label: "Submission", path: `/assignments/${id}/submission` },
+                { label: 'Home', path: `/assignments/${id}` },
+                { label: 'Members', path: `/assignments/${id}/members` },
+                { label: 'Submission', path: `/assignments/${id}/submission` },
               ]
         }
       />
 
-      <div style={{ padding: "0.75rem 1rem" }}>
-        <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+      <div className="flex-1 space-y-6 p-6">
+        <div className="flex items-center gap-2">
+          <FileSpreadsheet className="h-5 w-5" />
+          <h3 className="text-lg font-medium">Rubric</h3>
+        </div>
+
+        <Card className="p-4">
+          <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+        </Card>
+
         {isTeacher() && <RubricCreator id={Number(id)} />}
       </div>
-    </>
-  );
+    </div>
+  )
 }

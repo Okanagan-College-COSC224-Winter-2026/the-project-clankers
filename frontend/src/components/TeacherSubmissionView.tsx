@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./AssignmentFileUpload.css"; // Reuse the same styles
 import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 interface StudentSubmission {
   id: number;
@@ -47,7 +48,7 @@ interface TeacherSubmissionViewProps {
   assignmentId: number;
 }
 
-export default function TeacherSubmissionView({ 
+export default function TeacherSubmissionView({
   assignmentId
 }: TeacherSubmissionViewProps) {
   const [studentsWithSubmissions, setStudentsWithSubmissions] = useState<StudentWithSubmission[]>([]);
@@ -98,8 +99,8 @@ export default function TeacherSubmissionView({
   };
 
   const loadIndividualSubmissions = async (
-    classId: number, 
-    submissionsData: StudentSubmission[], 
+    classId: number,
+    submissionsData: StudentSubmission[],
     dueDate: Date | null
   ) => {
     // Fetch all students in the class
@@ -116,9 +117,9 @@ export default function TeacherSubmissionView({
     // Merge students with their submission status
     const merged: StudentWithSubmission[] = students.map((student) => {
       const submission = submissionMap.get(student.id) || null;
-      
+
       let status: "Submitted" | "Submitted Late" | "No Submission" = "No Submission";
-      
+
       if (submission) {
         if (dueDate) {
           const submittedAt = new Date(submission.submitted_at);
@@ -127,7 +128,7 @@ export default function TeacherSubmissionView({
           status = "Submitted";
         }
       }
-      
+
       return {
         student,
         submission,
@@ -139,13 +140,13 @@ export default function TeacherSubmissionView({
   };
 
   const loadGroupSubmissions = async (
-    classId: number, 
+    classId: number,
     submissionsData: StudentSubmission[],
     dueDate: Date | null
   ) => {
     // Fetch all groups in the course
     const groupsData = await getCourseGroups(classId);
-    
+
     // Create a map of student_id -> submission for quick lookup
     const submissionMap = new Map<number, StudentSubmission>();
     submissionsData.forEach((sub: StudentSubmission) => {
@@ -158,7 +159,7 @@ export default function TeacherSubmissionView({
         try {
           // Fetch group members with full student data
           const membersData = await getGroupMembers(classId, group.id);
-          
+
           // Convert to Student type
           const members: Student[] = membersData.map((member: any) => ({
             id: member.id,
@@ -166,11 +167,11 @@ export default function TeacherSubmissionView({
             name: member.name,
             email: member.email
           }));
-          
+
           // Find if any group member has submitted
           let groupSubmission: StudentSubmission | null = null;
           let submittedBy: string | undefined = undefined;
-          
+
           for (const member of members) {
             const submission = submissionMap.get(member.id);
             if (submission) {
@@ -179,7 +180,7 @@ export default function TeacherSubmissionView({
               break; // Use the first submission found
             }
           }
-          
+
           // Sort members so submitter appears first
           if (groupSubmission) {
             const submitterId = groupSubmission.student_id;
@@ -189,17 +190,17 @@ export default function TeacherSubmissionView({
               return 0;
             });
           }
-          
+
           // Calculate status
           let status: "Submitted" | "Submitted Late" | "No Submission" = "No Submission";
-          
+
           if (groupSubmission && dueDate) {
             const submittedAt = new Date(groupSubmission.submitted_at);
             status = submittedAt > dueDate ? "Submitted Late" : "Submitted";
           } else if (groupSubmission) {
             status = "Submitted";
           }
-          
+
           return {
             group,
             submission: groupSubmission,
@@ -227,7 +228,7 @@ export default function TeacherSubmissionView({
   const handleDownload = async (submissionId: number, filename: string) => {
     try {
       const blob = await downloadStudentSubmission(submissionId);
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -271,357 +272,256 @@ export default function TeacherSubmissionView({
     });
   };
 
-  const getStatusStyle = (status: string) => {
+  const getStatusClasses = (status: string) => {
     switch (status) {
       case "Submitted":
-        return { color: "#4caf50", fontWeight: 500 };
+        return "text-green-500 font-medium";
       case "Submitted Late":
-        return { color: "#ff9800", fontWeight: 500 };
+        return "text-orange-500 font-medium";
       case "No Submission":
-        return { color: "#d32f2f", fontWeight: 500 };
+        return "text-red-600 font-medium";
       default:
-        return {};
+        return "";
     }
   };
 
   return (
-    <div className="assignment-file-upload-container">
-      <h3>Student Submissions {isGroupAssignment && "(Group Assignment)"}</h3>
-      
-      {isLoadingSubmissions ? (
-        <p className="loading-message">Loading submissions...</p>
-      ) : error ? (
-        <div className="upload-message error">
-          ❌ {error}
-        </div>
-      ) : isGroupAssignment ? (
-        // Render group submissions accordion
-        groupsWithSubmissions.length > 0 ? (
-          <div style={{ marginTop: '20px' }}>
-            {groupsWithSubmissions.map((groupItem) => {
-              const isExpanded = expandedGroups.has(groupItem.group.id);
-              return (
-                <div key={groupItem.group.id} style={{
-                  marginBottom: '12px',
-                  backgroundColor: 'white',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  overflow: 'hidden'
-                }}>
-                  {/* Group Summary Row */}
-                  <div 
-                    onClick={() => toggleGroupExpanded(groupItem.group.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '16px',
-                      cursor: 'pointer',
-                      backgroundColor: isExpanded ? '#f8f9fa' : 'white',
-                      borderBottom: isExpanded ? '1px solid #e0e0e0' : 'none',
-                      transition: 'background-color 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isExpanded) e.currentTarget.style.backgroundColor = '#f8f9fa';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isExpanded) e.currentTarget.style.backgroundColor = 'white';
-                    }}
-                  >
-                    {/* Expand/Collapse Icon */}
-                    <div style={{ 
-                      marginRight: '12px', 
-                      fontSize: '1.2em',
-                      transition: 'transform 0.2s',
-                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
-                    }}>
-                      ▶
-                    </div>
+    <Card className="w-full my-5">
+      <CardHeader>
+        <CardTitle>Student Submissions {isGroupAssignment && "(Group Assignment)"}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoadingSubmissions ? (
+          <p className="text-center text-muted-foreground italic py-5">Loading submissions...</p>
+        ) : error ? (
+          <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
+            {error}
+          </div>
+        ) : isGroupAssignment ? (
+          // Render group submissions accordion
+          groupsWithSubmissions.length > 0 ? (
+            <div className="mt-5">
+              {groupsWithSubmissions.map((groupItem) => {
+                const isExpanded = expandedGroups.has(groupItem.group.id);
+                return (
+                  <div key={groupItem.group.id} className="mb-3 bg-white rounded-lg shadow-sm overflow-hidden ring-1 ring-foreground/10">
+                    {/* Group Summary Row */}
+                    <div
+                      onClick={() => toggleGroupExpanded(groupItem.group.id)}
+                      className={`flex items-center p-4 cursor-pointer transition-colors ${
+                        isExpanded ? "bg-gray-50 border-b border-gray-200" : "bg-white hover:bg-gray-50"
+                      }`}
+                    >
+                      {/* Expand/Collapse Icon */}
+                      <div className={`mr-3 text-lg transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}>
+                        ▶
+                      </div>
 
-                    {/* Group Info */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                      <div style={{ minWidth: '200px' }}>
-                        <div style={{ fontWeight: 600, fontSize: '1.05em' }}>
-                          {groupItem.group.name}
+                      {/* Group Info */}
+                      <div className="flex-1 flex items-center gap-5 flex-wrap">
+                        <div className="min-w-[200px]">
+                          <div className="font-semibold text-base">
+                            {groupItem.group.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {groupItem.members.length} member{groupItem.members.length !== 1 ? 's' : ''}
+                            {groupItem.submittedBy && (
+                              <span> - Submitted by: {groupItem.submittedBy}</span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>
-                          {groupItem.members.length} member{groupItem.members.length !== 1 ? 's' : ''}
-                          {groupItem.submittedBy && (
-                            <span> • Submitted by: {groupItem.submittedBy}</span>
+
+                        <div className="flex gap-5 items-center">
+                          <div>
+                            <div className="text-xs text-muted-foreground uppercase mb-0.5">
+                              Status
+                            </div>
+                            <div className={`text-sm ${getStatusClasses(groupItem.status)}`}>
+                              {groupItem.status}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-muted-foreground uppercase mb-0.5">
+                              Grade
+                            </div>
+                            <div className="text-sm">
+                              {groupItem.grade || '-'}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-muted-foreground uppercase mb-0.5">
+                              Last Modified
+                            </div>
+                            <div className="text-sm">
+                              {groupItem.submission ? formatDate(groupItem.submission.submitted_at) : 'N/A'}
+                            </div>
+                          </div>
+
+                          {groupItem.submission && (
+                            <div>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(groupItem.submission!.id, groupItem.submission!.filename);
+                                }}
+                              >
+                                Download
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
-
-                      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '0.75em', color: '#888', textTransform: 'uppercase', marginBottom: '2px' }}>
-                            Status
-                          </div>
-                          <div style={{...getStatusStyle(groupItem.status), fontSize: '0.9em'}}>
-                            {groupItem.status}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div style={{ fontSize: '0.75em', color: '#888', textTransform: 'uppercase', marginBottom: '2px' }}>
-                            Grade
-                          </div>
-                          <div style={{ fontSize: '0.9em' }}>
-                            {groupItem.grade || '-'}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div style={{ fontSize: '0.75em', color: '#888', textTransform: 'uppercase', marginBottom: '2px' }}>
-                            Last Modified
-                          </div>
-                          <div style={{ fontSize: '0.9em' }}>
-                            {groupItem.submission ? formatDate(groupItem.submission.submitted_at) : 'N/A'}
-                          </div>
-                        </div>
-
-                        {groupItem.submission && (
-                          <div>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(groupItem.submission!.id, groupItem.submission!.filename);
-                              }}
-                              style={{
-                                padding: '6px 16px',
-                                backgroundColor: '#1976d2',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '0.9em',
-                                fontWeight: 500,
-                                transition: 'background-color 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1565c0'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1976d2'}
-                            >
-                              Download
-                            </button>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  </div>
 
-                  {/* Expanded Member Details */}
-                  {isExpanded && (
-                    <div style={{ padding: '0' }}>
-                      <table style={{
-                        width: '100%',
-                        borderCollapse: 'collapse'
-                      }}>
-                        <thead>
-                          <tr style={{
-                            backgroundColor: '#f0f0f0'
-                          }}>
-                            <th style={{...tableHeaderStyle, fontSize: '0.85em'}}>Name</th>
-                            <th style={{...tableHeaderStyle, fontSize: '0.85em'}}>Student ID</th>
-                            <th style={{...tableHeaderStyle, fontSize: '0.85em'}}>Email</th>
-                            <th style={{...tableHeaderStyle, fontSize: '0.85em'}}>Status</th>
-                            <th style={{...tableHeaderStyle, fontSize: '0.85em'}}>Grade</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {groupItem.members.length > 0 ? (
-                            groupItem.members.map((member) => {
-                              const isSubmitter = groupItem.submission && groupItem.submission.student_id === member.id;
-                              return (
-                                <tr key={member.id} style={{
-                                  borderBottom: '1px solid #f0f0f0',
-                                  backgroundColor: isSubmitter ? '#f0f8ff' : 'white'
-                                }}>
-                                  <td style={{...tableCellStyle, fontSize: '0.85em'}}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <a
-                                        href="#"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          handleViewProfile(member.id);
-                                        }}
-                                        style={{
-                                          color: '#1976d2',
-                                          textDecoration: 'none',
-                                          fontWeight: 500,
-                                          cursor: 'pointer'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                                        onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                                      >
-                                        {member.name}
-                                      </a>
-                                      {isSubmitter && (
-                                        <span style={{
-                                          fontSize: '0.75em',
-                                          backgroundColor: '#4caf50',
-                                          color: 'white',
-                                          padding: '2px 8px',
-                                          borderRadius: '4px',
-                                          fontWeight: 600
-                                        }}>
-                                          Submitter
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td style={{...tableCellStyle, fontSize: '0.85em'}}>
-                                    {member.student_id || 'N/A'}
-                                  </td>
-                                <td style={{...tableCellStyle, fontSize: '0.85em'}}>
-                                  {member.email}
-                                </td>
-                                <td style={{...tableCellStyle, ...getStatusStyle(groupItem.status), fontSize: '0.85em'}}>
-                                  {groupItem.status}
-                                </td>
-                                <td style={{...tableCellStyle, fontSize: '0.85em'}}>
-                                  {groupItem.grade || '-'}
+                    {/* Expanded Member Details */}
+                    {isExpanded && (
+                      <div>
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Name</th>
+                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Student ID</th>
+                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Email</th>
+                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Status</th>
+                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Grade</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupItem.members.length > 0 ? (
+                              groupItem.members.map((member) => {
+                                const isSubmitter = groupItem.submission && groupItem.submission.student_id === member.id;
+                                return (
+                                  <tr key={member.id} className={`border-b border-gray-100 ${isSubmitter ? "bg-blue-50" : "bg-white"}`}>
+                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                      <div className="flex items-center gap-2">
+                                        <a
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            handleViewProfile(member.id);
+                                          }}
+                                          className="text-blue-600 font-medium cursor-pointer hover:underline"
+                                        >
+                                          {member.name}
+                                        </a>
+                                        {isSubmitter && (
+                                          <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded font-semibold">
+                                            Submitter
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                      {member.student_id || 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                      {member.email}
+                                    </td>
+                                    <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(groupItem.status)}`}>
+                                      {groupItem.status}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                      {groupItem.grade || '-'}
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            ) : (
+                              <tr>
+                                <td colSpan={5} className="p-5 text-center text-muted-foreground">
+                                  No members in this group
                                 </td>
                               </tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                                No members in this group
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No groups created for this class</p>
+          )
         ) : (
-          <p className="no-files-message">No groups created for this class</p>
-        )
-      ) : (
-        // Render individual submissions table
-        studentsWithSubmissions.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              marginTop: '20px',
-              backgroundColor: 'white',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              borderRadius: '8px',
-              overflow: 'hidden'
-            }}>
-              <thead>
-                <tr style={{
-                  backgroundColor: '#f5f5f5',
-                  borderBottom: '2px solid #ddd'
-                }}>
-                  <th style={tableHeaderStyle}>Name</th>
-                  <th style={tableHeaderStyle}>Student ID</th>
-                  <th style={tableHeaderStyle}>Email</th>
-                  <th style={tableHeaderStyle}>Status</th>
-                  <th style={tableHeaderStyle}>Grade</th>
-                  <th style={tableHeaderStyle}>Last Modified</th>
-                  <th style={tableHeaderStyle}>File Submission</th>
-                </tr>
-              </thead>
-              <tbody>
-                {studentsWithSubmissions.map((item) => (
-                  <tr key={item.student.id} style={{
-                    borderBottom: '1px solid #eee',
-                    transition: 'background-color 0.2s'
-                  }}>
-                    <td style={tableCellStyle}>
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleViewProfile(item.student.id);
-                        }}
-                        style={{
-                          color: '#1976d2',
-                          textDecoration: 'none',
-                          fontWeight: 500,
-                          cursor: 'pointer'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                        onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                      >
-                        {item.student.name}
-                      </a>
-                    </td>
-                    <td style={tableCellStyle}>
-                      {item.student.student_id || 'N/A'}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {item.student.email}
-                    </td>
-                    <td style={{...tableCellStyle, ...getStatusStyle(item.status)}}>
-                      {item.status}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {item.grade || '-'}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {item.submission ? formatDate(item.submission.submitted_at) : 'N/A'}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {item.submission ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontSize: '0.9em' }}>
-                            {item.submission.filename}
-                          </span>
-                          <button 
-                            onClick={() => handleDownload(item.submission!.id, item.submission!.filename)}
-                            style={{
-                              padding: '4px 12px',
-                              backgroundColor: '#1976d2',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '0.85em',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1565c0'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1976d2'}
-                          >
-                            Download
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#999' }}>No file</span>
-                      )}
-                    </td>
+          // Render individual submissions table
+          studentsWithSubmissions.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse mt-5 bg-white shadow-sm rounded-lg overflow-hidden ring-1 ring-foreground/10">
+                <thead>
+                  <tr className="bg-gray-100 border-b-2 border-gray-200">
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Name</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Student ID</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Grade</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Last Modified</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">File Submission</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="no-files-message">No students enrolled in this class</p>
-        )
-      )}
-    </div>
+                </thead>
+                <tbody>
+                  {studentsWithSubmissions.map((item) => (
+                    <tr key={item.student.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleViewProfile(item.student.id);
+                          }}
+                          className="text-blue-600 font-medium cursor-pointer hover:underline"
+                        >
+                          {item.student.name}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        {item.student.student_id || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        {item.student.email}
+                      </td>
+                      <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(item.status)}`}>
+                        {item.status}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        {item.grade || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        {item.submission ? formatDate(item.submission.submitted_at) : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        {item.submission ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm">
+                              {item.submission.filename}
+                            </span>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleDownload(item.submission!.id, item.submission!.filename)}
+                            >
+                              Download
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No file</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No students enrolled in this class</p>
+          )
+        )}
+      </CardContent>
+    </Card>
   );
 }
-
-// Table styles
-const tableHeaderStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  textAlign: 'left',
-  fontWeight: 600,
-  fontSize: '0.9em',
-  color: '#333',
-  whiteSpace: 'nowrap'
-};
-
-const tableCellStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontSize: '0.9em',
-  color: '#555',
-  verticalAlign: 'middle'
-};

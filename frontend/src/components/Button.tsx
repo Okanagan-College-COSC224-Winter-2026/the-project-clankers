@@ -1,27 +1,26 @@
-import './Button.css'
+import { Button as ShadcnButton } from '@/components/ui/button'
 
 interface Props {
   onClick?: () => void
   children?: React.ReactNode
   type?: 'regular' | 'secondary' | 'submit' | 'button'
   disabled?: boolean
+  className?: string
 }
 
 export default function Button(props: Props) {
-  // Determine button HTML type (submit or button)
-  const htmlType = (props.type === 'submit') ? 'submit' : 'button';
-
-  // Determine CSS class (regular or secondary)
-  const cssType = (props.type === 'secondary') ? 'secondary' : 'regular';
+  const htmlType = (props.type === 'submit') ? 'submit' : 'button'
+  const variant = (props.type === 'secondary') ? 'secondary' : 'default'
 
   return (
-    <button
+    <ShadcnButton
       type={htmlType}
-      className={'Button ' + (props.disabled ? 'disabled ' : ' ') + cssType}
+      variant={variant}
       onClick={props.onClick}
       disabled={props.disabled}
+      className={props.className}
     >
       {props.children}
-    </button>
+    </ShadcnButton>
   )
 }

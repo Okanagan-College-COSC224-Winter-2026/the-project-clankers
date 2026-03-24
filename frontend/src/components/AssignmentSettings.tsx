@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAssignmentDetails, editAssignment, deleteAssignment } from "../util/api";
-import Button from "./Button";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import StatusMessage from "./StatusMessage";
-import "./AssignmentSettings.css";
 
 interface AssignmentSettingsProps {
   assignmentId: number;
@@ -167,236 +170,252 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   };
 
   if (!assignment) {
-    return <div className="assignment-settings-loading">Loading assignment details...</div>;
+    return <div className="text-center py-10 text-lg text-gray-500">Loading assignment details...</div>;
   }
 
   return (
-    <div className="assignment-settings">
+    <div className="p-5 max-w-3xl mx-auto">
       <StatusMessage message={statusMessage} type={statusType} />
 
-      <div className="assignment-settings-section">
-        <h3>Assignment Information</h3>
-        
-        {isEditing ? (
-          <div className="assignment-settings-form">
-            <div className="form-group">
-              <label>Assignment Name:</label>
-              <input
-                type="text"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                placeholder="Enter assignment name"
-                className="text-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Rubric Description:</label>
-              <textarea
-                value={editedRubric}
-                onChange={(e) => setEditedRubric(e.target.value)}
-                placeholder="Enter rubric description"
-                className="textarea-input"
-                rows={3}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Start Date:</label>
-              <input
-                type="date"
-                value={editedStartDate}
-                onChange={(e) => setEditedStartDate(e.target.value)}
-                className="date-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Due Date:</label>
-              <input
-                type="date"
-                value={editedDueDate}
-                onChange={(e) => setEditedDueDate(e.target.value)}
-                className="date-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Submission Type:</label>
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    value="individual"
-                    checked={editedSubmissionType === 'individual'}
-                    onChange={(e) => {
-                      setEditedSubmissionType(e.target.value as 'individual');
-                      setEditedInternalReview(false); // Clear internal review for individual assignments
-                    }}
-                  />
-                  Individual
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    value="group"
-                    checked={editedSubmissionType === 'group'}
-                    onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
-                  />
-                  Group
-                </label>
+      <Card className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-5">
+        <CardHeader>
+          <CardTitle>Assignment Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isEditing ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <Label className="font-semibold text-gray-600 text-sm">Assignment Name:</Label>
+                <Input
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  placeholder="Enter assignment name"
+                />
               </div>
-            </div>
 
-            <div className="form-group">
-              <label>Peer Review Settings:</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {editedSubmissionType === 'group' && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+              <div className="flex flex-col gap-1">
+                <Label className="font-semibold text-gray-600 text-sm">Rubric Description:</Label>
+                <Textarea
+                  value={editedRubric}
+                  onChange={(e) => setEditedRubric(e.target.value)}
+                  placeholder="Enter rubric description"
+                  className="resize-y min-h-[80px]"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label className="font-semibold text-gray-600 text-sm">Start Date:</Label>
+                <Input
+                  type="date"
+                  value={editedStartDate}
+                  onChange={(e) => setEditedStartDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label className="font-semibold text-gray-600 text-sm">Due Date:</Label>
+                <Input
+                  type="date"
+                  value={editedDueDate}
+                  onChange={(e) => setEditedDueDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label className="font-semibold text-gray-600 text-sm">Submission Type:</Label>
+                <div className="flex gap-5 items-center">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="individual"
+                      checked={editedSubmissionType === 'individual'}
+                      onChange={(e) => {
+                        setEditedSubmissionType(e.target.value as 'individual');
+                        setEditedInternalReview(false); // Clear internal review for individual assignments
+                      }}
+                    />
+                    Individual
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="group"
+                      checked={editedSubmissionType === 'group'}
+                      onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
+                    />
+                    Group
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label className="font-semibold text-gray-600 text-sm">Peer Review Settings:</Label>
+                <div className="flex flex-col gap-2.5">
+                  {editedSubmissionType === 'group' && (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editedInternalReview}
+                        onChange={(e) => setEditedInternalReview(e.target.checked)}
+                      />
+                      Internal Review (Teammates Review Each Other)
+                    </label>
+                  )}
+                  <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={editedInternalReview}
-                      onChange={(e) => setEditedInternalReview(e.target.checked)}
+                      checked={editedExternalReview}
+                      onChange={(e) => setEditedExternalReview(e.target.checked)}
                     />
-                    Internal Review (Teammates Review Each Other)
+                    External Review
                   </label>
-                )}
-                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={editedExternalReview}
-                    onChange={(e) => setEditedExternalReview(e.target.checked)}
+                    checked={editedAnonymousReview}
+                    onChange={(e) => setEditedAnonymousReview(e.target.checked)}
                   />
-                  External Review
+                  Anonymous Reviews (Hide Reviewer Names from Students)
                 </label>
               </div>
-            </div>
 
-            <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={editedAnonymousReview}
-                  onChange={(e) => setEditedAnonymousReview(e.target.checked)}
-                />
-                Anonymous Reviews (Hide Reviewer Names from Students)
-              </label>
-            </div>
-
-            <div className="form-actions">
-              <Button onClick={handleSave} disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button onClick={handleCancel} disabled={isLoading}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="assignment-settings-display">
-            <div className="detail-row">
-              <span className="detail-label">Name:</span>
-              <span className="detail-value">{assignment.name || "No name"}</span>
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label">Rubric:</span>
-              <span className="detail-value">{assignment.rubric_text || "No rubric description"}</span>
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label">Start Date:</span>
-              <span className="detail-value">
-                {assignment.start_date 
-                  ? new Date(assignment.start_date).toLocaleDateString() 
-                  : "No start date set"}
-              </span>
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label">Due Date:</span>
-              <span className="detail-value">
-                {assignment.due_date 
-                  ? new Date(assignment.due_date).toLocaleDateString() 
-                  : "No due date set"}
-              </span>
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label">Assignment Type:</span>
-              <span className="detail-value">
-                {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
-              </span>
-            </div>
-
-            <div className="form-actions">
-              <Button onClick={handleEdit} disabled={isLoading}>
-                Edit Assignment
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="assignment-settings-section">
-        <h3>Peer Review Settings</h3>
-        {assignment.submission_type === 'group' && (
-          <div className="detail-row">
-            <span className="detail-label">Internal Review:</span>
-            <span className="detail-value">
-              {assignment.internal_review ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
-        )}
-        <div className="detail-row">
-          <span className="detail-label">External Review:</span>
-          <span className="detail-value">
-            {assignment.external_review ? 'Enabled' : 'Disabled'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Anonymous Reviews:</span>
-          <span className="detail-value">
-            {assignment.anonymous_review ? 'Enabled' : 'Disabled'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Rubrics Created:</span>
-          <span className="detail-value">{assignment.rubrics?.length || 0}</span>
-        </div>
-        {assignment.rubrics && assignment.rubrics.length > 0 && (
-          <div className="rubric-list">
-            {assignment.rubrics.map((rubric) => (
-              <div key={rubric.id} className="rubric-item">
-                <span>Rubric #{rubric.id}</span>
-                <span>{rubric.canComment ? " (Comments enabled)" : " (Comments disabled)"}</span>
+              <div className="flex gap-2.5 mt-4">
+                <Button onClick={handleSave} disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+                <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
+                  Cancel
+                </Button>
               </div>
-            ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Name:</span>
+                <span className="text-gray-800 flex-1">{assignment.name || "No name"}</span>
+              </div>
+
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Rubric:</span>
+                <span className="text-gray-800 flex-1">{assignment.rubric_text || "No rubric description"}</span>
+              </div>
+
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Start Date:</span>
+                <span className="text-gray-800 flex-1">
+                  {assignment.start_date
+                    ? new Date(assignment.start_date).toLocaleDateString()
+                    : "No start date set"}
+                </span>
+              </div>
+
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Due Date:</span>
+                <span className="text-gray-800 flex-1">
+                  {assignment.due_date
+                    ? new Date(assignment.due_date).toLocaleDateString()
+                    : "No due date set"}
+                </span>
+              </div>
+
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Assignment Type:</span>
+                <span className="text-gray-800 flex-1">
+                  {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
+                </span>
+              </div>
+
+              <div className="flex gap-2.5 mt-4">
+                <Button onClick={handleEdit} disabled={isLoading}>
+                  Edit Assignment
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-5">
+        <CardHeader>
+          <CardTitle>Peer Review Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            {assignment.submission_type === 'group' && (
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Internal Review:</span>
+                <span className="text-gray-800 flex-1">
+                  {assignment.internal_review ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            )}
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">External Review:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.external_review ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Anonymous Reviews:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.anonymous_review ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Rubrics Created:</span>
+              <span className="text-gray-800 flex-1">{assignment.rubrics?.length || 0}</span>
+            </div>
+            {assignment.rubrics && assignment.rubrics.length > 0 && (
+              <div className="mt-2.5 flex flex-col gap-2">
+                {assignment.rubrics.map((rubric) => (
+                  <div key={rubric.id} className="p-2 px-3 bg-white border border-gray-300 rounded text-sm">
+                    <span>Rubric #{rubric.id}</span>
+                    <span>{rubric.canComment ? " (Comments enabled)" : " (Comments disabled)"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
 
       {assignment.review_count !== undefined && (
-        <div className="assignment-settings-section">
-          <h3>Progress Statistics</h3>
-          <div className="detail-row">
-            <span className="detail-label">Total Reviews:</span>
-            <span className="detail-value">{assignment.review_count}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Total Groups:</span>
-            <span className="detail-value">{assignment.group_count || 0}</span>
-          </div>
-        </div>
+        <Card className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-5">
+          <CardHeader>
+            <CardTitle>Progress Statistics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Total Reviews:</span>
+                <span className="text-gray-800 flex-1">{assignment.review_count}</span>
+              </div>
+              <div className="flex gap-2.5 py-2 border-b border-gray-200">
+                <span className="font-semibold text-gray-600 min-w-[120px]">Total Groups:</span>
+                <span className="text-gray-800 flex-1">{assignment.group_count || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="assignment-settings-section danger-zone">
-        <h3>Danger Zone</h3>
-        <p>Deleting an assignment will permanently remove it and all associated data.</p>
-        <Button onClick={handleDelete} disabled={isLoading}>
-          {isLoading ? "Deleting..." : "Delete Assignment"}
-        </Button>
-      </div>
+      <Card className="border-red-500 bg-red-50 rounded-lg p-5 mb-5">
+        <CardHeader>
+          <CardTitle className="text-red-500">Danger Zone</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4">Deleting an assignment will permanently remove it and all associated data.</p>
+          <Button variant="destructive" onClick={handleDelete} disabled={isLoading}>
+            {isLoading ? "Deleting..." : "Delete Assignment"}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

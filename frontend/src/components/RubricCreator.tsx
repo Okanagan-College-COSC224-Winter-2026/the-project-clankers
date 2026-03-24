@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
-import Button from './Button';
 import StatusMessage from './StatusMessage';
 import { createCriteria, createRubric, getRubric, getCriteria, deleteCriteria } from '../util/api';
-import './RubricCreator.css';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface RubricCreatorProps {
     onRubricCreated?: (rubricId: number) => void;
@@ -11,7 +15,6 @@ interface RubricCreatorProps {
 
 export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProps) {
     const [newCriteria, setNewCriteria] = useState<Criterion[]>([{ rubricID: 0, question: '', scoreMax: 0, hasScore: true, description: '' }]);
-    const [canComment, setCanComment] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
     const [statusType, setStatusType] = useState<'error' | 'success'>('error');
     const [rubricId, setRubricId] = useState<number | null>(null);
@@ -26,8 +29,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                 const rubricResp = await getRubric(id, true); // true = use as assignmentID
                 if (rubricResp && rubricResp.id) {
                     setRubricId(rubricResp.id);
-                    setCanComment(rubricResp.canComment || false);
-                    
+
                     // Load existing criteria
                     const criteriaResp = await getCriteria(rubricResp.id);
                     if (criteriaResp && criteriaResp.length > 0) {
@@ -42,29 +44,29 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                 setIsLoading(false);
             }
         };
-        
+
         loadExistingRubric();
     }, [id]);
 
     const handleCreate = async () => {
         try {
             setStatusMessage('');
-            
+
             // Create or get existing rubric
             let targetRubricId = rubricId;
             if (!targetRubricId) {
-                const rubricResponse = await createRubric(id, id, canComment);
+                const rubricResponse = await createRubric(id, id, false);
                 targetRubricId = rubricResponse.id;
                 setRubricId(targetRubricId);
             }
-            
+
             // Only create criteria for NEW entries (not existing ones)
             if (newCriteria.length > 0 && newCriteria[0].question !== '') {
-                await Promise.all(newCriteria.map(({ question, scoreMax, hasScore, description }) => 
-                    createCriteria(targetRubricId, question, scoreMax, canComment, hasScore, description || '')
+                await Promise.all(newCriteria.map(({ question, scoreMax, hasScore, description }) =>
+                    createCriteria(targetRubricId, question, scoreMax, false, hasScore, description || '')
                 ));
             }
-            
+
             setStatusType('success');
             setStatusMessage('Rubric saved successfully!');
             setTimeout(() => window.location.reload(), 1500);
@@ -113,20 +115,20 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         if (!window.confirm('Are you sure you want to delete this criterion? This will affect all existing reviews.')) {
             return;
         }
-        
+
         try {
             setStatusMessage('Deleting criterion...');
             setStatusType('success');
-            
+
             console.log('Attempting to delete criteria ID:', criteriaId);
             await deleteCriteria(criteriaId);
-            
+
             // Remove from local state
             setExistingCriteria(prev => prev.filter(c => c.id !== criteriaId));
-            
+
             setStatusType('success');
             setStatusMessage('Criterion deleted successfully!');
-            
+
             // Clear message after 3 seconds
             setTimeout(() => setStatusMessage(''), 3000);
         } catch (error) {
@@ -142,102 +144,94 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
     };
 
     return (
-        <div className="RubricCreator">
-            <h2>{rubricId ? 'Manage Rubric Criteria' : 'Create New Rubric'}</h2>
+        <Card className="my-5">
+            <CardHeader>
+                <CardTitle>{rubricId ? 'Manage Rubric Criteria' : 'Create New Rubric'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <StatusMessage message={statusMessage} type={statusType} />
 
-            <StatusMessage message={statusMessage} type={statusType} />
-
-            {isLoading ? (
-                <p>Loading rubric...</p>
-            ) : (
-                <>
-                    <label className="comment-checkbox">
-                        Reviewer can comment:
-                        <input
-                            type="checkbox"
-                            checked={canComment}
-                            onChange={() => setCanComment(prev => !prev)}
-                        />
-                    </label>
-
-                    {/* Show existing criteria */}
-                    {existingCriteria.length > 0 && (
-                        <div className="existing-criteria-section">
-                            <h3>Existing Criteria</h3>
-                            {existingCriteria.map((item, index) => (
-                                <div key={item.id || index} className="criteria-display-section">
-                                    <div className="criteria-display-content">
-                                        <strong>{item.question}</strong>
-                                        {item.hasScore && <span> (Max score: {item.scoreMax})</span>}
-                                        {!item.hasScore && <span> (Comment only)</span>}
+                {isLoading ? (
+                    <p>Loading rubric...</p>
+                ) : (
+                    <>
+                        {/* Show existing criteria */}
+                        {existingCriteria.length > 0 && (
+                            <div className="bg-blue-50 p-4 rounded border-l-4 border-blue-500 mb-5">
+                                <h3 className="font-semibold mb-2">Existing Criteria</h3>
+                                {existingCriteria.map((item, index) => (
+                                    <div key={item.id || index} className="p-2.5 my-1 bg-white rounded flex justify-between items-center gap-2.5">
+                                        <div>
+                                            <strong>{item.question}</strong>
+                                            {item.hasScore && <span> (Max score: {item.scoreMax})</span>}
+                                            {!item.hasScore && <span> (Comment only)</span>}
+                                        </div>
+                                        <div>
+                                            <Button
+                                                onClick={() => handleDeleteExistingCriteria(item.id!)}
+                                                variant="destructive"
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="delete-button-wrapper">
-                                        <Button 
-                                            onClick={() => handleDeleteExistingCriteria(item.id!)}
-                                            type="secondary"
-                                        >
-                                            Delete
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
 
-                    {/* Add new criteria */}
-                    <h3>{rubricId ? 'Add More Criteria' : 'Create Criteria'}</h3>
-                    {newCriteria.map((item, index) => (
-                        <div key={index} className="criteria-input-section">
-                            <input
-                                type="text"
-                                value={item.question}
-                                onChange={(e) => handleQuestionChange(index, e.target.value)}
-                                placeholder="Enter question"
-                            />
-                            <label>
-                                Has score:
-                                <input
-                                    type="checkbox"
-                                    checked={item.hasScore}
-                                    onChange={(e) => handleHasScoreChange(index, e.target.checked)}
+                        {/* Add new criteria */}
+                        <h3 className="font-semibold mb-2">{rubricId ? 'Add More Criteria' : 'Create Criteria'}</h3>
+                        {newCriteria.map((item, index) => (
+                            <div key={index} className="flex gap-2.5 items-center mb-4 p-2.5 bg-white rounded shadow-sm">
+                                <Input
+                                    type="text"
+                                    value={item.question}
+                                    onChange={(e) => handleQuestionChange(index, e.target.value)}
+                                    placeholder="Enter question"
                                 />
-                            </label>
-                            {item.hasScore && (
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={item.scoreMax}
-                                    onChange={(e) => handleScoreMaxChange(index, Number(e.target.value))}
-                                    placeholder="Enter score max"
-                                />
-                            )}
-                            {!item.hasScore && (
-                                <textarea
-                                    value={item.description || ''}
-                                    onChange={(e) => handleDescriptionChange(index, e.target.value)}
-                                    placeholder="Enter description (visible to all students)"
-                                    rows={2}
-                                    style={{ width: '100%', marginTop: '8px' }}
-                                />
-                            )}
-                            <Button onClick={() => handleRemoveSection(index)}>Remove</Button>
-                        </div>
-                    ))}
+                                <Label className="flex items-center gap-1">
+                                    Has score:
+                                    <Checkbox
+                                        checked={item.hasScore}
+                                        onCheckedChange={(checked) => handleHasScoreChange(index, checked === true)}
+                                    />
+                                </Label>
+                                {item.hasScore && (
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={item.scoreMax}
+                                        onChange={(e) => handleScoreMaxChange(index, Number(e.target.value))}
+                                        placeholder="Enter score max"
+                                        className="w-32"
+                                    />
+                                )}
+                                {!item.hasScore && (
+                                    <Textarea
+                                        value={item.description || ''}
+                                        onChange={(e) => handleDescriptionChange(index, e.target.value)}
+                                        placeholder="Enter description (visible to all students)"
+                                        rows={2}
+                                        className="w-full mt-2"
+                                    />
+                                )}
+                                <Button variant="outline" onClick={() => handleRemoveSection(index)}>Remove</Button>
+                            </div>
+                        ))}
 
-                    <div className="button-group">
-                        <Button onClick={handleAddNewSection}>Add New Criterion</Button>
-                        <div className="primary-button-wrapper">
+                        <div className="flex gap-2.5 mt-5">
+                            <Button variant="outline" onClick={handleAddNewSection}>Add New Criterion</Button>
                             <Button onClick={handleCreate}>
                                 {rubricId ? 'Save Changes' : 'Create Rubric'}
                             </Button>
                         </div>
-                    </div>
 
-                    <p className="help-text">
-                        ⚠️ Click "{rubricId ? 'Save Changes' : 'Create Rubric'}" to save your criteria to the database.
-                    </p>
-                </>
-            )}
-        </div>
+                        <p className="mt-4 p-2.5 bg-amber-50 border border-amber-400 rounded text-amber-800 font-medium">
+                            Click "{rubricId ? 'Save Changes' : 'Create Rubric'}" to save your criteria to the database.
+                        </p>
+                    </>
+                )}
+            </CardContent>
+        </Card>
     );
-} 
+}

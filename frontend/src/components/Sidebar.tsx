@@ -1,34 +1,43 @@
 import { logout } from '../util/login'
-import './Sidebar.css'
+import { cn } from '@/lib/utils'
+import { LogOut, Home, User } from 'lucide-react'
 
 export default function Sidebar() {
-  // Check which page we are on
   const location = window.location.pathname
 
   return (
-    <div className="Sidebar">
-      <div className="SidebarLogo">
-        <img src="/oc_logo.png" alt="OC Logo" />
+    <aside className="flex h-screen w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
+      <div className="flex h-16 items-center justify-center border-b px-4">
+        <img src="/oc_logo.png" alt="OC Logo" className="h-10 object-contain" />
       </div>
 
-      <div className="SidebarTop">
+      <nav className="flex flex-1 flex-col gap-1 p-3">
         <SidebarRow
           onClick={() => logout()}
-          href='#'
+          href="#"
           selected={false}
+          icon={<LogOut className="h-4 w-4" />}
         >
           Logout
         </SidebarRow>
 
-        <SidebarRow selected={location === '/home'} href="/home">
+        <SidebarRow
+          selected={location === '/home'}
+          href="/home"
+          icon={<Home className="h-4 w-4" />}
+        >
           Dashboard
         </SidebarRow>
-        
-        <SidebarRow selected={location.includes('/profile')} href="/profile">
+
+        <SidebarRow
+          selected={location.includes('/profile')}
+          href="/profile"
+          icon={<User className="h-4 w-4" />}
+        >
           My Info
         </SidebarRow>
-      </div>
-    </div>
+      </nav>
+    </aside>
   )
 }
 
@@ -37,12 +46,23 @@ interface SidebarRowProps {
   href: string
   children: React.ReactNode
   onClick?: () => void
+  icon?: React.ReactNode
 }
 
 function SidebarRow(props: SidebarRowProps) {
   return (
-    <div className={`SidebarRow ${props.selected ? 'selected' : ''}`} onClick={props.onClick}>
-      <a href={props.selected ? '#' : props.href}>{props.children}</a>
-    </div>
+    <a
+      href={props.selected ? '#' : props.href}
+      onClick={props.onClick}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+        props.selected
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+      )}
+    >
+      {props.icon}
+      {props.children}
+    </a>
   )
 }

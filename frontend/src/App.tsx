@@ -2,8 +2,6 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Sidebar from "./components/Sidebar";
-
-import "./App.css";
 import Profile from "./pages/Profile";
 import CreateClass from "./pages/CreateClass";
 import LoginPage from "./pages/LoginPage";
@@ -25,9 +23,9 @@ function AppContent() {
   const noSidebarPaths = ["/", "/login", "/register", "/change-password"];
 
   return (
-    <div className="App">
+    <div className="flex h-screen bg-background">
       {!noSidebarPaths.includes(location.pathname) && <Sidebar />}
-      <div className="inner">
+      <main className="flex flex-1 flex-col overflow-auto">
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -141,7 +139,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
         </Routes>
-      </div>
+      </main>
     </div>
   );
 }

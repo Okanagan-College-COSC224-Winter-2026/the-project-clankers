@@ -1,13 +1,20 @@
 import { useParams, Link } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
-import { useEffect, useState, useCallback, useRef } from "react";
-import Button from "../components/Button";
+import { useEffect, useState, useCallback } from "react";
 import StatusMessage from "../components/StatusMessage";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { getAssignmentDetails, listClasses } from "../util/api";
 import { isTeacher } from "../util/login";
-import "./ClassGroupManagement.css";
-import "./Assignment.css";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Shuffle, Users, UserPlus } from "lucide-react";
 
 interface CourseGroup {
   id: number;
@@ -27,10 +34,7 @@ export default function AssignmentGroups() {
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<"error" | "success">("success");
   const [loading, setLoading] = useState(true);
-  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const isCreating = useRef(false);
-  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
     message: string;
@@ -39,23 +43,13 @@ export default function AssignmentGroups() {
     onConfirm: () => void;
   } | null>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
   const [assignmentName, setAssignmentName] = useState<string>("");
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseName, setCourseName] = useState<string>("");
 
   const loadGroups = useCallback(async () => {
     if (!courseId) return;
-    
+
     try {
       const response = await fetch(`http://localhost:5000/classes/${courseId}/groups`, {
         credentials: "include",
@@ -63,7 +57,7 @@ export default function AssignmentGroups() {
       if (response.ok) {
         const data = await response.json();
         setGroups(data);
-        
+
         // Load members for each group
         const membersMap = new Map();
         for (const group of data) {
@@ -86,7 +80,7 @@ export default function AssignmentGroups() {
 
   const loadUnassignedStudents = useCallback(async () => {
     if (!courseId) return;
-    
+
     try {
       const response = await fetch(`http://localhost:5000/classes/${courseId}/members/unassigned`, {
         credentials: "include",
@@ -133,18 +127,13 @@ export default function AssignmentGroups() {
   }, [courseId, loadData]);
 
   const showStatus = (message: string, type: "error" | "success") => {
-    // Cancel any pending clear timeout
-    if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
-    setStatusMessage("");
-    setTimeout(() => {
-      setStatusMessage(message);
-      setStatusType(type);
-    }, 0);
-    statusTimeoutRef.current = setTimeout(() => setStatusMessage(""), 4100);
+    setStatusMessage(message);
+    setStatusType(type);
+    setTimeout(() => setStatusMessage(""), 4100);
   };
 
   const createGroup = async () => {
-    if (isCreating.current) return;
+    if (isCreating) return;
 
     if (!newGroupName.trim()) {
       showStatus("Group name cannot be empty", "error");
@@ -162,7 +151,7 @@ export default function AssignmentGroups() {
       return;
     }
 
-    isCreating.current = true;
+    setIsCreating(true);
     try {
       const response = await fetch(`http://localhost:5000/classes/${courseId}/groups`, {
         method: "POST",
@@ -183,7 +172,7 @@ export default function AssignmentGroups() {
       console.error("Error creating group:", error);
       showStatus("Error creating group", "error");
     } finally {
-      isCreating.current = false;
+      setIsCreating(false);
     }
   };
 
@@ -226,7 +215,7 @@ export default function AssignmentGroups() {
 
   const deleteGroupHandler = async (groupId: number) => {
     if (!courseId) return;
-    
+
     setConfirmDialog({
       title: 'Delete Group',
       message: 'Are you sure you want to delete this group? Members will become unassigned.',
@@ -257,7 +246,7 @@ export default function AssignmentGroups() {
 
   const addMemberToGroup = async (userId: number, groupId: number) => {
     if (!courseId) return;
-    
+
     try {
       const response = await fetch(
         `http://localhost:5000/classes/${courseId}/groups/${groupId}/members`,
@@ -284,7 +273,7 @@ export default function AssignmentGroups() {
 
   const removeMemberFromGroup = async (userId: number, groupId: number) => {
     if (!courseId) return;
-    
+
     try {
       const response = await fetch(
         `http://localhost:5000/classes/${courseId}/groups/${groupId}/members/${userId}`,
@@ -408,23 +397,25 @@ export default function AssignmentGroups() {
   };
 
   if (loading && groups.length === 0) {
-    return <div style={{ padding: "20px" }}>Loading groups...</div>;
+    return <div className="p-5">Loading groups...</div>;
   }
 
   return (
     <>
       {courseId && (
-        <div className="assignment-breadcrumb">
-          <Link to={`/classes/${courseId}/home`}>← {courseName || "Back to class"}</Link>
+        <div className="py-2 px-3">
+          <Link to={`/classes/${courseId}/home`} className="text-muted-foreground no-underline text-sm hover:text-foreground">
+            ← {courseName || "Back to class"}
+          </Link>
         </div>
       )}
-      <div className="AssignmentHeader">
+      <div className="flex flex-row justify-between items-center px-3 pb-3">
         <h2>{assignmentName || "Loading..."}</h2>
       </div>
 
       <TabNavigation
         tabs={
-          isTeacher() 
+          isTeacher()
             ? [
                 {
                   label: "Home",
@@ -470,41 +461,56 @@ export default function AssignmentGroups() {
 
       {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}
 
-      <div className="group-management-container">
-        <div className="unassigned-section">
-          <h3>Unassigned Students ({unassignedStudents.length})</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 max-w-7xl mx-auto">
+        {/* Unassigned Students Panel */}
+        <div className="bg-background rounded-xl p-5 border shadow-sm h-[72vh] lg:h-[72vh] max-h-[60vh] lg:max-h-none flex flex-col transition-shadow hover:shadow-md">
+          <h3 className="m-0 mb-3 text-foreground text-sm font-semibold tracking-tight">
+            Unassigned Students ({unassignedStudents.length})
+          </h3>
           {isTeacher() && unassignedStudents.length > 0 && groups.length > 0 && (
             <button
               onClick={randomizeGroups}
-              className="randomize-btn"
+              className="px-3.5 py-1.5 text-sm bg-primary text-primary-foreground border-none rounded-md cursor-pointer font-semibold mb-3 hover:brightness-110 active:scale-[0.97] transition-all w-full sm:w-auto"
             >
               Randomize Groups
             </button>
           )}
-          <div className="student-list">
+          <div className="flex flex-col flex-1 overflow-y-auto min-h-0 -mx-5 px-5">
             {unassignedStudents.length === 0 ? (
-              <p className="empty-message">All students are assigned to groups</p>
+              <p className="text-center text-muted-foreground italic py-8 px-4 m-0 text-sm opacity-70">
+                All students are assigned to groups
+              </p>
             ) : (
               unassignedStudents.map((student) => (
-                <div key={student.id} className="student-card">
-                  <div className="student-info">
-                    <strong>{student.name}</strong>
-                    <span className="student-email">{student.email}</span>
+                <div
+                  key={student.id}
+                  className="flex justify-between items-center px-3 py-2.5 border-b border-border/60 gap-4 rounded-md transition-colors hover:bg-muted/50 last:border-b-0 flex-wrap sm:flex-nowrap"
+                >
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <strong className="text-sm font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                      {student.name}
+                    </strong>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                      {student.email}
+                    </span>
                   </div>
                   {isTeacher() && groups.length > 0 && (
-                    <div className="student-actions" ref={openDropdown === student.id ? dropdownRef : null}>
+                    <div
+                      className="shrink-0 relative w-full sm:w-auto"
+                      ref={openDropdown === student.id ? dropdownRef : null}
+                    >
                       <button
-                        className="group-dropdown-trigger"
+                        className="px-3 py-1.5 border border-border rounded-md bg-background text-xs cursor-pointer text-muted-foreground font-inherit whitespace-nowrap transition-all hover:border-muted-foreground hover:text-foreground hover:shadow-sm focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1 w-full sm:w-auto text-center sm:text-left"
                         onClick={() => setOpenDropdown(openDropdown === student.id ? null : student.id)}
                       >
                         Add to group ▾
                       </button>
                       {openDropdown === student.id && (
-                        <div className="group-dropdown-menu">
+                        <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-[160px] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                           {groups.map((group) => (
                             <button
                               key={group.id}
-                              className="group-dropdown-item"
+                              className="block w-full px-3.5 py-2 border-none bg-transparent text-sm text-foreground cursor-pointer text-left font-inherit transition-colors hover:bg-muted/60 active:bg-muted"
                               onClick={() => {
                                 addMemberToGroup(student.id, group.id);
                                 setOpenDropdown(null);
@@ -523,36 +529,45 @@ export default function AssignmentGroups() {
           </div>
         </div>
 
-        <div className="groups-section">
-          <div className="groups-header">
-            <h3>Groups ({groups.length})</h3>
+        {/* Groups Panel */}
+        <div className="bg-background rounded-xl p-5 border shadow-sm h-auto lg:h-[72vh] max-h-[60vh] lg:max-h-none flex flex-col transition-shadow hover:shadow-md">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 flex-wrap gap-2">
+            <h3 className="m-0 text-foreground text-sm font-semibold tracking-tight">
+              Groups ({groups.length})
+            </h3>
             {isTeacher() && (
-              <div className="create-group">
+              <div className="flex gap-2 items-center w-full sm:w-auto">
                 <input
                   type="text"
                   placeholder="New group name"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && createGroup()}
+                  className="py-1.5 px-3 border border-border rounded-md text-sm w-full sm:w-[150px] font-inherit text-foreground bg-background transition-all placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <Button onClick={createGroup} disabled={isCreating.current}>Create Group</Button>
               </div>
             )}
           </div>
 
-          <div className="groups-list">
+          <div className="flex flex-col flex-1 overflow-y-auto min-h-0 -mx-5 px-5">
             {groups.length === 0 ? (
-              <p className="empty-message">No groups created yet</p>
+              <p className="text-center text-muted-foreground italic py-8 px-4 m-0 text-sm opacity-70">
+                No groups created yet
+              </p>
             ) : (
               groups.map((group) => {
                 const members = groupMembers.get(group.id) || [];
                 const isEditing = editingGroupId === group.id;
 
                 return (
-                  <div key={group.id} className="group-card">
-                    <div className="group-header">
+                  <div
+                    key={group.id}
+                    className="border border-border rounded-lg p-4 mb-2.5 transition-all hover:shadow-sm hover:border-muted-foreground"
+                  >
+                    <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-border/60">
                       {isEditing ? (
-                        <div className="group-edit">
+                        <div className="flex gap-1.5 flex-1">
                           <input
                             type="text"
                             value={editingGroupName}
@@ -561,29 +576,41 @@ export default function AssignmentGroups() {
                               e.key === "Enter" && renameGroup(group.id, editingGroupName)
                             }
                             autoFocus
+                            className="flex-1 py-1.5 px-2.5 border border-border rounded-md text-sm font-inherit text-foreground bg-background transition-all placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                           />
-                          <button onClick={() => renameGroup(group.id, editingGroupName)}>
+                          <button
+                            onClick={() => renameGroup(group.id, editingGroupName)}
+                            className="py-1.5 px-2.5 border-none rounded-md cursor-pointer text-sm min-w-[30px] transition-all active:scale-95 bg-primary text-primary-foreground hover:brightness-90"
+                          >
                             ✓
                           </button>
-                          <button onClick={() => { setEditingGroupId(null); setEditingGroupName(""); }}>
+                          <button
+                            onClick={() => { setEditingGroupId(null); setEditingGroupName(""); }}
+                            className="py-1.5 px-2.5 border-none rounded-md cursor-pointer text-sm min-w-[30px] transition-all active:scale-95 bg-secondary text-secondary-foreground hover:brightness-85"
+                          >
                             ✕
                           </button>
                         </div>
                       ) : (
                         <>
-                          <h4>{group.name} ({members.length})</h4>
+                          <h4 className="m-0 text-foreground text-sm font-semibold">
+                            {group.name} ({members.length})
+                          </h4>
                           {isTeacher() && (
-                            <div className="group-actions">
+                            <div className="flex gap-1.5">
                               <button
                                 onClick={() => {
                                   setEditingGroupId(group.id);
                                   setEditingGroupName(group.name);
                                 }}
-                                className="edit-btn"
+                                className="py-1.5 px-3 border-none rounded-md text-xs font-medium cursor-pointer transition-all active:scale-[0.97] bg-primary text-primary-foreground hover:brightness-90"
                               >
                                 Edit
                               </button>
-                              <button onClick={() => deleteGroupHandler(group.id)} className="delete-btn">
+                              <button
+                                onClick={() => deleteGroupHandler(group.id)}
+                                className="py-1.5 px-3 border-none rounded-md text-xs font-medium cursor-pointer transition-all active:scale-[0.97] bg-destructive text-destructive-foreground hover:brightness-90"
+                              >
                                 Delete
                               </button>
                             </div>
@@ -592,20 +619,29 @@ export default function AssignmentGroups() {
                       )}
                     </div>
 
-                    <div className="group-members">
+                    <div className="flex flex-col">
                       {members.length === 0 ? (
-                        <p className="empty-message">No members in this group</p>
+                        <p className="text-center text-muted-foreground italic py-8 px-4 m-0 text-sm opacity-70">
+                          No members in this group
+                        </p>
                       ) : (
                         members.map((member) => (
-                          <div key={member.id} className="member-card">
-                            <div className="member-info">
-                              <strong>{member.name}</strong>
-                              <span className="member-email">{member.email}</span>
+                          <div
+                            key={member.id}
+                            className="flex justify-between items-center px-3 py-2 border-b border-border/60 gap-4 rounded-md transition-colors hover:bg-muted/50 last:border-b-0"
+                          >
+                            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                              <strong className="text-sm font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                                {member.name}
+                              </strong>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                                {member.email}
+                              </span>
                             </div>
                             {isTeacher() && (
                               <button
                                 onClick={() => removeMemberFromGroup(member.id, group.id)}
-                                className="remove-btn"
+                                className="py-1 px-2.5 border-none rounded-md text-xs font-medium cursor-pointer transition-all active:scale-[0.97] bg-secondary text-secondary-foreground hover:brightness-85"
                               >
                                 Remove
                               </button>
