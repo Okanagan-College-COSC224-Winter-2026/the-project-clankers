@@ -112,6 +112,59 @@ def update_user_role(user_id):
     )
 
 
+@bp.route("/users/<int:user_id>", methods=["PUT"])
+@jwt_admin_required
+def update_user(user_id):
+    """Update user details (name, email, role) - admin only"""
+    if not request.is_json:
+        return jsonify({"msg": "Missing JSON in request"}), 400
+
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Get current user for permission checks
+    current_email = get_jwt_identity()
+    current_user = User.get_by_email(current_email)
+
+    # Extract optional fields
+    name = request.json.get("name", None)
+    email = request.json.get("email", None)
+    role = request.json.get("role", None)
+
+    # Update name if provided
+    if name is not None and name != "":
+        user.name = name
+
+    # Update email if provided
+    if email is not None and email != "":
+        # Check if email is already taken by another user
+        existing_user = User.get_by_email(email)
+        if existing_user and existing_user.id != user_id:
+            return jsonify({"msg": f"Email {email} is already in use"}), 400
+        user.email = email
+
+    # Update role if provided
+    if role is not None:
+        # Validate role
+        if role not in ["student", "teacher", "admin"]:
+            return jsonify({"msg": "Invalid role. Must be 'student', 'teacher', or 'admin'"}), 400
+
+        # Prevent self-demotion from admin
+        if current_user.id == user_id and role != "admin":
+            return jsonify({"msg": "Cannot demote yourself from admin role"}), 400
+
+        user.role = role
+
+    # Save changes
+    user.update()
+
+    return jsonify({
+        "msg": "User updated successfully",
+        "user": UserSchema().dump(user)
+    }), 200
+
+
 @bp.route("/users/<int:user_id>", methods=["DELETE"])
 @jwt_admin_required
 def delete_user(user_id):

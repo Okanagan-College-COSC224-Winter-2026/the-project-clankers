@@ -19,6 +19,7 @@ import Group from "./pages/Group";
 import RegisterPage from "./pages/RegisterPage";
 import ChangePassword from "./pages/ChangePassword";
 import CreateTeacher from "./pages/CreateTeacher";
+import ManageUsers from "./pages/ManageUsers";
 
 function AppContent() {
   const location = useLocation();
@@ -42,6 +43,12 @@ function AppContent() {
           <Route path="/admin/create-teacher" element={
             <ProtectedRoute>
               <CreateTeacher />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/users" element={
+            <ProtectedRoute>
+              <ManageUsers />
             </ProtectedRoute>
           } />
 

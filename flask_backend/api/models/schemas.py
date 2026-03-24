@@ -10,7 +10,6 @@ from .db import db, ma
 from .group_members_model import Group_Members
 from .review_model import Review
 from .rubric_model import Rubric
-from .student_submission_model import StudentSubmission
 from .submission_model import Submission
 from .user_course_model import User_Course
 from .user_model import User
@@ -109,7 +108,7 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Assignment
         load_instance = True
-        include_fk = True  # Include courseID for assignment → course navigation
+        include_fk = False
         sqla_session = db.session
 
     course = fields.Nested(CourseListSchema, dump_only=True)
@@ -121,27 +120,10 @@ class AssignmentFileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = AssignmentFile
         load_instance = True
-        include_fk = True
+        include_fk = False
         sqla_session = db.session
 
-    uploaded_at = fields.DateTime(dump_only=True)
-
-
-class StudentSubmissionSchema(ma.SQLAlchemyAutoSchema):
-    """Schema for student submissions"""
-
-    class Meta:
-        model = StudentSubmission
-        load_instance = True
-        include_fk = True
-        sqla_session = db.session
-
-    submitted_at = fields.DateTime(dump_only=True)
-    student_name = fields.Method("get_student_name")
-
-    def get_student_name(self, obj):
-        """Get the student's name for display"""
-        return obj.student.name if obj.student else "Unknown"
+    uploader = fields.Nested(UserListSchema, dump_only=True)
 
 
 # ============================================================
@@ -225,7 +207,7 @@ class CourseGroupSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = CourseGroup
         load_instance = True
-        include_fk = True  # Include courseID
+        include_fk = False
         sqla_session = db.session
 
 

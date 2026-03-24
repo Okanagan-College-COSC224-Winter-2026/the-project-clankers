@@ -39,7 +39,6 @@ export default function ClassMembers() {
   const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
   const [isUploadingRoster, setIsUploadingRoster] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [userGroups, setUserGroups] = useState<Map<number, string>>(new Map());
 
   const loadMembers = useCallback(async () => {
     const members = await listCourseMembers(id as string)
@@ -47,33 +46,6 @@ export default function ClassMembers() {
     const currentClass = classes.find((c: { id: number }) => c.id === Number(id));
     setMembers(members)
     setClassName(currentClass?.name || null);
-
-    // Load groups and create user -> group mapping
-    try {
-      const groupsResp = await fetch(`http://localhost:5000/classes/${id}/groups`, {
-        credentials: "include",
-      });
-      if (groupsResp.ok) {
-        const groups = await groupsResp.json();
-        const mapping = new Map<number, string>();
-        
-        for (const group of groups) {
-          const membersResp = await fetch(
-            `http://localhost:5000/classes/${id}/groups/${group.id}/members`,
-            { credentials: "include" }
-          );
-          if (membersResp.ok) {
-            const groupMembers = await membersResp.json();
-            groupMembers.forEach((member: User) => {
-              mapping.set(member.id, group.name);
-            });
-          }
-        }
-        setUserGroups(mapping);
-      }
-    } catch (error) {
-      console.error("Error loading groups:", error);
-    }
   }, [id]);
 
   useEffect(() => {
@@ -107,7 +79,9 @@ export default function ClassMembers() {
   return (
     <>
       <div className="ClassHeader">
-        <h2>{className}</h2>
+        <div className="ClassHeaderLeft">
+          <h2>{className}</h2>
+        </div>
 
         <div className="ClassHeaderRight">
           {isTeacher() ? (
@@ -119,37 +93,16 @@ export default function ClassMembers() {
       </div>
 
       <TabNavigation
-        tabs={
-          isTeacher()
-            ? [
-                {
-                  label: "Home",
-                  path: `/classes/${id}/home`,
-                },
-                {
-                  label: "Members",
-                  path: `/classes/${id}/members`,
-                },
-                {
-                  label: "Groups",
-                  path: `/classes/${id}/groups`,
-                },
-                {
-                  label: "Student Submissions",
-                  path: `/classes/${id}/student-submissions`,
-                },
-              ]
-            : [
-                {
-                  label: "Home",
-                  path: `/classes/${id}/home`,
-                },
-                {
-                  label: "Members",
-                  path: `/classes/${id}/members`,
-                },
-              ]
-        }
+        tabs={[
+          {
+            label: "Home",
+            path: `/classes/${id}/home`,
+          },
+          {
+            label: "Members",
+            path: `/classes/${id}/members`,
+          },
+        ]}
       />
 
       {rosterResult && (
@@ -190,7 +143,6 @@ export default function ClassMembers() {
               );
             };
 
-            const groupName = userGroups.get(member.id);
             return (
               <div key={member.id} className="Member">
                 <div className="MemberContent">
@@ -203,24 +155,10 @@ export default function ClassMembers() {
                     <div className="MemberNameRow">
                       <strong>{member.name}</strong>
                       {getRoleBadge(member.role)}
-                      {groupName && (
-                        <span style={{ 
-                          marginLeft: '8px',
-                          padding: '2px 8px',
-                          backgroundColor: '#e5e7eb',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          color: '#374151'
-                        }}>
-                          Group: {groupName}
-                        </span>
-                      )}
+                      <span> (ID: {member.student_id || 'NULL'})</span>
                     </div>
                     {member.email && (
-                      <span style={{ color: '#6b7280', fontSize: '14px' }}>
-                        {member.email}
-                        {member.student_id && <span> | Student ID: {member.student_id}</span>}
-                      </span>
+                      <span style={{ color: '#6b7280', fontSize: '14px' }}>{member.email}</span>
                     )}
                   </div>
                 </div>

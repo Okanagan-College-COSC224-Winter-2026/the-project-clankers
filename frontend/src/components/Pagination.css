@@ -1,0 +1,100 @@
+.Pagination {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  border-top: 1px solid var(--border-color, #ddd);
+}
+
+.Pagination-Info {
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+}
+
+.Pagination-Controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.Pagination-Button {
+  padding: 8px 16px;
+  background: var(--background-primary, #fff);
+  color: var(--text-primary, #000);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.Pagination-Button:hover:not(:disabled) {
+  background: var(--background-secondary, #f5f5f5);
+}
+
+.Pagination-Button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.Pagination-Pages {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.Pagination-PageButton {
+  min-width: 36px;
+  height: 36px;
+  padding: 8px;
+  background: var(--background-primary, #fff);
+  color: var(--text-primary, #000);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.Pagination-PageButton:hover {
+  background: var(--background-secondary, #f5f5f5);
+}
+
+.Pagination-PageButton.active {
+  background: var(--accent-color, #007bff);
+  color: white;
+  border-color: var(--accent-color, #007bff);
+  font-weight: 600;
+}
+
+.Pagination-Ellipsis {
+  padding: 0 8px;
+  color: var(--text-secondary, #666);
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 600px) {
+  .Pagination {
+    gap: 8px;
+  }
+
+  .Pagination-Controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .Pagination-Button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .Pagination-PageButton {
+    min-width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+}

@@ -51,9 +51,6 @@ interface Assignment {
   rubric?: string;
   start_date?: string;
   due_date?: string;
-  submission_type?: 'individual' | 'group';
-  internal_review?: boolean;
-  external_review?: boolean;
 }
 
 interface CourseWithAssignments extends Course {

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
 import './Profile.css'
-import { getCurrentUserProfile, getEnrolledCourses, getUserProfileById, uploadProfilePicture, getProfilePictureUrl } from '../util/api'
+import { getCurrentUserProfile, getEnrolledCourses, uploadProfilePicture, getProfilePictureUrl } from '../util/api'
 
 interface UserProfile {
   id: number
@@ -18,10 +17,8 @@ interface Course {
 }
 
 export default function Profile() {
-  const { id } = useParams()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
-  const [isOwnProfile, setIsOwnProfile] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditingPicture, setIsEditingPicture] = useState(false)
@@ -34,30 +31,15 @@ export default function Profile() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const currentUser = await getCurrentUserProfile()
-        const routeUserId = Number(id)
-        const hasValidRouteUserId = Number.isInteger(routeUserId) && routeUserId > 0
-        const targetUserId = hasValidRouteUserId ? routeUserId : currentUser.id
-        const viewingOwnProfile = targetUserId === currentUser.id
-
-        const profileData = viewingOwnProfile
-          ? currentUser
-          : await getUserProfileById(targetUserId)
-
+        const profileData = await getCurrentUserProfile()
         setProfile(profileData)
-        setIsOwnProfile(viewingOwnProfile)
-
-        if (viewingOwnProfile) {
-          const coursesData = await getEnrolledCourses()
-          setCourses(Array.isArray(coursesData) ? coursesData : [])
-        } else {
-          setCourses([])
-        }
+        
+        const coursesData = await getEnrolledCourses()
+        setCourses(Array.isArray(coursesData) ? coursesData : [])
         setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data')
         setProfile(null)
-        setIsOwnProfile(false)
         setCourses([])
       } finally {
         setLoading(false)
@@ -65,7 +47,7 @@ export default function Profile() {
     }
 
     fetchData()
-  }, [id])
+  }, [])
 
   const getProfileImageUrl = () => {
     return getProfilePictureUrl(profile?.profile_picture_url)
@@ -82,10 +64,10 @@ export default function Profile() {
       return
     }
 
-    // Validate file size (50MB max)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
-      setUpdateError('File is too large. Maximum size is 50MB.')
+      setUpdateError('File is too large. Maximum size is 5MB.')
       return
     }
 
@@ -101,11 +83,6 @@ export default function Profile() {
   }
 
   const handleUpdatePicture = async () => {
-    if (!isOwnProfile) {
-      setUpdateError('You can only update your own profile picture.')
-      return
-    }
-
     if (!selectedFile) {
       setUpdateError('Please select a file')
       return
@@ -166,14 +143,14 @@ export default function Profile() {
         <div className="profile-image">
           <img src={previewUrl || getProfileImageUrl()} alt="profile" />
         </div>
-        {isOwnProfile && !isEditingPicture ? (
+        {!isEditingPicture ? (
           <button 
             className="change-picture-btn" 
             onClick={() => setIsEditingPicture(true)}
           >
             Change Picture
           </button>
-        ) : isOwnProfile ? (
+        ) : (
           <div className="edit-picture-form">
             <input
               type="file"
@@ -203,7 +180,7 @@ export default function Profile() {
             </div>
             {updateError && <p className="update-error">{updateError}</p>}
           </div>
-        ) : null}
+        )}
       </div>
 
       <div className="profile-info">
@@ -236,14 +213,8 @@ export default function Profile() {
       </div>
 
       <div className="profile-enrolled-courses">
-        <h3>
-          {isOwnProfile
-            ? (profile.role === 'teacher' || profile.role === 'admin' ? 'My Courses' : 'Enrolled Courses')
-            : 'Courses'}
-        </h3>
-        {!isOwnProfile ? (
-          <p className="no-courses-message">Course list is only available on your own profile.</p>
-        ) : courses.length === 0 ? (
+        <h3>{profile.role === 'teacher' || profile.role === 'admin' ? 'My Courses' : 'Enrolled Courses'}</h3>
+        {courses.length === 0 ? (
           <p className="no-courses-message">
             {profile.role === 'teacher' 
               ? 'You are not currently teaching any courses.' 

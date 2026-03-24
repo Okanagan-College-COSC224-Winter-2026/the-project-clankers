@@ -1,4 +1,4 @@
-import { logout } from '../util/login'
+import { logout, isAdmin } from '../util/login'
 import './Sidebar.css'
 
 export default function Sidebar() {
@@ -23,10 +23,23 @@ export default function Sidebar() {
         <SidebarRow selected={location === '/home'} href="/home">
           Dashboard
         </SidebarRow>
-        
+
         <SidebarRow selected={location.includes('/profile')} href="/profile">
           My Info
         </SidebarRow>
+
+        {isAdmin() && (
+          <>
+            <div className="Sidebar-Divider" />
+            <div className="Sidebar-Section">Admin</div>
+            <SidebarRow selected={location.includes('/admin/users')} href="/admin/users">
+              Manage Users
+            </SidebarRow>
+            <SidebarRow selected={location.includes('/admin/create-teacher')} href="/admin/create-teacher">
+              Create Teacher
+            </SidebarRow>
+          </>
+        )}
       </div>
     </div>
   )

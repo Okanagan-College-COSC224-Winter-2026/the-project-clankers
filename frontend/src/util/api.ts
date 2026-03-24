@@ -734,17 +734,37 @@ export const createGroup = async(assignmentID: number, name: string, id: number)
   return await response.json();
 }
 
-// Admin - Create Teacher Account
-export const createTeacherAccount = async (name: string, email: string, password: string) => {
+// ================================
+// ADMIN API FUNCTIONS
+// ================================
+
+// Admin - Get All Users
+export const getAllUsers = async () => {
+  const response = await fetch(`${BASE_URL}/admin/users`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Admin - Create User
+export const createUser = async (
+  name: string,
+  email: string,
+  password: string,
+  role: string,
+  must_change_password: boolean = false
+) => {
   const response = await fetch(`${BASE_URL}/admin/users/create`, {
     method: 'POST',
-    body: JSON.stringify({ 
-      name, 
-      email, 
-      password,
-      role: 'teacher',
-      must_change_password: true
-    }),
+    body: JSON.stringify({ name, email, password, role, must_change_password }),
     headers: {
       'Content-Type': 'application/json',
     },
@@ -759,6 +779,52 @@ export const createTeacherAccount = async (name: string, email: string, password
   }
 
   return await response.json();
+}
+
+// Admin - Update User
+export const updateUser = async (
+  userId: number,
+  updates: { name?: string; email?: string; role?: string }
+) => {
+  const response = await fetch(`${BASE_URL}/admin/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Admin - Delete User
+export const deleteUser = async (userId: number) => {
+  const response = await fetch(`${BASE_URL}/admin/users/${userId}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Admin - Create Teacher Account (legacy wrapper for createUser)
+export const createTeacherAccount = async (name: string, email: string, password: string) => {
+  return createUser(name, email, password, 'teacher', true);
 }
 
 // User - Change Password
