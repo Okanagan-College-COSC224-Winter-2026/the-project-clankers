@@ -68,7 +68,7 @@ function PeerReviewModal({
             // Fetch criteria descriptions
             const criteriaData = await getCriteria(rubricData.id);
             setCriteria(criteriaData);
-            setGrades(new Array(criteriaData.length).fill(null));
+            setGrades(new Array(criteriaData.length).fill(0));
           } catch (error) {
             console.warn('No rubric found for assignment:', error);
             setCriteria([]);
@@ -174,13 +174,19 @@ function PeerReviewModal({
       const reviewData = await reviewResponse.json();
 
       if (reviewData.grades && reviewData.grades.length > 0) {
-        setGrades(reviewData.grades);
+        // Ensure grades array matches current criteria length
+        // If rubric was updated with new criteria, pad with 0s
+        const paddedGrades = [...reviewData.grades];
+        while (paddedGrades.length < criteria.length) {
+          paddedGrades.push(0);
+        }
+        setGrades(paddedGrades);
       } else {
-        setGrades(new Array(criteria.length).fill(null));
+        setGrades(new Array(criteria.length).fill(0));
       }
     } catch (error) {
       console.warn('No existing review found or error loading:', error);
-      setGrades(new Array(criteria.length).fill(null));
+      setGrades(new Array(criteria.length).fill(0));
     }
   };
 
@@ -230,17 +236,34 @@ function PeerReviewModal({
         const reviewData = await reviewResponse.json();
         const reviewId = reviewData.id;
 
+        // Refresh rubric to ensure we have latest criteria (in case teacher added new ones)
+        let currentCriteria = criteria;
+        let finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
+        try {
+          const freshRubric = await getRubric(assignmentId, true);
+          const freshCriteria = await getCriteria(freshRubric.id);
+          currentCriteria = freshCriteria;
+
+          // Pad grades array if rubric has grown
+          while (finalGrades.length < currentCriteria.length) {
+            finalGrades.push(0);
+          }
+          setGrades(finalGrades);
+        } catch (error) {
+          console.warn('Could not refresh rubric before submission, using cached criteria:', error);
+        }
+
         // Create criterion entries for each criterion with a grade (including 0)
-        for (let i = 0; i < criteria.length; i++) {
-          if (grades[i] !== null && grades[i] !== undefined && criteria[i].id) {
-            await createCriterion(reviewId, criteria[i].id!, grades[i], "");
+        for (let i = 0; i < currentCriteria.length; i++) {
+          if (finalGrades[i] !== null && finalGrades[i] !== undefined && currentCriteria[i].id) {
+            await createCriterion(reviewId, currentCriteria[i].id!, finalGrades[i], "");
           }
         }
 
         console.log('Review submitted successfully');
         // Reset and close
         setSelectedTarget(null);
-        setGrades(new Array(criteria.length).fill(null));
+        setGrades(new Array(criteria.length).fill(0));
         onClose();
 
         // Trigger refresh of submitted reviews
