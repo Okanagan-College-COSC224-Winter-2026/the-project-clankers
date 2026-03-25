@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./AssignmentFileDisplay.css";
 import { getAssignmentFiles, downloadAssignmentFile } from "../util/api";
 
@@ -13,7 +13,7 @@ interface AssignmentFileDisplayProps {
   assignmentId: number;
 }
 
-export default function AssignmentFileDisplay({ 
+export default function AssignmentFileDisplay({
   assignmentId
 }: AssignmentFileDisplayProps) {
   const [files, setFiles] = useState<AssignmentFile[]>([]);
@@ -21,11 +21,7 @@ export default function AssignmentFileDisplay({
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadingFileId, setDownloadingFileId] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadFiles();
-  }, [assignmentId]);
-
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     setIsLoading(true);
     try {
       const filesData = await getAssignmentFiles(assignmentId);
@@ -36,7 +32,11 @@ export default function AssignmentFileDisplay({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [assignmentId]);
+
+  useEffect(() => {
+    loadFiles();
+  }, [loadFiles]);
 
   const handleDownload = async (fileId: number, filename: string) => {
     setDownloadingFileId(fileId);

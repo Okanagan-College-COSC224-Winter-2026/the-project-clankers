@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
 import "./PeerReviews.css";
@@ -15,6 +15,31 @@ import {
   getCriteria,
   createCriterion
 } from "../util/api";
+
+interface Criterion {
+  id?: number;
+  question: string;
+  hasScore: boolean;
+  scoreMax: number;
+}
+
+interface GroupMember {
+  id: number;
+  name?: string;
+  email?: string;
+}
+
+interface CourseMember {
+  id: number;
+  name?: string;
+  email?: string;
+  role: string;
+}
+
+interface CourseGroup {
+  id: number;
+  name?: string;
+}
 
 interface PeerReviewModalProps {
   isOpen: boolean;
@@ -69,8 +94,8 @@ function PeerReviewModal({
             const criteriaData = await getCriteria(rubricData.id);
             setCriteria(criteriaData);
             setGrades(new Array(criteriaData.length).fill(0));
-          } catch (error) {
-            console.warn('No rubric found for assignment:', error);
+          } catch {
+            console.warn('No rubric found for assignment');
             setCriteria([]);
             setGrades([]);
           }
@@ -79,8 +104,8 @@ function PeerReviewModal({
           if (internalReviewEnabled && submissionType === 'group') {
             const groupData = await listStuGroup(assignmentId, currentUserId);
             const teammates = groupData
-              .filter((member: any) => member.id !== currentUserId)
-              .map((member: any) => ({
+              .filter((member: GroupMember) => member.id !== currentUserId)
+              .map((member: GroupMember) => ({
                 id: member.id,
                 name: member.name || `User ${member.id}`
               }));
@@ -95,18 +120,18 @@ function PeerReviewModal({
               for (const group of groups) {
                 try {
                   const members = await getGroupMembers(courseId, group.id);
-                  if (members.some((member: any) => member.id === currentUserId)) {
+                  if (members.some((member: GroupMember) => member.id === currentUserId)) {
                     userGroupId = group.id;
                     break;
                   }
-                } catch (error) {
+                } catch {
                   // Skip if error fetching members
                 }
               }
 
               const groupList = groups
-                .filter((group: any) => group.id !== userGroupId)
-                .map((group: any) => ({
+                .filter((group: CourseGroup) => group.id !== userGroupId)
+                .map((group: CourseGroup) => ({
                   id: group.id,
                   name: group.name || `Group ${group.id}`
                 }));
@@ -114,16 +139,16 @@ function PeerReviewModal({
             } else {
               const members = await listCourseMembers(String(courseId));
               const classmates = members
-                .filter((member: any) => member.id !== currentUserId && member.role === 'student')
-                .map((member: any) => ({
+                .filter((member: CourseMember) => member.id !== currentUserId && member.role === 'student')
+                .map((member: CourseMember) => ({
                   id: member.id,
                   name: member.name || member.email
                 }));
               setExternalTargets(classmates);
             }
           }
-        } catch (error) {
-          console.error('Error fetching review targets:', error);
+        } catch {
+          console.error('Error fetching review targets');
         } finally {
           setIsLoading(false);
         }
@@ -159,12 +184,12 @@ function PeerReviewModal({
         for (const group of groups) {
           try {
             const members = await getGroupMembers(courseId, group.id);
-            if (members.some((member: any) => member.id === userId)) {
+            if (members.some((member: GroupMember) => member.id === userId)) {
               reviewerId = group.id;
               reviewerType = 'group';
               break;
             }
-          } catch (error) {
+          } catch {
             // Skip
           }
         }
@@ -184,8 +209,8 @@ function PeerReviewModal({
       } else {
         setGrades(new Array(criteria.length).fill(0));
       }
-    } catch (error) {
-      console.warn('No existing review found or error loading:', error);
+    } catch {
+      console.warn('No existing review found or error loading');
       setGrades(new Array(criteria.length).fill(0));
     }
   };
@@ -206,12 +231,12 @@ function PeerReviewModal({
             for (const group of groups) {
               try {
                 const members = await getGroupMembers(courseId, group.id);
-                if (members.some((member: any) => member.id === currentUserId)) {
+                if (members.some((member: GroupMember) => member.id === currentUserId)) {
                   reviewerId = group.id;
                   reviewerType = 'group';
                   break;
                 }
-              } catch (error) {
+              } catch {
                 // Skip if error fetching members
               }
             }
@@ -238,7 +263,7 @@ function PeerReviewModal({
 
         // Refresh rubric to ensure we have latest criteria (in case teacher added new ones)
         let currentCriteria = criteria;
-        let finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
+        const finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
         try {
           const freshRubric = await getRubric(assignmentId, true);
           const freshCriteria = await getCriteria(freshRubric.id);
@@ -442,7 +467,7 @@ export default function PeerReviews() {
   const [criteria, setCriteria] = useState<Criterion[]>([]);
 
   // Helper function to calculate average grade normalized by criterion max scores
-  const calculateAverageGrade = (grades: (number | null)[], criteriaToUse?: Criterion[]): number | undefined => {
+  const calculateAverageGrade = useCallback((grades: (number | null)[], criteriaToUse?: Criterion[]): number | undefined => {
     const criteriaNow = criteriaToUse || criteria;
     if (!grades || grades.length === 0 || criteriaNow.length === 0) {
       return undefined;
@@ -465,9 +490,9 @@ export default function PeerReviews() {
 
     const averagePercentage = normalizedGrades.reduce((sum, g) => sum + g, 0) / normalizedGrades.length;
     return averagePercentage;
-  };
+  }, [criteria]);
 
-  const fetchSubmittedReviews = async (userId: number, assignmentId: number, targets: Array<{ id: number; name: string }>, type: 'internal' | 'external', criteriaToUse?: Criterion[], reviewerType: string = 'user') => {
+  const fetchSubmittedReviews = useCallback(async (userId: number, assignmentId: number, targets: Array<{ id: number; name: string }>, type: 'internal' | 'external', criteriaToUse?: Criterion[], reviewerType: string = 'user') => {
     // Fetch all reviews in parallel
     const reviewPromises = targets.map(target =>
       getReview(assignmentId, userId, target.id, reviewerType, type === 'internal' ? 'user' : 'group')
@@ -497,9 +522,9 @@ export default function PeerReviews() {
       }));
 
     return reviews;
-  };
+  }, [calculateAverageGrade]);
 
-  const fetchReceivedReviews = async (userId: number, assignmentId: number, assignment: AssignmentDetails, criteriaToUse?: Criterion[]) => {
+  const fetchReceivedReviews = useCallback(async (userId: number, assignmentId: number, assignment: AssignmentDetails, criteriaToUse?: Criterion[]) => {
     const reviews: ReceivedReview[] = [];
 
     console.log('fetchReceivedReviews called with:', {
@@ -519,11 +544,11 @@ export default function PeerReviews() {
         for (const group of groups) {
           try {
             const members = await getGroupMembers(assignment.courseID, group.id);
-            if (members.some((member: any) => member.id === userId)) {
+            if (members.some((member: GroupMember) => member.id === userId)) {
               userGroupId = group.id;
               break;
             }
-          } catch (error) {
+          } catch {
             // Skip
           }
         }
@@ -540,8 +565,8 @@ export default function PeerReviews() {
             // For internal reviews: teammates review each other as INDIVIDUALS
             // revieweeID should be the USER ID (not group ID)
             const internalReviewPromises = groupMembers
-              .filter((m: any) => m.id !== userId)
-              .map((member: any) =>
+              .filter((m: GroupMember) => m.id !== userId)
+              .map((member: GroupMember) =>
                 getReview(assignmentId, member.id, userId)  // Query with userId as reviewee
                   .then(response => response.json())
                   .then(reviewData => {
@@ -583,13 +608,13 @@ export default function PeerReviews() {
         // Check if external reviews are enabled (other groups reviewing current user's group)
         if (assignment.external_review) {
           try {
-            const otherGroups = groups.filter((group: any) => group.id !== userGroupId);
+            const otherGroups = groups.filter((group: CourseGroup) => group.id !== userGroupId);
 
             console.log('Fetching external reviews. User group ID:', userGroupId, 'Other groups:', otherGroups);
 
             // Fetch all external reviews in parallel
             // For external reviews: reviewerID is the GROUP ID, revieweeID is the current user's GROUP ID
-            const externalReviewPromises = otherGroups.map((group: any) =>
+            const externalReviewPromises = otherGroups.map((group: CourseGroup) =>
               getReview(assignmentId, group.id, userGroupId, 'group', 'group')
                 .then(response => response.json())
                 .then(reviewData => {
@@ -627,21 +652,21 @@ export default function PeerReviews() {
             console.error('Error fetching received external reviews:', error);
           }
         }
-      } catch (error) {
-        console.error('Error fetching received group reviews:', error);
+      } catch {
+        console.error('Error fetching received group reviews');
       }
     } else {
       // For individual assignments, fetch all students and check if they reviewed current user
       try {
         const members = await listCourseMembers(String(assignment.courseID));
-        const otherMembers = members.filter((member: any) => member.id !== userId && member.role === 'student');
+        const otherMembers = members.filter((member: CourseMember) => member.id !== userId && member.role === 'student');
 
         console.log('Fetching received reviews for individual assignment. Querying reviews from:',
-          otherMembers.map((m: any) => ({ id: m.id, name: m.name || m.email }))
+          otherMembers.map((m: CourseMember) => ({ id: m.id, name: m.name || m.email }))
         );
 
         // Fetch all reviews in parallel
-        const reviewPromises = otherMembers.map((member: any) =>
+        const reviewPromises = otherMembers.map((member: CourseMember) =>
           getReview(assignmentId, member.id, userId)
             .then(response => response.json())
             .then(reviewData => {
@@ -675,14 +700,14 @@ export default function PeerReviews() {
             });
           }
         });
-      } catch (error) {
-        console.error('Error fetching received individual reviews:', error);
+      } catch {
+        console.error('Error fetching received individual reviews');
       }
     }
 
     console.log('Total received reviews found:', reviews.length, reviews);
     return reviews;
-  };
+  }, [calculateAverageGrade]);
 
   useEffect(() => {
     (async () => {
@@ -714,7 +739,7 @@ export default function PeerReviews() {
         if (assignmentData.internal_review && assignmentData.submission_type === 'group') {
           try {
             const groupMembers = await listStuGroup(assignmentData.id, userId);
-            const teammates = groupMembers.filter((member: any) => member.id !== userId);
+            const teammates = groupMembers.filter((member: GroupMember) => member.id !== userId);
             const internalReviews = await fetchSubmittedReviews(userId, Number(id), teammates, 'internal', criteriaData);
             allReviews.push(...internalReviews);
           } catch (error) {
@@ -737,29 +762,29 @@ export default function PeerReviews() {
               for (const group of groups) {
                 try {
                   const members = await getGroupMembers(assignmentData.courseID, group.id);
-                  if (members.some((member: any) => member.id === userId)) {
+                  if (members.some((member: GroupMember) => member.id === userId)) {
                     userGroupId = group.id;
                     reviewerId = group.id;
                     reviewerType = 'group';
                     break;
                   }
-                } catch (error) {
+                } catch {
                   // Skip if error fetching members
                 }
               }
 
               // Filter out the user's own group
               externalTargets = groups
-                .filter((group: any) => group.id !== userGroupId)
-                .map((group: any) => ({
+                .filter((group: CourseGroup) => group.id !== userGroupId)
+                .map((group: CourseGroup) => ({
                   id: group.id,
                   name: group.name || `Group ${group.id}`
                 }));
             } else {
               const members = await listCourseMembers(String(assignmentData.courseID));
               externalTargets = members
-                .filter((member: any) => member.id !== userId && member.role === 'student')
-                .map((member: any) => ({
+                .filter((member: CourseMember) => member.id !== userId && member.role === 'student')
+                .map((member: CourseMember) => ({
                   id: member.id,
                   name: member.name || member.email
                 }));
@@ -781,13 +806,13 @@ export default function PeerReviews() {
         // Fetch received reviews
         const receivedReviewsList = await fetchReceivedReviews(userId, Number(id), assignmentData, criteriaData);
         setReceivedReviews(receivedReviewsList);
-      } catch (error) {
-        console.error('Error fetching assignment details:', error);
+      } catch {
+        console.error('Error fetching assignment details');
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, fetchSubmittedReviews, fetchReceivedReviews]);
 
   if (isLoading) {
     return <div className="peer-reviews-container">Loading...</div>;
@@ -917,11 +942,11 @@ export default function PeerReviews() {
                 if (assignment.internal_review && assignment.submission_type === 'group') {
                   try {
                     const groupMembers = await listStuGroup(assignment.id, currentUserId);
-                    const teammates = groupMembers.filter((member: any) => member.id !== currentUserId);
+                    const teammates = groupMembers.filter((member: GroupMember) => member.id !== currentUserId);
                     const internalReviews = await fetchSubmittedReviews(currentUserId, assignment.id, teammates, 'internal', criteria);
                     allReviews.push(...internalReviews);
-                  } catch (error) {
-                    console.error('Error fetching internal reviews:', error);
+                  } catch {
+                    console.error('Error fetching internal reviews');
                   }
                 }
 
@@ -939,37 +964,37 @@ export default function PeerReviews() {
                       for (const group of groups) {
                         try {
                           const members = await getGroupMembers(assignment.courseID, group.id);
-                          if (members.some((member: any) => member.id === currentUserId)) {
+                          if (members.some((member: GroupMember) => member.id === currentUserId)) {
                             userGroupId = group.id;
                             reviewerId = group.id;
                             reviewerType = 'group';
                             break;
                           }
-                        } catch (error) {
+                        } catch {
                           // Skip if error fetching members
                         }
                       }
 
                       // Filter out the user's own group
                       externalTargets = groups
-                        .filter((group: any) => group.id !== userGroupId)
-                        .map((group: any) => ({
+                        .filter((group: CourseGroup) => group.id !== userGroupId)
+                        .map((group: CourseGroup) => ({
                           id: group.id,
                           name: group.name || `Group ${group.id}`
                         }));
                     } else {
                       const members = await listCourseMembers(String(assignment.courseID));
                       externalTargets = members
-                        .filter((member: any) => member.id !== currentUserId && member.role === 'student')
-                        .map((member: any) => ({
+                        .filter((member: CourseMember) => member.id !== currentUserId && member.role === 'student')
+                        .map((member: CourseMember) => ({
                           id: member.id,
                           name: member.name || member.email
                         }));
                     }
                     const externalReviews = await fetchSubmittedReviews(reviewerId, assignment.id, externalTargets, 'external', criteria, reviewerType);
                     allReviews.push(...externalReviews);
-                  } catch (error) {
-                    console.error('Error fetching external reviews:', error);
+                  } catch {
+                    console.error('Error fetching external reviews');
                   }
                 }
 

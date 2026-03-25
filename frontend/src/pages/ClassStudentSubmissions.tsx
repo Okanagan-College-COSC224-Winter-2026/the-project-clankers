@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import Button from "../components/Button";
@@ -84,6 +84,19 @@ interface SubmissionByAssignment {
   isGroupAssignment: boolean;
 }
 
+interface CourseMember {
+  id: number;
+  name: string;
+  email: string;
+  student_id?: string;
+  role: string;
+}
+
+interface ClassData {
+  id: number;
+  name: string;
+}
+
 export default function ClassStudentSubmissions() {
   const { id } = useParams();
   const [className, setClassName] = useState<string | null>(null);
@@ -95,22 +108,18 @@ export default function ClassStudentSubmissions() {
   const [isUploadingRoster, setIsUploadingRoster] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
-
   const getSubmissionStatus = (submission: StudentSubmission | undefined, dueDate?: string): string => {
     if (!submission) {
       return "Not Submitted";
     }
-    
+
     if (!dueDate) {
       return "Submitted";
     }
-    
+
     const submittedAt = new Date(submission.submitted_at);
     const due = new Date(dueDate);
-    
+
     if (submittedAt <= due) {
       return "Submitted";
     } else {
@@ -118,20 +127,20 @@ export default function ClassStudentSubmissions() {
     }
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       // Get class name
-      const classes = await listClasses();
-      const currentClass = classes.find((c: { id: number }) => c.id === Number(id));
+      const classes: ClassData[] = await listClasses();
+      const currentClass = classes.find((c: ClassData) => c.id === Number(id));
       setClassName(currentClass?.name || null);
 
       // Get all students in the class
-      const classMembersData = await listCourseMembers(id as string);
+      const classMembersData: CourseMember[] = await listCourseMembers(id as string);
       const students: Student[] = (classMembersData || [])
-        .filter((member: { role: string }) => member.role === 'student')
-        .map((member: any) => ({
+        .filter((member: CourseMember) => member.role === 'student')
+        .map((member: CourseMember) => ({
           id: member.id,
           name: member.name,
           email: member.email,
@@ -143,10 +152,10 @@ export default function ClassStudentSubmissions() {
       
       // Load members for each group
       const groupsWithMembers = await Promise.all(
-        courseGroups.map(async (group) => {
+        courseGroups.map(async (group: Group) => {
           try {
-            const members = await getGroupMembers(Number(id), group.id);
-            return { ...group, members };
+            const members: CourseMember[] = await getGroupMembers(Number(id), group.id);
+            return { ...group, members: members as Student[] };
           } catch (err) {
             console.error(`Error loading members for group ${group.id}:`, err);
             return { ...group, members: [] };
@@ -234,7 +243,11 @@ export default function ClassStudentSubmissions() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleDownload = async (submissionId: number, filename: string) => {
     try {
@@ -335,7 +348,7 @@ export default function ClassStudentSubmissions() {
         ) : (
           <div>
             {submissionsByAssignment.map(({ assignment, rows, isGroupAssignment }) => {
-              const submittedCount = rows.filter((row: any) => row.status !== "Not Submitted").length;
+              const submittedCount = rows.filter((row: IndividualSubmissionRow | GroupSubmissionRow): boolean => row.status !== "Not Submitted").length;
               const total = rows.length;
               const entityType = isGroupAssignment ? 'groups' : 'students';
               
