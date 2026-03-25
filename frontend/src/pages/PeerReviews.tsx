@@ -812,7 +812,8 @@ export default function PeerReviews() {
         setIsLoading(false);
       }
     })();
-  }, [id, fetchSubmittedReviews, fetchReceivedReviews]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   if (isLoading) {
     return <div className="peer-reviews-container">Loading...</div>;
