@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Camera, Loader2, Upload, X, BookOpen } from 'lucide-react'
+import { Camera, Loader2, Upload, X, BookOpen, Key } from 'lucide-react'
 import {
   getCurrentUserProfile,
   getEnrolledCourses,
@@ -30,6 +30,7 @@ interface Course {
 
 export default function Profile() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [isOwnProfile, setIsOwnProfile] = useState(false)
@@ -141,6 +142,10 @@ export default function Profile() {
     setSelectedFile(null)
     setPreviewUrl(null)
     setUpdateError(null)
+  }
+
+  const handleChangePassword = () => {
+    navigate('/change-password', { state: { forced: false } })
   }
 
   const getInitials = (name: string) => {
@@ -283,6 +288,22 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+
+        {isOwnProfile && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Security
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleChangePassword} variant="outline" className="w-full">
+                Change Password
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {profile.role === 'student' && (
           <Card>

@@ -80,6 +80,8 @@ export default function ClassHome() {
         externalReview,
         anonymousReview
       )
+      const createdAssignment = response?.assignment
+
       if (!createdAssignment?.id) {
         throw new Error('Failed to create assignment')
       }
@@ -193,7 +195,6 @@ export default function ClassHome() {
           )}
         </div>
 
-<<<<<<< HEAD
         {isTeacher() && (
           <Card>
             <CardHeader>

@@ -118,7 +118,7 @@ def delete_user(user_id):
 @bp.route("/password", methods=["PATCH"])
 @jwt_required()
 def change_password():
-    """Change current user's password (only if must_change_password is True)"""
+    """Change current user's password"""
     if not request.is_json:
         return jsonify({"msg": "Missing JSON in request"}), 400
 
@@ -138,17 +138,14 @@ def change_password():
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    # Security: Only allow password changes if must_change_password is True
-    if not user.must_change_password:
-        return jsonify({"msg": "Password change not required for this account"}), 403
-
     # Verify current password
     if not check_password_hash(user.hash_pass, current_password):
         return jsonify({"msg": "Current password is incorrect"}), 401
 
-    # Update password and clear must_change_password flag
+    # Update password and clear must_change_password flag if set
     user.hash_pass = generate_password_hash(new_password)
-    user.must_change_password = False
+    if user.must_change_password:
+        user.must_change_password = False
     user.update()
 
     return jsonify({"msg": "Password updated successfully"}), 200
