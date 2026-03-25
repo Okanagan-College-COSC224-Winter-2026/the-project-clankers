@@ -1,40 +1,46 @@
 USE cosc471;
 
 -- Create all tables without foreign keys
-CREATE TABLE User (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE [User] (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    student_id VARCHAR(50) UNIQUE,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    hash_pass VARCHAR(128) NOT NULL,
-    role VARCHAR(50) NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'teacher', 'admin'))
+    hash_pass VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'teacher', 'admin')),
+    must_change_password BIT NOT NULL DEFAULT 0,
+    profile_picture_url VARCHAR(500)
 );
 
 CREATE TABLE Course (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     teacherID INT NOT NULL,
     name VARCHAR(255)
 );
 
 CREATE TABLE Assignment (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     courseID INT,
     name VARCHAR(255),
     rubric VARCHAR(255),
-    due_date TIMESTAMP NULL,
+    start_date DATETIME NULL,
+    due_date DATETIME NULL,
     submission_type VARCHAR(20) DEFAULT 'individual',
-    internal_review BOOLEAN DEFAULT FALSE,
-    external_review BOOLEAN DEFAULT FALSE,
-    anonymous_review BOOLEAN DEFAULT FALSE
+    internal_review BIT DEFAULT 0,
+    external_review BIT DEFAULT 0,
+    anonymous_review BIT DEFAULT 0,
+    attachment_filename VARCHAR(255),
+    attachment_path VARCHAR(500)
 );
 
 CREATE TABLE CourseGroup (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     name VARCHAR(255),
     assignmentID INT NOT NULL
 );
 
 CREATE TABLE Submission (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     path VARCHAR(255),
     studentID INT NOT NULL,
     assignmentID INT NOT NULL
@@ -54,7 +60,7 @@ CREATE TABLE User_Courses (
 );
 
 CREATE TABLE Review (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     assignmentID INT NOT NULL,
     reviewerID INT NOT NULL,
     revieweeID INT NOT NULL,
@@ -63,7 +69,7 @@ CREATE TABLE Review (
 );
 
 CREATE TABLE Criterion (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     reviewID INT NOT NULL,
     criterionRowID INT NOT NULL,
     grade INT,
@@ -71,32 +77,55 @@ CREATE TABLE Criterion (
 );
 
 CREATE TABLE Rubric (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     assignmentID INT NOT NULL,
-    canComment BOOLEAN NOT NULL DEFAULT TRUE
+    canComment BIT NOT NULL DEFAULT 1
 );
 
 CREATE TABLE Criteria_Description (
-    id SERIAL PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     rubricID INT NOT NULL,
     question VARCHAR(255),
     scoreMax INT,
-    hasScore BOOLEAN NOT NULL DEFAULT TRUE
+    hasScore BIT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE AssignmentFile (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    assignment_id INT NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    uploaded_at DATETIME NOT NULL DEFAULT GETDATE(),
+    uploaded_by INT NOT NULL
+);
+
+CREATE TABLE StudentSubmission (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    assignment_id INT NOT NULL,
+    student_id INT NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    submitted_at DATETIME NOT NULL DEFAULT GETDATE()
 );
 
 -- TEST VALUES
 -- Credentials: test / 1234
-INSERT INTO User (id, name, email, role, hash_pass)
+SET IDENTITY_INSERT [User] ON;
+INSERT INTO [User] (id, name, email, role, hash_pass)
   VALUES (1, 'test', 'test@test.com', 'student', 'd404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db'),
          (2, 'test2', 'test2@test.com', 'teacher', 'd404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db'),
          (3, 'admin', 'admin@test.com', 'admin', 'd404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db');
+SET IDENTITY_INSERT [User] OFF;
+
+SET IDENTITY_INSERT Assignment ON;
 INSERT INTO Assignment(id, courseID, name, rubric)
     VALUES (1, 1, 'test', 'test-rubric');
+SET IDENTITY_INSERT Assignment OFF;
 
 -- Insert dummy Users (Students and Teachers)
 -- actually make them hashed passwords, these wont login the dummy users (itll de-hash "hashedpassword2" instead of husidhgjashkjyh;y23421g)
-INSERT INTO User (name, email, hash_pass, role)
-VALUES 
+INSERT INTO [User] (name, email, hash_pass, role)
+VALUES
     ('JDoe', 'john.doe@example.com', '639675e26fc7399c0a1d61ee59eebfd5dab73fad055999f83105790758713af02ea6cb1afbc1be9f6f3ca2ea48327026218383713c8e0e18530b52c9dc147a1b', 'student'),
     ('Jane Smith', 'jane.smith@example.com', 'hashedpassword2', 'student'),
     ('Robert Brown', 'robert.brown@example.com', 'hashedpassword3', 'student'),
@@ -215,19 +244,19 @@ VALUES
 
 -- ALTER TABLE Submission
 --     ADD CONSTRAINT fk_submission_student
---     FOREIGN KEY (studentID) REFERENCES User(id),
+--     FOREIGN KEY (studentID) REFERENCES [User](id),
 --     ADD CONSTRAINT fk_submission_assignment
 --     FOREIGN KEY (assignmentID) REFERENCES Assignment(id);
 
 -- ALTER TABLE Group_Members
 --     ADD CONSTRAINT fk_groupmembers_user
---     FOREIGN KEY (userID) REFERENCES User(id),
+--     FOREIGN KEY (userID) REFERENCES [User](id),
 --     ADD CONSTRAINT fk_groupmembers_group
 --     FOREIGN KEY (groupID) REFERENCES CourseGroup(id);
 
 -- ALTER TABLE User_Courses
 --     ADD CONSTRAINT fk_usercourses_user
---     FOREIGN KEY (userID) REFERENCES User(id),
+--     FOREIGN KEY (userID) REFERENCES [User](id),
 --     ADD CONSTRAINT fk_usercourses_course
 --     FOREIGN KEY (courseID) REFERENCES Course(id);
 
@@ -235,9 +264,9 @@ VALUES
 --     ADD CONSTRAINT fk_review_assignment
 --     FOREIGN KEY (assignmentID) REFERENCES Assignment(id),
 --     ADD CONSTRAINT fk_review_reviewer
---     FOREIGN KEY (reviewerID) REFERENCES User(id),
+--     FOREIGN KEY (reviewerID) REFERENCES [User](id),
 --     ADD CONSTRAINT fk_review_reviewee
---     FOREIGN KEY (revieweeID) REFERENCES User(id);
+--     FOREIGN KEY (revieweeID) REFERENCES [User](id);
 
 -- ALTER TABLE Criterion
 --     ADD CONSTRAINT fk_criteria_review
@@ -246,3 +275,7 @@ VALUES
 -- ALTER TABLE Rubric
 --     ADD CONSTRAINT fk_rubric_assignment
 --     FOREIGN KEY (assignmentID) REFERENCES Assignment(id);
+
+-- ALTER TABLE Criteria_Description
+--     ADD CONSTRAINT fk_criteriadesc_rubric
+--     FOREIGN KEY (rubricID) REFERENCES Rubric(id);
