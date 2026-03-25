@@ -13,7 +13,8 @@ from ..models import (
     CriteriaDescription,
     ReviewSchema,
     CriterionSchema,
-    Group_Members
+    Group_Members,
+    CourseGroup
 )
 from ..models.db import db
 
@@ -283,3 +284,246 @@ def get_review():
     review_data["comments"] = comments
 
     return jsonify(review_data), 200
+
+
+@bp.route("/reviews/submitted", methods=["GET"])
+@jwt_required()
+def get_submitted_reviews():
+    """Get all reviews submitted by the current user (or their group) for an assignment
+
+    Query params:
+        assignmentID: ID of the assignment
+
+    Returns:
+        Array of reviews with grades, reviewee info, and type (internal/external)
+    """
+    assignment_id = request.args.get("assignmentID", type=int)
+
+    if not assignment_id:
+        return jsonify({"msg": "assignmentID is required"}), 400
+
+    # Get current user
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Get assignment details
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course_id = assignment.courseID
+    is_group_assignment = assignment.submission_type == 'group'
+
+    # Find user's group if this is a group assignment
+    user_group_id = None
+    if is_group_assignment:
+        membership = Group_Members.query.filter_by(userID=user.id).join(
+            CourseGroup
+        ).filter(CourseGroup.courseID == course_id).first()
+        if membership:
+            user_group_id = membership.groupID
+
+    # Build list of reviews to fetch
+    reviews_data = []
+
+    # Get internal reviews (user reviewing teammates) - only for group assignments
+    if is_group_assignment and assignment.internal_review:
+        internal_reviews = Review.query.filter_by(
+            assignmentID=assignment_id,
+            reviewerID=user.id,
+            reviewer_type='user',
+            reviewee_type='user'
+        ).all()
+
+        for review in internal_reviews:
+            review_info = _build_review_response(review, 'internal', assignment)
+            if review_info:
+                reviews_data.append(review_info)
+
+    # Get external reviews
+    if assignment.external_review:
+        if is_group_assignment and user_group_id:
+            # Group external reviews (group reviewing other groups)
+            external_reviews = Review.query.filter_by(
+                assignmentID=assignment_id,
+                reviewerID=user_group_id,
+                reviewer_type='group',
+                reviewee_type='group'
+            ).all()
+        else:
+            # Individual external reviews
+            external_reviews = Review.query.filter_by(
+                assignmentID=assignment_id,
+                reviewerID=user.id,
+                reviewer_type='user',
+                reviewee_type='user'
+            ).all()
+
+        for review in external_reviews:
+            review_info = _build_review_response(review, 'external', assignment)
+            if review_info:
+                reviews_data.append(review_info)
+
+    return jsonify(reviews_data), 200
+
+
+@bp.route("/reviews/received", methods=["GET"])
+@jwt_required()
+def get_received_reviews():
+    """Get all reviews received by the current user (or their group) for an assignment
+
+    Query params:
+        assignmentID: ID of the assignment
+
+    Returns:
+        Array of reviews with grades, reviewer info (or "Anonymous"), and type
+    """
+    assignment_id = request.args.get("assignmentID", type=int)
+
+    if not assignment_id:
+        return jsonify({"msg": "assignmentID is required"}), 400
+
+    # Get current user
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Get assignment details
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course_id = assignment.courseID
+    is_group_assignment = assignment.submission_type == 'group'
+    is_anonymous = assignment.anonymous_review
+
+    # Find user's group if this is a group assignment
+    user_group_id = None
+    if is_group_assignment:
+        membership = Group_Members.query.filter_by(userID=user.id).join(
+            CourseGroup
+        ).filter(CourseGroup.courseID == course_id).first()
+        if membership:
+            user_group_id = membership.groupID
+
+    reviews_data = []
+
+    # Get internal reviews received (teammates reviewing user)
+    if is_group_assignment and assignment.internal_review:
+        internal_reviews = Review.query.filter_by(
+            assignmentID=assignment_id,
+            revieweeID=user.id,
+            reviewer_type='user',
+            reviewee_type='user'
+        ).all()
+
+        for review in internal_reviews:
+            review_info = _build_received_review_response(review, 'internal', assignment, is_anonymous)
+            if review_info:
+                reviews_data.append(review_info)
+
+    # Get external reviews received
+    if assignment.external_review:
+        if is_group_assignment and user_group_id:
+            # Group external reviews (other groups reviewing user's group)
+            external_reviews = Review.query.filter_by(
+                assignmentID=assignment_id,
+                revieweeID=user_group_id,
+                reviewer_type='group',
+                reviewee_type='group'
+            ).all()
+        else:
+            # Individual external reviews
+            external_reviews = Review.query.filter_by(
+                assignmentID=assignment_id,
+                revieweeID=user.id,
+                reviewer_type='user',
+                reviewee_type='user'
+            ).all()
+
+        for review in external_reviews:
+            review_info = _build_received_review_response(review, 'external', assignment, is_anonymous)
+            if review_info:
+                reviews_data.append(review_info)
+
+    return jsonify(reviews_data), 200
+
+
+def _build_review_response(review, review_type, assignment):
+    """Helper to build review response with grades"""
+    # Get reviewee name
+    if review.reviewee_type == 'group':
+        group = CourseGroup.get_by_id(review.revieweeID)
+        reviewee_name = group.name if group else f"Group {review.revieweeID}"
+    else:
+        reviewee = User.get_by_id(review.revieweeID)
+        reviewee_name = reviewee.name if reviewee else f"User {review.revieweeID}"
+
+    # Calculate grade
+    grade = _calculate_review_grade(review, assignment)
+
+    return {
+        "reviewId": review.id,
+        "revieweeId": review.revieweeID,
+        "revieweeName": reviewee_name,
+        "type": review_type,
+        "grade": grade
+    }
+
+
+def _build_received_review_response(review, review_type, assignment, is_anonymous):
+    """Helper to build received review response with grades"""
+    # Get reviewer name (anonymous if enabled)
+    if is_anonymous:
+        reviewer_name = "Anonymous"
+    elif review.reviewer_type == 'group':
+        group = CourseGroup.get_by_id(review.reviewerID)
+        reviewer_name = group.name if group else f"Group {review.reviewerID}"
+    else:
+        reviewer = User.get_by_id(review.reviewerID)
+        reviewer_name = reviewer.name if reviewer else f"User {review.reviewerID}"
+
+    # Calculate grade
+    grade = _calculate_review_grade(review, assignment)
+
+    return {
+        "reviewerId": review.reviewerID,
+        "reviewerName": reviewer_name,
+        "type": review_type,
+        "grade": grade
+    }
+
+
+def _calculate_review_grade(review, assignment):
+    """Calculate average grade percentage for a review"""
+    rubric = assignment.rubrics.first()
+    if not rubric:
+        return None
+
+    criteria_descriptions = rubric.criteria_descriptions.order_by(CriteriaDescription.id).all()
+    if not criteria_descriptions:
+        return None
+
+    total_percentage = 0
+    count = 0
+
+    for criteria_desc in criteria_descriptions:
+        criterion = Criterion.query.filter_by(
+            reviewID=review.id,
+            criterionRowID=criteria_desc.id
+        ).first()
+
+        if criterion and criterion.grade is not None:
+            # Normalize to percentage
+            max_score = criteria_desc.scoreMax if criteria_desc.hasScore and criteria_desc.scoreMax > 0 else 100
+            percentage = (criterion.grade / max_score) * 100
+            total_percentage += percentage
+            count += 1
+
+    if count == 0:
+        return None
+
+    return total_percentage / count

@@ -322,6 +322,10 @@ export default function ClassStudentSubmissions() {
                   label: "Student Submissions",
                   path: `/classes/${id}/student-submissions`,
                 },
+                {
+                  label: "Rubrics",
+                  path: `/classes/${id}/rubrics`,
+                },
               ]
             : [
                 {

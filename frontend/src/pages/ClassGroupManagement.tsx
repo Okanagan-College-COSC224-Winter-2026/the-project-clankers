@@ -434,24 +434,41 @@ export default function ClassGroupManagement() {
       </div>
 
       <TabNavigation
-        tabs={[
-          {
-            label: "Home",
-            path: `/classes/${id}/home`,
-          },
-          {
-            label: "Members",
-            path: `/classes/${id}/members`,
-          },
-          {
-            label: "Groups",
-            path: `/classes/${id}/groups`,
-          },
-          {
-            label: "Student Submissions",
-            path: `/classes/${id}/student-submissions`,
-          },
-        ]}
+        tabs={
+          isTeacher()
+            ? [
+                {
+                  label: "Home",
+                  path: `/classes/${id}/home`,
+                },
+                {
+                  label: "Members",
+                  path: `/classes/${id}/members`,
+                },
+                {
+                  label: "Groups",
+                  path: `/classes/${id}/groups`,
+                },
+                {
+                  label: "Student Submissions",
+                  path: `/classes/${id}/student-submissions`,
+                },
+                {
+                  label: "Rubrics",
+                  path: `/classes/${id}/rubrics`,
+                },
+              ]
+            : [
+                {
+                  label: "Home",
+                  path: `/classes/${id}/home`,
+                },
+                {
+                  label: "Members",
+                  path: `/classes/${id}/members`,
+                },
+              ]
+        }
       />
 
       {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}

@@ -371,13 +371,31 @@ export const getGroupMembers = async (courseId: number, groupId: number) => {
     },
     credentials: 'include',
   })
-  
+
   maybeHandleExpire(resp);
 
   if (!resp.ok) {
     throw new Error(`Response status: ${resp.status}`);
   }
-  
+
+  return await resp.json()
+}
+
+export const getMyGroup = async (courseId: number): Promise<{ groupId: number | null; groupName: string | null }> => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/my-group`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
   return await resp.json()
 } 
 
@@ -696,6 +714,57 @@ export const getReview = async (assignmentID: number, reviewerID: number, review
   }
 
   return resp
+}
+
+export interface SubmittedReviewData {
+  reviewId: number;
+  revieweeId: number;
+  revieweeName: string;
+  type: 'internal' | 'external';
+  grade: number | null;
+}
+
+export interface ReceivedReviewData {
+  reviewerId: number;
+  reviewerName: string;
+  type: 'internal' | 'external';
+  grade: number | null;
+}
+
+export const getSubmittedReviews = async (assignmentID: number): Promise<SubmittedReviewData[]> => {
+  const resp = await fetch(`${BASE_URL}/reviews/submitted?assignmentID=${assignmentID}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
+  return await resp.json()
+}
+
+export const getReceivedReviews = async (assignmentID: number): Promise<ReceivedReviewData[]> => {
+  const resp = await fetch(`${BASE_URL}/reviews/received?assignmentID=${assignmentID}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
+  return await resp.json()
 }
 
 export const getNextGroupID = async(assignmentID: number)=> {

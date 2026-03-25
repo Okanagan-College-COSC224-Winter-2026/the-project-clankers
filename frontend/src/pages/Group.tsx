@@ -161,28 +161,18 @@ export default function Group() {
         tabs={
           isTeacher()
             ? [
-                {
-                  label: "Home",
-                  path: `/assignments/${id}`,
-                },
-                {
-                  label: "Group",
-                  path: `/assignments/${id}/group`,
-                },
-                {
-                  label: "Manage",
-                  path: `/assignments/${id}/manage`,
-                }
+                { label: "Home", path: `/assignments/${id}` },
+                { label: "Members", path: `/assignments/${id}/members` },
+                { label: "Groups", path: `/assignments/${id}/groups` },
+                { label: "Rubric", path: `/assignments/${id}/rubric` },
+                { label: "Student Submissions", path: `/assignments/${id}/student-submissions` },
+                { label: "Manage", path: `/assignments/${id}/manage` },
               ]
             : [
-                {
-                  label: "Home",
-                  path: `/assignments/${id}`,
-                },
-                {
-                  label: "Group",
-                  path: `/assignments/${id}/group`,
-                }
+                { label: "Home", path: `/assignments/${id}` },
+                { label: "Members", path: `/assignments/${id}/members` },
+                { label: "Submission", path: `/assignments/${id}/submission` },
+                { label: "Peer Reviews", path: `/assignments/${id}/peer-reviews` },
               ]
         }
       />

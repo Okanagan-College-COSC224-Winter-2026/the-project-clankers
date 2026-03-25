@@ -67,7 +67,7 @@ export default function RosterUploadResult(props: Props) {
 
   return (
     <Dialog open onOpenChange={props.onClose}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-6xl sm:max-w-6xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
