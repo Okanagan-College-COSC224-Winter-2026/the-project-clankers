@@ -279,11 +279,15 @@ export const deleteClass = async (classId: number) => {
     credentials: 'include'
   });
 
-  maybeHandleExpire(response);
-
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+
+    // Only treat 401 as session expiration if there's no specific error message from backend
+    if (response.status === 401 && !errorData.msg) {
+      maybeHandleExpire(response);
+    }
+
     throw new Error(errorMessage);
   }
 
@@ -298,10 +302,14 @@ export const archiveClass = async (classId: number) => {
     credentials: 'include'
   });
 
-  maybeHandleExpire(response);
-
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+
+    // Only treat 401 as session expiration if there's no specific error message from backend
+    if (response.status === 401 && !errorData.msg) {
+      maybeHandleExpire(response);
+    }
+
     throw new Error(errorData.msg || `Error: ${response.status} ${response.statusText}`);
   }
 
