@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,6 +9,7 @@ import { createClass } from '../util/api'
 import { Plus } from 'lucide-react'
 
 export default function CreateClass() {
+  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [statusType, setStatusType] = useState<'error' | 'success'>('error')
@@ -24,6 +26,7 @@ export default function CreateClass() {
       setStatusType('success')
       setStatusMessage('Class created successfully!')
       setName('')
+      setTimeout(() => navigate('/home'), 1500)
     } catch (error) {
       console.error('Error creating class:', error)
       setStatusType('error')
