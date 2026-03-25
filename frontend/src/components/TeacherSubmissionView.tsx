@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "./AssignmentFileUpload.css"; // Reuse the same styles
 import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
@@ -58,12 +58,7 @@ export default function TeacherSubmissionView({
   const [isGroupAssignment, setIsGroupAssignment] = useState(false);
   const navigate = useNavigate();
 
-  // Load all student submissions and class roster
-  useEffect(() => {
-    loadSubmissionsAndStudents();
-  }, [assignmentId]);
-
-  const loadSubmissionsAndStudents = async () => {
+  const loadSubmissionsAndStudents = useCallback(async () => {
     setIsLoadingSubmissions(true);
     setError(null);
     try {
@@ -95,7 +90,12 @@ export default function TeacherSubmissionView({
     } finally {
       setIsLoadingSubmissions(false);
     }
-  };
+  }, [assignmentId]);
+
+  // Load all student submissions and class roster
+  useEffect(() => {
+    loadSubmissionsAndStudents();
+  }, [loadSubmissionsAndStudents]);
 
   const loadIndividualSubmissions = async (
     classId: number, 
@@ -158,9 +158,9 @@ export default function TeacherSubmissionView({
         try {
           // Fetch group members with full student data
           const membersData = await getGroupMembers(classId, group.id);
-          
+
           // Convert to Student type
-          const members: Student[] = membersData.map((member: any) => ({
+          const members: Student[] = membersData.map((member: { id: number; student_id?: string; name: string; email: string }) => ({
             id: member.id,
             student_id: member.student_id,
             name: member.name,

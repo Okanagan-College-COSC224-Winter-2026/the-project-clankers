@@ -41,13 +41,16 @@ def create_review():
     reviewer_id = data.get("reviewerID")
     reviewee_id = data.get("revieweeID")
     reviewee_type = data.get("revieweeType", "user")  # Default to 'user' for backwards compatibility
+    reviewer_type = data.get("reviewerType", "user")  # Default to 'user'
 
     if not all([assignment_id, reviewer_id, reviewee_id]):
         return jsonify({"msg": "Missing required fields"}), 400
 
-    # Validate reviewee_type
+    # Validate types
     if reviewee_type not in ['user', 'group']:
         return jsonify({"msg": "Invalid reviewee_type. Must be 'user' or 'group'"}), 400
+    if reviewer_type not in ['user', 'group']:
+        return jsonify({"msg": "Invalid reviewer_type. Must be 'user' or 'group'"}), 400
 
     # Verify the assignment exists
     assignment = Assignment.get_by_id(assignment_id)
@@ -57,15 +60,26 @@ def create_review():
     # Verify the authenticated user matches the reviewer
     email = get_jwt_identity()
     user = User.get_by_email(email)
-    if not user or user.id != reviewer_id:
-        return jsonify({"msg": "Unauthorized"}), 403
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # For group external reviews, verify user is in the reviewer group
+    if reviewer_type == 'group':
+        group_membership = Group_Members.get(user.id, reviewer_id)
+        if not group_membership:
+            return jsonify({"msg": "User is not a member of the reviewer group"}), 403
+    else:
+        # For user reviews, verify authenticated user matches reviewer
+        if user.id != reviewer_id:
+            return jsonify({"msg": "Unauthorized"}), 403
 
     # Check if a review already exists for this combination
     existing_review = Review.query.filter_by(
         assignmentID=assignment_id,
         reviewerID=reviewer_id,
         revieweeID=reviewee_id,
-        reviewee_type=reviewee_type
+        reviewee_type=reviewee_type,
+        reviewer_type=reviewer_type
     ).first()
 
     if existing_review:
@@ -77,7 +91,8 @@ def create_review():
         assignmentID=assignment_id,
         reviewerID=reviewer_id,
         revieweeID=reviewee_id,
-        reviewee_type=reviewee_type
+        reviewee_type=reviewee_type,
+        reviewer_type=reviewer_type
     )
     Review.create_review(new_review)
 
@@ -104,8 +119,19 @@ def create_criterion():
 
     email = get_jwt_identity()
     user = User.get_by_email(email)
-    if not user or user.id != review.reviewerID:
-        return jsonify({"msg": "Unauthorized"}), 403
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Check permission based on reviewer type
+    if review.reviewer_type == 'group':
+        # For group reviews, check if user is a member of the reviewer group
+        group_membership = Group_Members.get(user.id, review.reviewerID)
+        if not group_membership:
+            return jsonify({"msg": "Unauthorized"}), 403
+    else:
+        # For user reviews, check if user is the reviewer
+        if user.id != review.reviewerID:
+            return jsonify({"msg": "Unauthorized"}), 403
 
     # Verify the criterion row exists
     criteria_desc = CriteriaDescription.get_by_id(criterion_row_id)
@@ -144,9 +170,10 @@ def get_review():
 
     Query params:
         assignmentID: ID of the assignment
-        reviewerID: ID of the reviewer
+        reviewerID: ID of the reviewer (user ID or group ID based on reviewerType)
         revieweeID: ID of the reviewee
         revieweeType: Type of reviewee ('user' or 'group'), defaults to 'user'
+        reviewerType: Type of reviewer ('user' or 'group'), defaults to 'user'
 
     Returns:
         - grades: array of grades indexed by criteria row position
@@ -157,20 +184,24 @@ def get_review():
     reviewer_id = request.args.get("reviewerID", type=int)
     reviewee_id = request.args.get("revieweeID", type=int)
     reviewee_type = request.args.get("revieweeType", "user")  # Default to 'user' for backwards compatibility
+    reviewer_type = request.args.get("reviewerType", "user")  # Default to 'user'
 
     if not all([assignment_id, reviewer_id, reviewee_id]):
         return jsonify({"msg": "Missing required query parameters"}), 400
 
-    # Validate reviewee_type
+    # Validate types
     if reviewee_type not in ['user', 'group']:
         return jsonify({"msg": "Invalid revieweeType. Must be 'user' or 'group'"}), 400
+    if reviewer_type not in ['user', 'group']:
+        return jsonify({"msg": "Invalid reviewerType. Must be 'user' or 'group'"}), 400
 
     # Find the review
     review = Review.query.filter_by(
         assignmentID=assignment_id,
         reviewerID=reviewer_id,
         revieweeID=reviewee_id,
-        reviewee_type=reviewee_type
+        reviewee_type=reviewee_type,
+        reviewer_type=reviewer_type
     ).first()
 
     if not review:
@@ -189,13 +220,28 @@ def get_review():
         return jsonify({"msg": "Assignment not found"}), 404
 
     is_teacher = user.is_teacher() and assignment.course.teacherID == user.id
-    is_participant = user.id in [reviewer_id, reviewee_id]
+    is_participant = False
 
-    # For group assignments, check if the user is a member of the reviewee group
-    if not is_participant and assignment.submission_type == 'group':
-        # Check if revieweeID is a group and user is a member of it
+    # Check if user is the reviewer
+    if review.reviewer_type == 'group':
+        # For group reviews, check if user is a member of the reviewer group
+        group_membership = Group_Members.get(user.id, reviewer_id)
+        if group_membership:
+            is_participant = True
+    else:
+        # For user reviews, check if user is the reviewer
+        if user.id == reviewer_id:
+            is_participant = True
+
+    # Check if user is the reviewee
+    if review.reviewee_type == 'group':
+        # For group assignments, check if user is a member of the reviewee group
         group_membership = Group_Members.get(user.id, reviewee_id)
         if group_membership:
+            is_participant = True
+    else:
+        # For user assignments, check if user is the reviewee
+        if user.id == reviewee_id:
             is_participant = True
 
     if not (is_teacher or is_participant):

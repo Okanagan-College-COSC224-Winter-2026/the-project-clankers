@@ -1,4 +1,4 @@
-import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
+import { useState, useRef, DragEvent, ChangeEvent, useEffect, useCallback } from "react";
 import "./AssignmentFileUpload.css"; // Reuse the same styles
 import { uploadStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile } from "../util/api";
 
@@ -38,6 +38,18 @@ export default function StudentSubmissionUpload({
   const allowedExtensions = ["pdf", "docx", "txt", "zip"];
   const maxFileSize = 50 * 1024 * 1024; // 50MB
 
+  const loadSubmissions = useCallback(async () => {
+    setIsLoadingSubmissions(true);
+    try {
+      const submissionsData = await getStudentSubmissions(assignmentId);
+      setSubmissions(submissionsData);
+    } catch (err) {
+      console.error('Error loading submissions:', err);
+    } finally {
+      setIsLoadingSubmissions(false);
+    }
+  }, [assignmentId]);
+
   // Load assignment details, current user ID, and existing submissions
   useEffect(() => {
     const initialize = async () => {
@@ -54,19 +66,7 @@ export default function StudentSubmissionUpload({
     };
     initialize();
     loadSubmissions();
-  }, [assignmentId]);
-
-  const loadSubmissions = async () => {
-    setIsLoadingSubmissions(true);
-    try {
-      const submissionsData = await getStudentSubmissions(assignmentId);
-      setSubmissions(submissionsData);
-    } catch (err) {
-      console.error('Error loading submissions:', err);
-    } finally {
-      setIsLoadingSubmissions(false);
-    }
-  };
+  }, [assignmentId, loadSubmissions]);
 
   const validateFile = (file: File): string | null => {
     // Check file extension

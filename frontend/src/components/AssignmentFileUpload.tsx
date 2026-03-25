@@ -1,4 +1,4 @@
-import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
+import { useState, useRef, DragEvent, ChangeEvent, useEffect, useCallback } from "react";
 import "./AssignmentFileUpload.css";
 import { uploadAssignmentFile, deleteAssignmentFile, getAssignmentFiles, downloadAssignmentFile } from "../util/api";
 
@@ -27,12 +27,7 @@ export default function AssignmentFileUpload({
   const allowedExtensions = ["pdf", "docx", "txt", "zip"];
   const maxFileSize = 50 * 1024 * 1024; // 50MB
 
-  // Load existing files
-  useEffect(() => {
-    loadFiles();
-  }, [assignmentId]);
-
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     setIsLoadingFiles(true);
     try {
       const filesData = await getAssignmentFiles(assignmentId);
@@ -42,7 +37,12 @@ export default function AssignmentFileUpload({
     } finally {
       setIsLoadingFiles(false);
     }
-  };
+  }, [assignmentId]);
+
+  // Load existing files
+  useEffect(() => {
+    loadFiles();
+  }, [loadFiles]);
 
   const validateFile = (file: File): string | null => {
     // Check file extension

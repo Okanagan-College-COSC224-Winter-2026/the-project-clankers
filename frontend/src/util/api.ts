@@ -637,13 +637,15 @@ export const deleteGroup = async (groupID: number) => {
   })
 }
 
-export const createReview = async (assignmentID: number, reviewerID: number, revieweeID: number) => {
+export const createReview = async (assignmentID: number, reviewerID: number, revieweeID: number, reviewerType: string = 'user', revieweeType: string = 'user') => {
   const response = await fetch(`${BASE_URL}/create_review`, {
     method: 'POST',
     body: JSON.stringify({
       assignmentID,
       reviewerID,
       revieweeID,
+      reviewerType,
+      revieweeType,
     }),
     headers: {
       'Content-Type': 'application/json',
@@ -682,8 +684,8 @@ export const createCriterion = async (reviewID: number, criterionRowID: number, 
   return response
 }
 
-export const getReview = async (assignmentID: number, reviewerID: number, revieweeID: number) => {
-  const resp = await fetch(`${BASE_URL}/review?assignmentID=${assignmentID}&reviewerID=${reviewerID}&revieweeID=${revieweeID}`, {
+export const getReview = async (assignmentID: number, reviewerID: number, revieweeID: number, reviewerType: string = 'user', revieweeType: string = 'user') => {
+  const resp = await fetch(`${BASE_URL}/review?assignmentID=${assignmentID}&reviewerID=${reviewerID}&revieweeID=${revieweeID}&reviewerType=${reviewerType}&revieweeType=${revieweeType}`, {
     credentials: 'include'
   })
 
