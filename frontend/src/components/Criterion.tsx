@@ -30,23 +30,32 @@ export default function Criterion(props: props) {
         }
     }
 
+    const SCORE_THRESHOLD = 15;
+    const showCompactView = props.scoreMax > SCORE_THRESHOLD;
+
     return (
         <tr className='criterionRow'>
             <th className='criterionHead'>{props.question}</th>
             {props.hasScore ? (
-                Array.from({ length: props.scoreMax }, (_, i) => {
-                    const cellValue = i + 1; 
-                    const isReviewed = cellValue === props.grade; 
-                    return (
-                        <td 
-                            key={i} 
-                            onClick={() => handleCellClick(i)}
-                            className={isReviewed ? 'reviewedCell' : (clickedCell === cellValue ? 'clickedCell' : '')}
-                        >
-                            {cellValue}
-                        </td>
-                    );
-                })
+                showCompactView ? (
+                    <td className='criterionData'>
+                        <div className='maxScoreBox'>Max Score: {props.scoreMax}</div>
+                    </td>
+                ) : (
+                    Array.from({ length: props.scoreMax }, (_, i) => {
+                        const cellValue = i + 1;
+                        const isReviewed = cellValue === props.grade;
+                        return (
+                            <td
+                                key={i}
+                                onClick={() => handleCellClick(i)}
+                                className={isReviewed ? 'reviewedCell' : (clickedCell === cellValue ? 'clickedCell' : '')}
+                            >
+                                {cellValue}
+                            </td>
+                        );
+                    })
+                )
             ) : (
                 <td className='criterionData'>
                     <div className='criterionDescription'>{props.description || ''}</div>

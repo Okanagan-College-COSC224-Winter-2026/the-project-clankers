@@ -24,3 +24,13 @@
 .reviewedCell {
     background-color: lightgreen;
 }
+
+.maxScoreBox {
+    background-color: #e0e0e0;
+    color: #333;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: 500;
+    display: inline-block;
+    white-space: nowrap;
+}
