@@ -1,6 +1,6 @@
-import { logout } from '../util/login'
+import { logout, isStudent } from '../util/login'
 import { cn } from '@/lib/utils'
-import { LogOut, Home, User } from 'lucide-react'
+import { LogOut, Home, User, Search } from 'lucide-react'
 
 export default function Sidebar() {
   const location = window.location.pathname
@@ -28,6 +28,16 @@ export default function Sidebar() {
         >
           Dashboard
         </SidebarRow>
+
+        {isStudent() && (
+          <SidebarRow
+            selected={location === '/browse'}
+            href="/browse"
+            icon={<Search className="h-4 w-4" />}
+          >
+            Browse Courses
+          </SidebarRow>
+        )}
 
         <SidebarRow
           selected={location.includes('/profile')}
