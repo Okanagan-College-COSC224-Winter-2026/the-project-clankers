@@ -19,7 +19,11 @@ export default function LoginPage() {
       const result = await tryLogin(email, password)
       if (result) {
         if (result.must_change_password) {
+<<<<<<< Updated upstream
           navigate('/change-password')
+=======
+          navigate('/change-password', { state: { forced: true } });
+>>>>>>> Stashed changes
         } else {
           navigate('/home')
         }

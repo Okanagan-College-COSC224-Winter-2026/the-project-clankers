@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+<<<<<<< Updated upstream
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+=======
+import Button from '../components/Button'
+import Textbox from '../components/Textbox'
+>>>>>>> Stashed changes
 import StatusMessage from '../components/StatusMessage'
 import { createClass } from '../util/api'
 import { Plus } from 'lucide-react'
@@ -23,10 +28,19 @@ export default function CreateClass() {
         throw new Error('Failed to create class')
       }
 
+<<<<<<< Updated upstream
       setStatusType('success')
       setStatusMessage('Class created successfully!')
       setName('')
       setTimeout(() => navigate('/home'), 1500)
+=======
+      setStatusType('success');
+      setStatusMessage('Class created successfully!');
+      setName(''); // Clear the input
+      setTimeout(() => {
+        navigate('/home')
+      }, 800)
+>>>>>>> Stashed changes
     } catch (error) {
       console.error('Error creating class:', error)
       setStatusType('error')

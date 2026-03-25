@@ -128,6 +128,7 @@ export default function ClassHome() {
     )
   }
 
+<<<<<<< Updated upstream
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between border-b bg-background px-6 py-4">
@@ -138,6 +139,97 @@ export default function ClassHome() {
             {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
           </Button>
         )}
+=======
+    const handleCancelEdit = () => {
+      setIsEditingClassName(false);
+      setEditedClassName("");
+    };
+
+    const handleDeleteClass = async () => {
+      try {
+        await deleteClass(idNew);
+        setStatusType('success');
+        setStatusMessage('Class deleted successfully!');
+        setTimeout(() => { navigate('/home'); }, 1500);
+      } catch (error) {
+        console.error('Error deleting class:', error);
+        setStatusType('error');
+        setStatusMessage(error instanceof Error ? error.message : 'Error deleting class');
+        setShowDeleteConfirm(false);
+      }
+    };
+
+    const handleArchiveClass = async () => {
+      try {
+        await archiveClass(idNew);
+        setStatusType('success');
+        setStatusMessage('Class archived successfully!');
+        setTimeout(() => { navigate('/home'); }, 1500);
+      } catch (error) {
+        console.error('Error archiving class:', error);
+        setStatusType('error');
+        setStatusMessage(error instanceof Error ? error.message : 'Error archiving class');
+        setShowDeleteConfirm(false);
+      }
+    };
+    
+    return (
+      <>
+        <div className="ClassHeader">
+          <div className="ClassHeaderLeft">
+            {isEditingClassName ? (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <Textbox
+                  placeholder="Class name"
+                  onInput={setEditedClassName}
+                  value={editedClassName}
+                  style={{ fontSize: '1.5rem', padding: '5px 10px' }}
+                />
+                <Button onClick={handleSaveClassName}>Save</Button>
+                <Button onClick={handleCancelEdit}>Cancel</Button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <h2>{className}</h2>
+                {isTeacher() && (
+                  <button
+                    onClick={handleEditClassName}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '1.2rem',
+                      padding: '5px'
+                    }}
+                    title="Edit class name"
+                  >
+                    <img
+                      src="/icons/edit-tool-pencil-svgrepo-com (1).svg"
+                      alt="Edit"
+                      style={{ width: '1.2rem', height: '1.2rem' }}
+                    />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+        <div className="ClassHeaderRight">
+          {isTeacher() ? (
+            <>
+              <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
+                {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
+              </Button>
+              <Button
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{ backgroundColor: '#dc3545', marginLeft: '10px' }}
+              >
+                Delete Class
+              </Button>
+            </>
+          ) : null}
+        </div>
+>>>>>>> Stashed changes
       </div>
 
       <TabNavigation

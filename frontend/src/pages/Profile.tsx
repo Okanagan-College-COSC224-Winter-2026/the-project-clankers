@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+<<<<<<< Updated upstream
 import { useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,11 @@ import {
   uploadProfilePicture,
   getProfilePictureUrl,
 } from '../util/api'
+=======
+import { useNavigate } from 'react-router-dom'
+import './Profile.css'
+import { getCurrentUserProfile, getEnrolledCourses, uploadProfilePicture, getProfilePictureUrl } from '../util/api'
+>>>>>>> Stashed changes
 
 interface UserProfile {
   id: number
@@ -29,7 +35,11 @@ interface Course {
 }
 
 export default function Profile() {
+<<<<<<< Updated upstream
   const { id } = useParams()
+=======
+  const navigate = useNavigate()
+>>>>>>> Stashed changes
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [isOwnProfile, setIsOwnProfile] = useState(false)
@@ -143,6 +153,7 @@ export default function Profile() {
     setUpdateError(null)
   }
 
+<<<<<<< Updated upstream
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -150,6 +161,10 @@ export default function Profile() {
       .join('')
       .toUpperCase()
       .slice(0, 2)
+=======
+  const handleChangePassword = () => {
+    navigate('/change-password', { state: { forced: false } })
+>>>>>>> Stashed changes
   }
 
   if (loading) {
@@ -283,6 +298,16 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+
+        <div className="profile-section">
+          <h2>Security</h2>
+          <button 
+            onClick={handleChangePassword}
+            className="change-password-btn"
+          >
+            Change Password
+          </button>
+        </div>
 
         {profile.role === 'student' && (
           <Card>
