@@ -32,6 +32,40 @@ def jwt_teacher_required(fn):
     return wrapper
 
 
+@bp.route("/<int:course_id>/my-group", methods=["GET"])
+@jwt_required()
+def get_my_group(course_id):
+    """Get the current user's group for a course
+
+    Returns:
+        { "groupId": <id>, "groupName": <name> } or { "groupId": null } if not in a group
+    """
+    # Verify course exists
+    course = Course.get_by_id(course_id)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    # Get current user
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Find user's group membership in this course
+    membership = Group_Members.query.filter_by(userID=user.id).join(
+        CourseGroup
+    ).filter(CourseGroup.courseID == course_id).first()
+
+    if not membership:
+        return jsonify({"groupId": None, "groupName": None}), 200
+
+    group = CourseGroup.get_by_id(membership.groupID)
+    return jsonify({
+        "groupId": group.id,
+        "groupName": group.name
+    }), 200
+
+
 @bp.route("/<int:course_id>/groups", methods=["GET"])
 @jwt_required()
 def list_class_groups(course_id):

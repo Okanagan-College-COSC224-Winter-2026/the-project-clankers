@@ -128,6 +128,7 @@ export default function AssignmentMembers() {
                 { label: 'Home', path: `/assignments/${id}` },
                 { label: 'Members', path: `/assignments/${id}/members` },
                 { label: 'Submission', path: `/assignments/${id}/submission` },
+                { label: 'Peer Reviews', path: `/assignments/${id}/peer-reviews` },
               ]
         }
       />

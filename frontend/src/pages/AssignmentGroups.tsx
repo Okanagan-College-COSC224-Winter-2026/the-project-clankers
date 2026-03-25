@@ -455,6 +455,10 @@ export default function AssignmentGroups() {
                   label: "Submission",
                   path: `/assignments/${id}/submission`,
                 },
+                {
+                  label: "Peer Reviews",
+                  path: `/assignments/${id}/peer-reviews`,
+                },
               ]
         }
       />
