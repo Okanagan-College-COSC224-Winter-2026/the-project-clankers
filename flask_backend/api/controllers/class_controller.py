@@ -491,3 +491,71 @@ def archive_class():
     return jsonify({
         "msg": f"Class '{class_name}' archived successfully"
     }), 200
+
+
+@bp.route("/archived_classes", methods=["GET"])
+@jwt_teacher_required
+def get_archived_classes():
+    """Get all archived classes for the authenticated teacher or all archived classes for admin"""
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    if user.is_admin():
+        # Admins can see all archived classes
+        archived_courses = Course.query.filter_by(is_archived=True).all()
+    else:
+        # Teachers can only see their own archived classes
+        archived_courses = Course.query.filter_by(teacherID=user.id, is_archived=True).all()
+
+    courses_data = []
+    for course in archived_courses:
+        # Get teacher info
+        teacher = User.get_by_id(course.teacherID)
+        # Get student count
+        student_count = User_Course.query.filter_by(courseID=course.id).count()
+        # Get assignments count
+        assignments_count = course.assignments.count()
+
+        courses_data.append({
+            "id": course.id,
+            "name": course.name,
+            "teacher": {
+                "id": teacher.id,
+                "name": teacher.name,
+                "email": teacher.email if user.is_admin() else None
+            },
+            "student_count": student_count,
+            "assignments_count": assignments_count
+        })
+
+    return jsonify(courses_data), 200
+
+
+@bp.route("/unarchive_class", methods=["PUT"])
+@jwt_teacher_required
+def unarchive_class():
+    """Unarchive a class to restore it to the teacher's dashboard"""
+    data = request.get_json()
+    class_id = data.get("id")
+
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "You are not authorized to unarchive this class"}), 403
+
+    class_name = course.name
+    course.is_archived = False
+    course.update()
+
+    return jsonify({
+        "msg": f"Class '{class_name}' restored successfully"
+    }), 200

@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,6 +45,7 @@ interface RosterUploadResultData {
 
 export default function ClassHome() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const idNew = Number(id)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [newAssignmentName, setNewAssignmentName] = useState('')
@@ -174,7 +175,7 @@ export default function ClassHome() {
       setStatusType('success')
       setStatusMessage('Class deleted successfully!')
       setTimeout(() => {
-        window.location.href = '/'
+        navigate('/home')
       }, 1500)
     } catch (error) {
       console.error('Error deleting class:', error)
@@ -190,7 +191,7 @@ export default function ClassHome() {
       setStatusType('success')
       setStatusMessage('Class archived successfully!')
       setTimeout(() => {
-        window.location.href = '/'
+        navigate('/home')
       }, 1500)
     } catch (error) {
       console.error('Error archiving class:', error)
@@ -433,12 +434,14 @@ export default function ClassHome() {
               <strong>Delete</strong> permanently removes the class and cannot be undone.
             </p>
             {(assignments.length > 0 || studentCount > 0) && (
-              <p className="mb-4 font-bold text-red-600">
-                ⚠️ This class cannot be deleted because it has
+              <p className={`mb-4 font-bold ${isAdmin() ? 'text-orange-600' : 'text-red-600'}`}>
+                ⚠️ This class has
                 {assignments.length > 0 && ` ${assignments.length} assignment(s)`}
                 {assignments.length > 0 && studentCount > 0 && ' and'}
                 {studentCount > 0 && ` ${studentCount} enrolled student(s)`}
-                .{!isAdmin() && ' Archive it instead, or contact an admin to force delete.'}
+                .{isAdmin()
+                  ? ' As an admin, you can force delete this class, but all data will be permanently lost.'
+                  : ' This class cannot be deleted. Archive it instead, or contact an admin to force delete.'}
               </p>
             )}
             <div className="flex justify-end gap-2">

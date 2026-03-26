@@ -130,8 +130,8 @@ export const maybeHandleExpire = (response: Response) => {
   if (didExpire(response)) {
     // Remove the token
     removeToken();
-
-    window.location.href = '/';
+    // Don't force navigation here - let the app handle redirection naturally
+    // through protected route checks
   }
 }
 
@@ -315,6 +315,42 @@ export const deleteClass = async (classId: number) => {
 
 export const archiveClass = async (classId: number) => {
   const response = await fetch(`${BASE_URL}/class/archive_class`, {
+    method: 'PUT',
+    body: JSON.stringify({ id: classId }),
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const getArchivedClasses = async () => {
+  const response = await fetch(`${BASE_URL}/class/archived_classes`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const unarchiveClass = async (classId: number) => {
+  const response = await fetch(`${BASE_URL}/class/unarchive_class`, {
     method: 'PUT',
     body: JSON.stringify({ id: classId }),
     headers: { 'Content-Type': 'application/json' },
