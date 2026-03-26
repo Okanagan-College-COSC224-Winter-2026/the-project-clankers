@@ -465,7 +465,7 @@ export default function AssignmentGroups() {
 
       {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 w-full">
         {/* Unassigned Students Panel */}
         <div className="bg-background rounded-xl p-5 border shadow-sm h-[72vh] lg:h-[72vh] max-h-[60vh] lg:max-h-none flex flex-col transition-shadow hover:shadow-md">
           <h3 className="m-0 mb-3 text-foreground text-sm font-semibold tracking-tight">
