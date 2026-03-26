@@ -277,42 +277,52 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
     };
 
     const isCompatibleCriteriaType = (criteriaType: string): boolean => {
-        // 'both' is always compatible since it will be filtered by the review system
-        if (criteriaType === 'both') {
-            return true;
-        }
-
         if (assignmentType === 'individual') {
             // Individual assignments only support external
             return criteriaType === 'external';
         }
 
         const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
-        return availableTypes.includes(criteriaType as any);
+
+        // Check if criteria type is in available types
+        if (availableTypes.includes(criteriaType as any)) {
+            return true;
+        }
+
+        // 'both' is only compatible if both review types are actually enabled
+        if (criteriaType === 'both' && internalReview && externalReview) {
+            return true;
+        }
+
+        return false;
     };
 
     const getConvertedCriteriaType = (criteriaType: string): string => {
-        if (isCompatibleCriteriaType(criteriaType)) {
-            return criteriaType;
-        }
-
         // For individual assignments, convert everything to external
         if (assignmentType === 'individual') {
             return 'external';
         }
 
-        // For group assignments, convert to first available type
+        // For group assignments, get available types
         const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
+
+        // If the criteria type is already in available types, keep it
+        if (availableTypes.includes(criteriaType as any)) {
+            return criteriaType;
+        }
+
+        // Otherwise convert to first available type
         if (availableTypes.length > 0) {
             return availableTypes[0];
         }
         return 'both';
     };
 
-    const handleConfirmImport = (strategy: 'convert' | 'skip') => {
+    const handleConfirmImport = (strategy: 'convert' | 'skip' | 'perfect') => {
         if (!importPreview) return;
 
         let importedCriteria: Criterion[] = [];
+        const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
 
         if (strategy === 'convert') {
             // Convert all criteria to compatible types
@@ -324,10 +334,25 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                 description: c.description,
                 criteriaType: getConvertedCriteriaType(c.criteriaType) as 'internal' | 'external' | 'both'
             }));
-        } else {
-            // Skip incompatible criteria
+        } else if (strategy === 'skip') {
+            // Skip incompatible, but include 'both' and convert it to what's needed
             importedCriteria = importPreview.rubric
-                .filter(c => isCompatibleCriteriaType(c.criteriaType))
+                .filter(c => {
+                    // Include exact matches or 'both'
+                    return availableTypes.includes(c.criteriaType as any) || c.criteriaType === 'both';
+                })
+                .map(c => ({
+                    rubricID: 0,
+                    question: c.question,
+                    scoreMax: c.scoreMax,
+                    hasScore: c.hasScore,
+                    description: c.description,
+                    criteriaType: c.criteriaType === 'both' ? (availableTypes[0] as 'internal' | 'external' | 'both') : (c.criteriaType as 'internal' | 'external' | 'both')
+                }));
+        } else {
+            // Perfect match only - only import exact matches (exclude 'both')
+            importedCriteria = importPreview.rubric
+                .filter(c => availableTypes.includes(c.criteriaType as any))
                 .map(c => ({
                     rubricID: 0,
                     question: c.question,
@@ -605,7 +630,10 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                                         <strong>Force Convert:</strong> Import all criteria, automatically converting incompatible types to match this assignment's review settings.
                                     </p>
                                     <p>
-                                        <strong>Skip Incompatible:</strong> Only import criteria that already match this assignment's review settings.
+                                        <strong>Skip Incompatible:</strong> Only import criteria that already match this assignment's review settings (includes "For Both").
+                                    </p>
+                                    <p>
+                                        <strong>Perfect Match Only:</strong> Only import criteria with exact type matches - no conversions or "For Both" criteria.
                                     </p>
                                 </div>
                             </div>
@@ -613,6 +641,9 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                             <div className="flex gap-3 justify-end">
                                 <Button variant="outline" onClick={() => setImportPreview(null)}>
                                     Cancel
+                                </Button>
+                                <Button variant="outline" onClick={() => handleConfirmImport('perfect')}>
+                                    Perfect Match Only
                                 </Button>
                                 <Button variant="outline" onClick={() => handleConfirmImport('skip')}>
                                     Skip Incompatible
