@@ -67,8 +67,8 @@ class Course(db.Model):
 
     @classmethod
     def get_all_courses(cls):
-        """Get all courses"""
-        return cls.query.all()
+        """Get all non-archived courses"""
+        return cls.query.filter_by(is_archived=False).all()
 
     @classmethod
     def get_courses_by_teacher(cls, teacher_id):
