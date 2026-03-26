@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import StatusMessage from './StatusMessage';
-import { createCriteria, createRubric, getRubric, getCriteria, deleteCriteria, getAssignmentDetails } from '../util/api';
+import { createCriteria, createRubric, getRubric, getCriteria, deleteCriteria, getAssignmentDetails, getAssignmentsByClass } from '../util/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface RubricCreatorProps {
     onRubricCreated?: (rubricId: number) => void;
@@ -34,6 +41,11 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
     const [newCriteria, setNewCriteria] = useState<Criterion[]>([]);
     const [internalReview, setInternalReview] = useState(false);
     const [externalReview, setExternalReview] = useState(false);
+    const [courseId, setCourseId] = useState<number | null>(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [pastAssignments, setPastAssignments] = useState<Array<any>>([]);
+    const [pastRubrics, setPastRubrics] = useState<Map<number, Criterion[]>>(new Map());
+    const [importPreview, setImportPreview] = useState<{ rubric: Criterion[], assignmentId: number } | null>(null);
 
     // Load existing rubric, criteria, and check assignment type on mount
     useEffect(() => {
@@ -47,6 +59,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                 setAssignmentType(asnType);
                 setInternalReview(assignmentResp.internal_review || false);
                 setExternalReview(assignmentResp.external_review || false);
+                setCourseId(assignmentResp.courseID || null);
 
                 // Set initial criteria type based on assignment type and review settings
                 let defaultType = 'external';
@@ -222,6 +235,124 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         }
     };
 
+    const handleOpenImportModal = async () => {
+        try {
+            setShowImportModal(true);
+            if (pastAssignments.length === 0 && courseId) {
+                // Load past assignments from the same course
+                const assignments = await getAssignmentsByClass(courseId);
+                // Filter out the current assignment and assignments without rubrics
+                const otherAssignments = assignments.filter((a: any) => a.id !== id);
+                setPastAssignments(otherAssignments);
+
+                // Load rubrics for each assignment
+                const rubricMap = new Map<number, Criterion[]>();
+                for (const assignment of otherAssignments) {
+                    try {
+                        const rubric = await getRubric(assignment.id, true);
+                        if (rubric && rubric.id) {
+                            const criteria = await getCriteria(rubric.id);
+                            if (criteria && criteria.length > 0) {
+                                rubricMap.set(assignment.id, criteria);
+                            }
+                        }
+                    } catch {
+                        // Assignment doesn't have a rubric, skip it
+                    }
+                }
+                setPastRubrics(rubricMap);
+            }
+        } catch (error) {
+            console.error('Error loading past assignments:', error);
+            setStatusType('error');
+            setStatusMessage('Failed to load past assignments');
+        }
+    };
+
+    const handleImportRubric = (assignmentId: number) => {
+        const criteria = pastRubrics.get(assignmentId);
+        if (criteria) {
+            setImportPreview({ rubric: criteria, assignmentId });
+        }
+    };
+
+    const isCompatibleCriteriaType = (criteriaType: string): boolean => {
+        // 'both' is always compatible since it will be filtered by the review system
+        if (criteriaType === 'both') {
+            return true;
+        }
+
+        if (assignmentType === 'individual') {
+            // Individual assignments only support external
+            return criteriaType === 'external';
+        }
+
+        const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
+        return availableTypes.includes(criteriaType as any);
+    };
+
+    const getConvertedCriteriaType = (criteriaType: string): string => {
+        if (isCompatibleCriteriaType(criteriaType)) {
+            return criteriaType;
+        }
+
+        // For individual assignments, convert everything to external
+        if (assignmentType === 'individual') {
+            return 'external';
+        }
+
+        // For group assignments, convert to first available type
+        const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
+        if (availableTypes.length > 0) {
+            return availableTypes[0];
+        }
+        return 'both';
+    };
+
+    const handleConfirmImport = (strategy: 'convert' | 'skip') => {
+        if (!importPreview) return;
+
+        let importedCriteria: Criterion[] = [];
+
+        if (strategy === 'convert') {
+            // Convert all criteria to compatible types
+            importedCriteria = importPreview.rubric.map(c => ({
+                rubricID: 0,
+                question: c.question,
+                scoreMax: c.scoreMax,
+                hasScore: c.hasScore,
+                description: c.description,
+                criteriaType: getConvertedCriteriaType(c.criteriaType) as 'internal' | 'external' | 'both'
+            }));
+        } else {
+            // Skip incompatible criteria
+            importedCriteria = importPreview.rubric
+                .filter(c => isCompatibleCriteriaType(c.criteriaType))
+                .map(c => ({
+                    rubricID: 0,
+                    question: c.question,
+                    scoreMax: c.scoreMax,
+                    hasScore: c.hasScore,
+                    description: c.description,
+                    criteriaType: c.criteriaType as 'internal' | 'external' | 'both'
+                }));
+        }
+
+        if (importedCriteria.length === 0) {
+            setStatusType('error');
+            setStatusMessage('No compatible criteria found to import with selected strategy.');
+            setImportPreview(null);
+            return;
+        }
+
+        setNewCriteria(importedCriteria);
+        setImportPreview(null);
+        setShowImportModal(false);
+        setStatusType('success');
+        setStatusMessage(`Rubric imported successfully! (${importedCriteria.length} criteria imported)`);
+        setTimeout(() => setStatusMessage(''), 3000);
+    };
+
     return (
         <Card className="my-5">
             <CardHeader>
@@ -353,6 +484,11 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                             <Button onClick={handleCreate}>
                                 {rubricId ? 'Save Changes' : 'Create Rubric'}
                             </Button>
+                            {!rubricId && (
+                                <Button variant="outline" onClick={handleOpenImportModal}>
+                                    Import Rubric
+                                </Button>
+                            )}
                         </div>
 
                         <p className="mt-4 p-2.5 bg-amber-50 border border-amber-400 rounded text-amber-800 font-medium">
@@ -361,6 +497,134 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                     </>
                 )}
             </CardContent>
+
+            {/* Import Rubric Modal */}
+            <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Import Rubric from Past Assignment</DialogTitle>
+                        <DialogDescription>
+                            Select an assignment to import its rubric criteria. The scores, descriptions, and categories will be copied.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {pastRubrics.size === 0 ? (
+                            <p className="text-gray-500 py-4">No past assignments with rubrics found in this class.</p>
+                        ) : (
+                            pastAssignments.map(assignment => {
+                                const hasCriteria = pastRubrics.has(assignment.id);
+                                if (!hasCriteria) return null;
+
+                                const criteria = pastRubrics.get(assignment.id) || [];
+                                return (
+                                    <div key={assignment.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="font-semibold text-gray-800">{assignment.name}</p>
+                                                <p className="text-sm text-gray-600 mt-1">{criteria.length} criterion/criteria</p>
+                                            </div>
+                                            <Button
+                                                onClick={() => handleImportRubric(assignment.id)}
+                                                size="sm"
+                                            >
+                                                Import
+                                            </Button>
+                                        </div>
+                                        <div className="text-sm text-gray-600 space-y-1">
+                                            {criteria.slice(0, 3).map((c, idx) => (
+                                                <p key={idx} className="line-clamp-1">
+                                                    • {c.question}
+                                                </p>
+                                            ))}
+                                            {criteria.length > 3 && (
+                                                <p className="text-gray-500">+ {criteria.length - 3} more...</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Import Preview Dialog */}
+            <Dialog open={!!importPreview} onOpenChange={(open) => !open && setImportPreview(null)}>
+                <DialogContent className="!max-w-5xl max-h-[90vh]">
+                    <DialogHeader>
+                        <DialogTitle>Review Criteria for Import</DialogTitle>
+                        <DialogDescription>
+                            Some criteria may not be compatible with this assignment's review settings. Choose how to handle them.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {importPreview && (
+                        <div className="space-y-4">
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                                {importPreview.rubric.map((criterion, idx) => {
+                                    const compatible = isCompatibleCriteriaType(criterion.criteriaType);
+                                    const converted = getConvertedCriteriaType(criterion.criteriaType);
+
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`border rounded-lg p-3 ${
+                                                compatible ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                    <p className="font-medium text-gray-800">{criterion.question}</p>
+                                                    <div className="flex gap-3 mt-1 text-sm text-gray-600">
+                                                        {criterion.hasScore && (
+                                                            <span>Max score: {criterion.scoreMax}</span>
+                                                        )}
+                                                        {!criterion.hasScore && <span>Comment only</span>}
+                                                        <span className="font-medium">{getCriteriaTypeDisplay(criterion.criteriaType)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    {compatible ? (
+                                                        <span className="text-sm font-medium text-green-700">✓ Compatible</span>
+                                                    ) : (
+                                                        <div className="text-sm">
+                                                            <p className="text-orange-700 font-medium">Will convert to:</p>
+                                                            <p className="text-orange-600 font-medium">{getCriteriaTypeDisplay(converted)}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                                <p className="text-sm font-medium text-gray-700 mb-2">How would you like to proceed?</p>
+                                <div className="space-y-2 text-sm text-gray-600">
+                                    <p>
+                                        <strong>Force Convert:</strong> Import all criteria, automatically converting incompatible types to match this assignment's review settings.
+                                    </p>
+                                    <p>
+                                        <strong>Skip Incompatible:</strong> Only import criteria that already match this assignment's review settings.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 justify-end">
+                                <Button variant="outline" onClick={() => setImportPreview(null)}>
+                                    Cancel
+                                </Button>
+                                <Button variant="outline" onClick={() => handleConfirmImport('skip')}>
+                                    Skip Incompatible
+                                </Button>
+                                <Button onClick={() => handleConfirmImport('convert')}>
+                                    Force Convert
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }
