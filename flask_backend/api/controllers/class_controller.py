@@ -329,3 +329,165 @@ def enroll_students():
         response_data["existing_students"] = existing_students
     
     return jsonify(response_data), 200
+
+
+@bp.route("/<int:class_id>", methods=["GET"])
+@jwt_required()
+def get_class_details(class_id):
+    """Get details of a specific class by ID"""
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    # Get the current user to check permissions
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Check if user has access to this class
+    # Teachers can see their own classes, students can see classes they're enrolled in, admins can see all
+    has_access = False
+    if user.is_admin():
+        has_access = True
+    elif user.is_teacher() and course.teacherID == user.id:
+        has_access = True
+    elif user.is_student():
+        enrollment = User_Course.get(user.id, class_id)
+        has_access = enrollment is not None
+
+    if not has_access:
+        return jsonify({"msg": "You do not have access to this class"}), 403
+
+    # Get teacher info
+    teacher = User.get_by_id(course.teacherID)
+
+    # Get enrolled students count
+    student_count = User_Course.query.filter_by(courseID=class_id).count()
+
+    # Get assignments count
+    assignments_count = course.assignments.count()
+
+    return jsonify({
+        "id": course.id,
+        "name": course.name,
+        "teacher": {
+            "id": teacher.id,
+            "name": teacher.name,
+            "email": teacher.email if (user.is_teacher() or user.is_admin()) else None
+        },
+        "student_count": student_count,
+        "assignments_count": assignments_count
+    }), 200
+
+
+@bp.route("/update_class", methods=["PUT"])
+@jwt_teacher_required
+def update_class():
+    """Update class details (currently only name)"""
+    data = request.get_json()
+    class_id = data.get("id")
+    new_name = data.get("name")
+
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+
+    if not new_name or not new_name.strip():
+        return jsonify({"msg": "Class name is required"}), 400
+
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    # Check if the authenticated user is the teacher of the class
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "You are not authorized to update this class"}), 403
+
+    # Check if another class with the same name already exists for this teacher
+    existing_class = Course.get_by_name_teacher(new_name.strip(), course.teacherID)
+    if existing_class and existing_class.id != class_id:
+        return jsonify({"msg": "You already have a class with this name"}), 400
+
+    # Update the class name
+    course.name = new_name.strip()
+    course.update()
+
+    return jsonify({
+        "msg": "Class updated successfully",
+        "class": {
+            "id": course.id,
+            "name": course.name
+        }
+    }), 200
+
+
+@bp.route("/delete_class", methods=["DELETE"])
+@jwt_teacher_required
+def delete_class():
+    """Delete a class (only if no assignments and no enrolled students, or user is admin)"""
+    data = request.get_json()
+    class_id = data.get("id")
+
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    # Check if the authenticated user is the teacher of the class or an admin
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "You are not authorized to delete this class"}), 403
+
+    if not user.is_admin():
+        # Block deletion if assignments exist
+        assignments_count = course.assignments.count()
+        if assignments_count > 0:
+            return jsonify({
+                "msg": f"Cannot delete class with {assignments_count} assignment(s). Please delete all assignments first or archive the class."
+            }), 400
+
+        # Block deletion if students are enrolled
+        student_count = User_Course.query.filter_by(courseID=class_id).count()
+        if student_count > 0:
+            return jsonify({
+                "msg": f"Cannot delete class with {student_count} enrolled student(s). Please remove all students first or archive the class."
+            }), 400
+
+    class_name = course.name
+    course.delete()
+
+    return jsonify({
+        "msg": f"Class '{class_name}' deleted successfully"
+    }), 200
+
+
+@bp.route("/archive_class", methods=["PUT"])
+@jwt_teacher_required
+def archive_class():
+    """Archive a class so it no longer appears in the teacher's dashboard"""
+    data = request.get_json()
+    class_id = data.get("id")
+
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "You are not authorized to archive this class"}), 403
+
+    class_name = course.name
+    course.archive()
+
+    return jsonify({
+        "msg": f"Class '{class_name}' archived successfully"
+    }), 200
