@@ -187,8 +187,25 @@ def download_submission(submission_id):
     # Authorization check
     is_teacher = (user.is_teacher() and course.teacherID == user.id) or user.is_admin()
     is_owner = submission.student_id == user.id
+    is_group_member = False
 
-    if not (is_teacher or is_owner):
+    # Check if this is a group assignment and user is in same group
+    if not is_owner and assignment.submission_type == 'group':
+        # Find the user's group
+        user_group_membership = Group_Members.query.filter_by(userID=user.id).join(
+            CourseGroup
+        ).filter(CourseGroup.courseID == course.id).first()
+
+        # Find the submitter's group
+        submitter_group_membership = Group_Members.query.filter_by(userID=submission.student_id).join(
+            CourseGroup
+        ).filter(CourseGroup.courseID == course.id).first()
+
+        # If both are in a group and it's the same group, allow access
+        if user_group_membership and submitter_group_membership and user_group_membership.groupID == submitter_group_membership.groupID:
+            is_group_member = True
+
+    if not (is_teacher or is_owner or is_group_member):
         return jsonify({"msg": "Unauthorized: You cannot access this submission"}), 403
 
     # Send file
