@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import ClassCard from "../components/ClassCard";
-import './Browse.css';
 import { browseAllClasses, listAssignments, enrollInCourse, listClasses } from "../util/api";
 import { isStudent } from "../util/login";
 
@@ -77,32 +76,32 @@ export default function Browse() {
 
   if (loading) {
     return (
-      <div className="Browse">
-        <h1>Browse All Courses</h1>
-        <p>Loading courses...</p>
+      <div className="flex flex-1 flex-col p-6">
+        <h1 className="mb-6 text-3xl font-bold">Browse All Courses</h1>
+        <p className="text-muted-foreground">Loading courses...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="Browse">
-        <h1>Browse All Courses</h1>
-        <p className="error">{error}</p>
+      <div className="flex flex-1 flex-col p-6">
+        <h1 className="mb-6 text-3xl font-bold">Browse All Courses</h1>
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="Browse">
-      <h1>Browse All Courses</h1>
-      <p className="subtitle">Explore all available courses in the system</p>
+    <div className="flex flex-1 flex-col p-6">
+      <h1 className="mb-6 text-3xl font-bold">Browse All Courses</h1>
+      <p className="subtitle mb-6 text-muted-foreground">Explore all available courses in the system</p>
 
-      <div className="Classes">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {courses.length === 0 ? (
-          <div className="empty-state">
-            <h2>No courses available</h2>
-            <p>There are no courses in the system yet.</p>
+          <div className="col-span-full text-center">
+            <h2 className="text-lg font-semibold">No courses available</h2>
+            <p className="text-muted-foreground">There are no courses in the system yet.</p>
           </div>
         ) : (
           courses.map((course) => {
@@ -124,6 +123,7 @@ export default function Browse() {
                     <button
                       onClick={() => handleEnroll(course.id)}
                       disabled={isEnrolled || isEnrolling}
+                      className="w-full rounded px-3 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isEnrolling ? "Enrolling..." : isEnrolled ? "Enrolled" : "Join Course"}
                     </button>
