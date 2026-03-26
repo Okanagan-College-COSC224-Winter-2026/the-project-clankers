@@ -453,10 +453,6 @@ export default function ClassGroupManagement() {
                   label: "Student Submissions",
                   path: `/classes/${id}/student-submissions`,
                 },
-                {
-                  label: "Rubrics",
-                  path: `/classes/${id}/rubrics`,
-                },
               ]
             : [
                 {
@@ -473,7 +469,7 @@ export default function ClassGroupManagement() {
 
       {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}
 
-      <div className="grid grid-cols-2 gap-6 p-5 max-w-7xl mx-auto">
+      <div className="grid grid-cols-2 gap-6 p-5 w-full">
         {/* Left side: Unassigned Students */}
         <Card className="h-[72vh] flex flex-col">
           <CardHeader className="border-b pb-4">

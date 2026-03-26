@@ -220,7 +220,7 @@ def get_review():
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
 
-    is_teacher = user.is_teacher() and assignment.course.teacherID == user.id
+    is_teacher = (user.is_teacher() and assignment.course.teacherID == user.id) or user.is_admin()
     is_participant = False
 
     # Check if user is the reviewer

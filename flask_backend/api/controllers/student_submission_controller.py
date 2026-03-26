@@ -185,7 +185,7 @@ def download_submission(submission_id):
         return jsonify({"msg": "Course not found"}), 404
 
     # Authorization check
-    is_teacher = user.is_teacher() and course.teacherID == user.id
+    is_teacher = (user.is_teacher() and course.teacherID == user.id) or user.is_admin()
     is_owner = submission.student_id == user.id
 
     if not (is_teacher or is_owner):

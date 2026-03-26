@@ -178,10 +178,10 @@ def get_assignments(class_id):
     user = User.get_by_email(email)
     if not user:
         return jsonify({"msg": "User not found"}), 404
-    
-    is_teacher = course.teacherID == user.id
+
+    is_teacher = course.teacherID == user.id or user.is_admin()
     assignments = Assignment.get_by_class_id(class_id)
-    
+
     # Filter out assignments that haven't started yet for students
     if not is_teacher:
         assignments = [a for a in assignments if a.is_visible_to_students()]
