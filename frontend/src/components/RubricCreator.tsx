@@ -525,7 +525,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
 
             {/* Import Rubric Modal */}
             <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="!max-w-5xl">
                     <DialogHeader>
                         <DialogTitle>Import Rubric from Past Assignment</DialogTitle>
                         <DialogDescription>
