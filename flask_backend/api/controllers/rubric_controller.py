@@ -140,15 +140,16 @@ def get_criteria():
 @jwt_teacher_required
 def create_criteria():
     """Create a new criteria description for a rubric
-    
+
     Request body:
         rubricID: ID of the rubric
         question: The criterion question/description
         scoreMax: Maximum score for this criterion
         hasScore: Whether this criterion has a numeric score (default: True)
         description: Additional description text for no-score criteria (optional)
+        criteria_type: Type of criteria ('internal', 'external', or 'both') (default: 'both')
         canComment: Whether comments are allowed (deprecated, use rubric.canComment)
-    
+
     Returns the created criteria description
     """
     data = request.get_json()
@@ -157,32 +158,37 @@ def create_criteria():
     score_max = data.get("scoreMax")
     has_score = data.get("hasScore", True)
     description = data.get("description")
-    
+    criteria_type = data.get("criteria_type", "both")  # Default to 'both'
+
     if not all([rubric_id, question, score_max is not None]):
         return jsonify({"msg": "rubricID, question, and scoreMax are required"}), 400
-    
+
+    if criteria_type not in ['internal', 'external', 'both']:
+        return jsonify({"msg": "criteria_type must be 'internal', 'external', or 'both'"}), 400
+
     # Verify rubric exists
     rubric = Rubric.get_by_id(rubric_id)
     if not rubric:
         return jsonify({"msg": "Rubric not found"}), 404
-    
+
     # Verify user is the teacher of the course
     email = get_jwt_identity()
     user = User.get_by_email(email)
     assignment = rubric.assignment
     if not user or assignment.course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized"}), 403
-    
+
     # Create new criteria description
     new_criteria = CriteriaDescription(
         rubricID=rubric_id,
         question=question,
         scoreMax=score_max,
         hasScore=has_score,
-        description=description
+        description=description,
+        criteria_type=criteria_type
     )
     CriteriaDescription.create_criteria_description(new_criteria)
-    
+
     return jsonify(CriteriaDescriptionSchema().dump(new_criteria)), 201
 
 

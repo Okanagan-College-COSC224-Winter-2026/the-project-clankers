@@ -54,6 +54,14 @@ function PeerReviewModal({
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [grades, setGrades] = useState<number[]>([]);
 
+  // Helper function to filter criteria based on review type
+  const filterCriteriaByType = (allCriteria: Criterion[], reviewType: 'internal' | 'external' | null) => {
+    if (!reviewType) return allCriteria;
+    return allCriteria.filter(c =>
+      !c.criteriaType || c.criteriaType === 'both' || c.criteriaType === reviewType
+    );
+  };
+
   useEffect(() => {
     if (isOpen) {
       (async () => {
@@ -134,7 +142,7 @@ function PeerReviewModal({
     const member = groupMembers.find(m => m.id === memberId);
     if (member) {
       setSelectedTarget({ ...member, type: 'internal' });
-      loadExistingReview(currentUserId, memberId, 'user');
+      loadExistingReview(currentUserId, memberId, 'user', 'internal');
     }
   };
 
@@ -142,11 +150,11 @@ function PeerReviewModal({
     const target = externalTargets.find(t => t.id === targetId);
     if (target) {
       setSelectedTarget({ ...target, type: 'external' });
-      loadExistingReview(currentUserId, targetId, submissionType === 'group' ? 'group' : 'user');
+      loadExistingReview(currentUserId, targetId, submissionType === 'group' ? 'group' : 'user', 'external');
     }
   };
 
-  const loadExistingReview = async (userId: number | null, targetId: number, revieweeType: 'user' | 'group') => {
+  const loadExistingReview = async (userId: number | null, targetId: number, revieweeType: 'user' | 'group', reviewType?: 'internal' | 'external') => {
     if (!userId) return;
     try {
       let reviewerId = userId;
@@ -228,10 +236,17 @@ function PeerReviewModal({
           console.warn('Could not refresh rubric before submission, using cached criteria:', error);
         }
 
+        // Filter criteria based on review type
+        const filteredCriteria = filterCriteriaByType(currentCriteria, selectedTarget.type);
+
         // Create criterion entries for each criterion with a grade (including 0)
         for (let i = 0; i < currentCriteria.length; i++) {
-          if (finalGrades[i] !== null && finalGrades[i] !== undefined && currentCriteria[i].id) {
-            await createCriterion(reviewId, currentCriteria[i].id!, finalGrades[i], "");
+          const criterion = currentCriteria[i];
+          // Only submit grades for criteria that should be visible in this review type
+          if (filterCriteriaByType([criterion], selectedTarget.type).length > 0) {
+            if (finalGrades[i] !== null && finalGrades[i] !== undefined && criterion.id) {
+              await createCriterion(reviewId, criterion.id!, finalGrades[i], "");
+            }
           }
         }
 
@@ -339,38 +354,48 @@ function PeerReviewModal({
 
                 {criteria.length > 0 ? (
                   <>
-                    <div className="w-full max-h-[500px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
-                      {criteria.map((criterion, index) => {
-                        // If no score or scoreMax is 0, default to 100
-                        const maxScore = (!criterion.hasScore || criterion.scoreMax === 0) ? 100 : criterion.scoreMax;
+                    {(() => {
+                      const filteredCriteria = filterCriteriaByType(criteria, selectedTarget.type);
+                      const filteredGrades = grades.slice(0, criteria.length);
 
-                        return (
-                          <div key={index} className="flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                              <label className="font-medium text-gray-800 m-0 text-sm">{criterion.question}</label>
-                              <span className="font-semibold text-blue-600 text-sm bg-blue-100 px-2 py-1 rounded">
-                                {grades[index] !== null ? grades[index] : 0} / {maxScore}
-                              </span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max={maxScore}
-                              value={grades[index] !== null ? grades[index] : 0}
-                              onChange={(e) => {
-                                const newGrades = [...grades];
-                                newGrades[index] = Number(e.target.value);
-                                setGrades(newGrades);
-                              }}
-                              className="w-full h-1.5 appearance-none bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-md"
-                            />
+                      return (
+                        <>
+                          <div className="w-full max-h-[500px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
+                            {filteredCriteria.map((criterion, displayIndex) => {
+                              // Find the actual index in the full criteria array
+                              const actualIndex = criteria.findIndex(c => c.id === criterion.id);
+                              const maxScore = (!criterion.hasScore || criterion.scoreMax === 0) ? 100 : criterion.scoreMax;
+
+                              return (
+                                <div key={actualIndex} className="flex flex-col gap-2">
+                                  <div className="flex justify-between items-center">
+                                    <label className="font-medium text-gray-800 m-0 text-sm">{criterion.question}</label>
+                                    <span className="font-semibold text-blue-600 text-sm bg-blue-100 px-2 py-1 rounded">
+                                      {filteredGrades[actualIndex] !== null ? filteredGrades[actualIndex] : 0} / {maxScore}
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max={maxScore}
+                                    value={filteredGrades[actualIndex] !== null ? filteredGrades[actualIndex] : 0}
+                                    onChange={(e) => {
+                                      const newGrades = [...filteredGrades];
+                                      newGrades[actualIndex] = Number(e.target.value);
+                                      setGrades(newGrades);
+                                    }}
+                                    className="w-full h-1.5 appearance-none bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-md"
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                    <Button onClick={handleSubmitReview} disabled={isSubmitting}>
-                      {isSubmitting ? 'Submitting...' : 'Submit Review'}
-                    </Button>
+                          <Button onClick={handleSubmitReview} disabled={isSubmitting}>
+                            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                          </Button>
+                        </>
+                      );
+                    })()}
                   </>
                 ) : (
                   <p className="text-center text-gray-400 text-base p-5">No rubric available for this assignment</p>

@@ -164,6 +164,8 @@ class CriteriaDescriptionSchema(ma.SQLAlchemyAutoSchema):
         include_fk = False
         sqla_session = db.session
 
+    criteria_type = fields.Str(data_key='criteriaType', dump_default='both')
+
 
 class CriterionSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
