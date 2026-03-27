@@ -165,6 +165,7 @@ class CriteriaDescriptionSchema(ma.SQLAlchemyAutoSchema):
         sqla_session = db.session
 
     criteria_type = fields.Str(data_key='criteriaType', dump_default='both')
+    allow_comments = fields.Bool(data_key='canComment', dump_default=False)
 
 
 class CriterionSchema(ma.SQLAlchemyAutoSchema):

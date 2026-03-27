@@ -43,6 +43,7 @@ interface Criterion {
   hasScore: boolean;
   description?: string;
   criteriaType?: 'internal' | 'external' | 'both';
+  canComment?: boolean;
 }
 
 interface Assignment {

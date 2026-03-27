@@ -78,7 +78,8 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                     scoreMax: 0,
                     hasScore: true,
                     description: '',
-                    criteriaType: defaultType
+                    criteriaType: defaultType,
+                    canComment: false
                 }]);
 
                 const rubricResp = await getRubric(id, true); // true = use as assignmentID
@@ -117,10 +118,10 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
 
             // Only create criteria for NEW entries (not existing ones)
             if (newCriteria.length > 0 && newCriteria[0].question !== '') {
-                await Promise.all(newCriteria.map(({ question, scoreMax, hasScore, description, criteriaType }) => {
+                await Promise.all(newCriteria.map(({ question, scoreMax, hasScore, description, criteriaType, canComment }) => {
                     // For individual assignments, force 'external'
                     const finalCriteriaType = assignmentType === 'individual' ? 'external' : (criteriaType || 'both');
-                    return createCriteria(targetRubricId, question, scoreMax, false, hasScore, description || '', finalCriteriaType);
+                    return createCriteria(targetRubricId, question, scoreMax, canComment || false, hasScore, description || '', finalCriteriaType);
                 }));
             }
 
@@ -174,10 +175,16 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         setNewCriteria(updatedCriteria);
     };
 
+    const handleCanCommentChange = (index: number, value: boolean) => {
+        const updatedCriteria = [...newCriteria];
+        updatedCriteria[index].canComment = value;
+        setNewCriteria(updatedCriteria);
+    };
+
     const handleAddNewSection = () => {
         const availableOptions = getAvailableCriteriaTypeOptions();
         const defaultType = availableOptions[0]?.value || 'both';
-        setNewCriteria(prev => [...prev, { rubricID: 0, question: '', scoreMax: 0, hasScore: true, description: '', criteriaType: defaultType }]);
+        setNewCriteria(prev => [...prev, { rubricID: 0, question: '', scoreMax: 0, hasScore: true, description: '', criteriaType: defaultType, canComment: false }]);
     };
 
     const handleRemoveSection = (index: number) => setNewCriteria(prev => prev.filter((_, i) => i !== index));
@@ -332,7 +339,8 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                 scoreMax: c.scoreMax,
                 hasScore: c.hasScore,
                 description: c.description,
-                criteriaType: getConvertedCriteriaType(c.criteriaType) as 'internal' | 'external' | 'both'
+                criteriaType: getConvertedCriteriaType(c.criteriaType) as 'internal' | 'external' | 'both',
+                canComment: c.canComment || false
             }));
         } else if (strategy === 'skip') {
             // Skip incompatible, but include 'both' and convert it to what's needed
@@ -347,7 +355,8 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                     scoreMax: c.scoreMax,
                     hasScore: c.hasScore,
                     description: c.description,
-                    criteriaType: c.criteriaType === 'both' ? (availableTypes[0] as 'internal' | 'external' | 'both') : (c.criteriaType as 'internal' | 'external' | 'both')
+                    criteriaType: c.criteriaType === 'both' ? (availableTypes[0] as 'internal' | 'external' | 'both') : (c.criteriaType as 'internal' | 'external' | 'both'),
+                    canComment: c.canComment || false
                 }));
         } else {
             // Perfect match only - only import exact matches (exclude 'both')
@@ -359,7 +368,8 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                     scoreMax: c.scoreMax,
                     hasScore: c.hasScore,
                     description: c.description,
-                    criteriaType: c.criteriaType as 'internal' | 'external' | 'both'
+                    criteriaType: c.criteriaType as 'internal' | 'external' | 'both',
+                    canComment: c.canComment || false
                 }));
         }
 
@@ -401,6 +411,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                                             <div className="text-sm text-gray-600 mt-1">
                                                 {item.hasScore && <span> Max score: {item.scoreMax}</span>}
                                                 {!item.hasScore && <span>(Comment only)</span>}
+                                                {item.canComment && <span className="ml-2 inline-block px-2 py-0.5 bg-green-200 rounded text-xs font-medium">Comments Enabled</span>}
                                                 <span className="ml-3 inline-block px-2 py-0.5 bg-gray-200 rounded text-xs font-medium">
                                                     {assignmentType === 'group' ? getCriteriaTypeDisplay(item.criteriaType) : 'External Only'}
                                                 </span>
@@ -465,6 +476,17 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                                         />
                                     </div>
                                 )}
+
+                                {/* Comment Option */}
+                                <div className="mb-4">
+                                    <Label className="flex items-center gap-2 whitespace-nowrap">
+                                        <Checkbox
+                                            checked={item.canComment || false}
+                                            onCheckedChange={(checked) => handleCanCommentChange(index, checked === true)}
+                                        />
+                                        Reviewer can Comment
+                                    </Label>
+                                </div>
 
                                 {/* Line 3: Category Selection (Radio Buttons) - Only for group assignments */}
                                 {assignmentType === 'group' ? (
@@ -604,6 +626,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                                                             <span>Max score: {criterion.scoreMax}</span>
                                                         )}
                                                         {!criterion.hasScore && <span>Comment only</span>}
+                                                        {criterion.canComment && <span className="text-green-700 font-medium">Comments Enabled</span>}
                                                         <span className="font-medium">{getCriteriaTypeDisplay(criterion.criteriaType)}</span>
                                                     </div>
                                                 </div>

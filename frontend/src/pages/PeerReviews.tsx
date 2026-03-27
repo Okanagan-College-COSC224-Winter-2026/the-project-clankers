@@ -53,6 +53,7 @@ function PeerReviewModal({
   // Rubric and criteria state
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [grades, setGrades] = useState<number[]>([]);
+  const [comments, setComments] = useState<string[]>([]);
 
   // Helper function to filter criteria based on review type
   const filterCriteriaByType = (allCriteria: Criterion[], reviewType: 'internal' | 'external' | null) => {
@@ -89,10 +90,12 @@ function PeerReviewModal({
             const criteriaData = await getCriteria(rubricData.id);
             setCriteria(criteriaData);
             setGrades(new Array(criteriaData.length).fill(0));
+            setComments(new Array(criteriaData.length).fill(''));
           } catch (error) {
             console.warn('No rubric found for assignment:', error);
             setCriteria([]);
             setGrades([]);
+            setComments([]);
           }
 
           // Fetch group members for internal review (if enabled and group assignment)
@@ -180,9 +183,21 @@ function PeerReviewModal({
       } else {
         setGrades(new Array(criteria.length).fill(0));
       }
+
+      if (reviewData.comments && reviewData.comments.length > 0) {
+        // Ensure comments array matches current criteria length
+        const paddedComments = [...reviewData.comments];
+        while (paddedComments.length < criteria.length) {
+          paddedComments.push('');
+        }
+        setComments(paddedComments);
+      } else {
+        setComments(new Array(criteria.length).fill(''));
+      }
     } catch (error) {
       console.warn('No existing review found or error loading:', error);
       setGrades(new Array(criteria.length).fill(0));
+      setComments(new Array(criteria.length).fill(''));
     }
   };
 
@@ -222,16 +237,21 @@ function PeerReviewModal({
         // Refresh rubric to ensure we have latest criteria (in case teacher added new ones)
         let currentCriteria = criteria;
         let finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
+        let finalComments = [...comments];
         try {
           const freshRubric = await getRubric(assignmentId, true);
           const freshCriteria = await getCriteria(freshRubric.id);
           currentCriteria = freshCriteria;
 
-          // Pad grades array if rubric has grown
+          // Pad grades and comments arrays if rubric has grown
           while (finalGrades.length < currentCriteria.length) {
             finalGrades.push(0);
           }
+          while (finalComments.length < currentCriteria.length) {
+            finalComments.push('');
+          }
           setGrades(finalGrades);
+          setComments(finalComments);
         } catch (error) {
           console.warn('Could not refresh rubric before submission, using cached criteria:', error);
         }
@@ -239,13 +259,14 @@ function PeerReviewModal({
         // Filter criteria based on review type
         const filteredCriteria = filterCriteriaByType(currentCriteria, selectedTarget.type);
 
-        // Create criterion entries for each criterion with a grade (including 0)
+        // Create criterion entries for each visible criterion
         for (let i = 0; i < currentCriteria.length; i++) {
           const criterion = currentCriteria[i];
-          // Only submit grades for criteria that should be visible in this review type
+          // Only submit for criteria that should be visible in this review type
           if (filterCriteriaByType([criterion], selectedTarget.type).length > 0) {
-            if (finalGrades[i] !== null && finalGrades[i] !== undefined && criterion.id) {
-              await createCriterion(reviewId, criterion.id!, finalGrades[i], "");
+            if (criterion.id) {
+              console.log(`Submitting criterion ${i}: grade=${finalGrades[i]}, comment="${finalComments[i] || ''}"`);
+              await createCriterion(reviewId, criterion.id!, finalGrades[i] !== null ? finalGrades[i] : 0, finalComments[i] || "");
             }
           }
         }
@@ -254,6 +275,7 @@ function PeerReviewModal({
         // Reset and close
         setSelectedTarget(null);
         setGrades(new Array(criteria.length).fill(0));
+        setComments(new Array(criteria.length).fill(''));
         onClose();
 
         // Trigger refresh of submitted reviews
@@ -357,10 +379,12 @@ function PeerReviewModal({
                     {(() => {
                       const filteredCriteria = filterCriteriaByType(criteria, selectedTarget.type);
                       const filteredGrades = grades.slice(0, criteria.length);
+                      const commentableCriteria = filteredCriteria.filter(c => c.canComment);
 
                       return (
                         <>
-                          <div className="w-full max-h-[500px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
+                          {/* Rubric Scoring Section */}
+                          <div className="w-full max-h-[350px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
                             {filteredCriteria.map((criterion, displayIndex) => {
                               // Find the actual index in the full criteria array
                               const actualIndex = criteria.findIndex(c => c.id === criterion.id);
@@ -390,6 +414,37 @@ function PeerReviewModal({
                               );
                             })}
                           </div>
+
+                          {/* Feedback Section */}
+                          {commentableCriteria.length > 0 && (
+                            <div className="w-full flex flex-col gap-4">
+                              <h4 className="m-0 font-semibold text-gray-800 text-base pb-2 border-b border-gray-300">Feedback</h4>
+                              <div className="w-full max-h-[250px] overflow-y-auto flex flex-col gap-4 pr-2">
+                                {commentableCriteria.map((criterion) => {
+                                  const actualIndex = criteria.findIndex(c => c.id === criterion.id);
+                                  return (
+                                    <div key={actualIndex} className="flex flex-col gap-2">
+                                      <label className="font-medium text-gray-700 text-sm">
+                                        {criterion.question}
+                                      </label>
+                                      <textarea
+                                        value={comments[actualIndex] || ''}
+                                        onChange={(e) => {
+                                          const newComments = [...comments];
+                                          newComments[actualIndex] = e.target.value;
+                                          setComments(newComments);
+                                        }}
+                                        placeholder="Enter your feedback..."
+                                        className="w-full p-2 border border-gray-300 rounded text-sm resize-none focus:outline-none focus:border-blue-500"
+                                        rows={3}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           <Button onClick={handleSubmitReview} disabled={isSubmitting}>
                             {isSubmitting ? 'Submitting...' : 'Submit Review'}
                           </Button>
@@ -431,6 +486,7 @@ export default function PeerReviews() {
   const [isLoading, setIsLoading] = useState(true);
   const [submittedReviews, setSubmittedReviews] = useState<SubmittedReviewData[]>([]);
   const [receivedReviews, setReceivedReviews] = useState<ReceivedReviewData[]>([]);
+  const [selectedReviewComments, setSelectedReviewComments] = useState<{ reviewId: number; comments: string[] } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -454,6 +510,114 @@ export default function PeerReviews() {
       }
     })();
   }, [id]);
+
+  const handleViewMyComments = async (review: SubmittedReviewData) => {
+    try {
+      // Get the full review data with comments
+      const userIdResponse = await getUserId();
+      const currentUserId = userIdResponse.id;
+
+      let reviewerType: 'user' | 'group' = 'user';
+      let reviewerId = currentUserId;
+
+      // For external reviews on group assignments, reviewer is a group
+      if (review.type === 'external' && assignment?.submission_type === 'group') {
+        reviewerType = 'group';
+        const groupData = await getMyGroup(assignment.courseID);
+        reviewerId = groupData.groupId;
+      }
+
+      const revieweeType = assignment?.submission_type === 'group' && review.type === 'external' ? 'group' : 'user';
+
+      // Fetch review with comments
+      const params = new URLSearchParams({
+        assignmentID: String(id),
+        reviewerID: String(reviewerId),
+        revieweeID: String(review.revieweeId),
+        revieweeType: revieweeType,
+        reviewerType: reviewerType,
+        reviewType: review.type
+      });
+
+      console.log('Fetching my comments with params:', {
+        assignmentID: id,
+        reviewerID: reviewerId,
+        revieweeID: review.revieweeId,
+        revieweeType,
+        reviewerType,
+        reviewType: review.type
+      });
+
+      const reviewResponse = await fetch(`http://localhost:5000/review?${params}`, {
+        credentials: 'include'
+      });
+      const reviewData = await reviewResponse.json();
+
+      console.log('My review data:', reviewData);
+
+      setSelectedReviewComments({
+        reviewId: reviewerId,
+        comments: reviewData.comments || []
+      });
+    } catch (error) {
+      console.error('Error loading my review comments:', error);
+      alert('Failed to load comments');
+    }
+  };
+
+  const handleViewComments = async (review: ReceivedReviewData) => {
+    try {
+      // Get the full review data with comments
+      const userIdResponse = await getUserId();
+      const currentUserId = userIdResponse.id;
+
+      let revieweeType: 'user' | 'group' = 'user';
+      let revieweeId = currentUserId;
+
+      // For external reviews on group assignments, reviewee is a group
+      if (review.type === 'external' && assignment?.submission_type === 'group') {
+        revieweeType = 'group';
+        const groupData = await getMyGroup(assignment.courseID);
+        revieweeId = groupData.groupId;
+      }
+
+      const reviewerType = review.type === 'internal' ? 'user' : (assignment?.submission_type === 'group' ? 'group' : 'user');
+
+      // Fetch review with comments
+      const params = new URLSearchParams({
+        assignmentID: String(id),
+        reviewerID: String(review.reviewerId),
+        revieweeID: String(revieweeId),
+        revieweeType: revieweeType,
+        reviewerType: reviewerType,
+        reviewType: review.type
+      });
+
+      console.log('Fetching comments with params:', {
+        assignmentID: id,
+        reviewerID: review.reviewerId,
+        revieweeID: revieweeId,
+        revieweeType,
+        reviewerType,
+        reviewType: review.type
+      });
+
+      const reviewResponse = await fetch(`http://localhost:5000/review?${params}`, {
+        credentials: 'include'
+      });
+      const reviewData = await reviewResponse.json();
+
+      console.log('Review data:', reviewData);
+
+      setSelectedReviewComments({
+        reviewId: review.reviewerId,
+        comments: reviewData.comments || []
+      });
+    } catch (error) {
+      console.error('Error loading review comments:', error);
+      alert('Failed to load comments');
+    }
+  };
 
   if (isLoading) {
     return <div className="p-5 max-w-6xl mx-auto">Loading...</div>;
@@ -520,15 +684,23 @@ export default function PeerReviews() {
                   <span className="font-medium text-gray-800 text-base">{review.revieweeName}</span>
                   <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">{review.type === 'internal' ? 'Internal' : 'External'}</span>
                 </div>
-                {review.grade !== undefined && review.grade !== null ? (
-                  <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
-                    {review.grade.toFixed(1)}
-                  </div>
-                ) : (
-                  <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
-                    N/A
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleViewMyComments(review)}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded font-medium text-sm hover:bg-gray-300 transition-colors"
+                  >
+                    My Comments
+                  </button>
+                  {review.grade !== undefined && review.grade !== null ? (
+                    <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
+                      {review.grade.toFixed(1)}
+                    </div>
+                  ) : (
+                    <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
+                      N/A
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -549,20 +721,64 @@ export default function PeerReviews() {
                   <span className="font-medium text-gray-800 text-base">{review.reviewerName}</span>
                   <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">{review.type === 'internal' ? 'Internal' : 'External'}</span>
                 </div>
-                {review.grade !== undefined && review.grade !== null ? (
-                  <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
-                    {review.grade.toFixed(1)}
-                  </div>
-                ) : (
-                  <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
-                    N/A
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleViewComments(review)}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded font-medium text-sm hover:bg-gray-300 transition-colors"
+                  >
+                    Comments
+                  </button>
+                  {review.grade !== undefined && review.grade !== null ? (
+                    <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
+                      {review.grade.toFixed(1)}
+                    </div>
+                  ) : (
+                    <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
+                      N/A
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Comments Modal */}
+      {selectedReviewComments && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[90%] max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl">
+            <div className="sticky top-0 flex justify-between items-center p-5 border-b bg-white">
+              <h2 className="m-0 text-xl">Review Comments</h2>
+              <button
+                onClick={() => setSelectedReviewComments(null)}
+                className="bg-transparent border-none text-2xl cursor-pointer text-gray-400 hover:text-gray-800 p-0 w-8 h-8 flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5">
+              {selectedReviewComments.comments && selectedReviewComments.comments.length > 0 ? (
+                <div className="space-y-4">
+                  {selectedReviewComments.comments.map((comment, idx) => {
+                    if (!comment) return null;
+                    return (
+                      <div key={idx} className="p-3 bg-gray-50 border border-gray-200 rounded">
+                        <p className="text-sm text-gray-600 m-0 mb-2 font-semibold">
+                          Criterion {idx + 1}
+                        </p>
+                        <p className="text-gray-800 m-0 whitespace-pre-wrap">{comment}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No comments provided for this review</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {assignment && (
         <PeerReviewModal

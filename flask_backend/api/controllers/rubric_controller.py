@@ -148,7 +148,7 @@ def create_criteria():
         hasScore: Whether this criterion has a numeric score (default: True)
         description: Additional description text for no-score criteria (optional)
         criteria_type: Type of criteria ('internal', 'external', or 'both') (default: 'both')
-        canComment: Whether comments are allowed (deprecated, use rubric.canComment)
+        canComment: Whether reviewers can comment on this criterion (default: False)
 
     Returns the created criteria description
     """
@@ -159,6 +159,7 @@ def create_criteria():
     has_score = data.get("hasScore", True)
     description = data.get("description")
     criteria_type = data.get("criteria_type", "both")  # Default to 'both'
+    can_comment = data.get("canComment", False)  # Default to False
 
     if not all([rubric_id, question, score_max is not None]):
         return jsonify({"msg": "rubricID, question, and scoreMax are required"}), 400
@@ -185,7 +186,8 @@ def create_criteria():
         scoreMax=score_max,
         hasScore=has_score,
         description=description,
-        criteria_type=criteria_type
+        criteria_type=criteria_type,
+        allow_comments=can_comment
     )
     CriteriaDescription.create_criteria_description(new_criteria)
 
