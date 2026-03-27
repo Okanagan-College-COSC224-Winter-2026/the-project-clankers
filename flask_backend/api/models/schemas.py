@@ -1,4 +1,4 @@
-from marshmallow import fields, validate
+from marshmallow import fields, validate, pre_dump
 
 from .assignment_model import Assignment
 from .assignment_file_model import AssignmentFile
@@ -124,7 +124,15 @@ class AssignmentFileSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         sqla_session = db.session
 
-    uploaded_at = fields.DateTime(dump_only=True)
+    uploaded_at = fields.DateTime(dump_only=True, format='iso')
+
+    @pre_dump
+    def ensure_timezone_aware(self, obj, **kwargs):
+        """Ensure datetime is timezone-aware before serialization"""
+        if obj and hasattr(obj, 'uploaded_at') and obj.uploaded_at and obj.uploaded_at.tzinfo is None:
+            from datetime import timezone
+            obj.uploaded_at = obj.uploaded_at.replace(tzinfo=timezone.utc)
+        return obj
 
 
 class StudentSubmissionSchema(ma.SQLAlchemyAutoSchema):
@@ -136,12 +144,20 @@ class StudentSubmissionSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         sqla_session = db.session
 
-    submitted_at = fields.DateTime(dump_only=True)
+    submitted_at = fields.DateTime(dump_only=True, format='iso')
     student_name = fields.Method("get_student_name")
 
     def get_student_name(self, obj):
         """Get the student's name for display"""
         return obj.student.name if obj.student else "Unknown"
+
+    @pre_dump
+    def ensure_timezone_aware(self, obj, **kwargs):
+        """Ensure datetime is timezone-aware before serialization"""
+        if obj and hasattr(obj, 'submitted_at') and obj.submitted_at and obj.submitted_at.tzinfo is None:
+            from datetime import timezone
+            obj.submitted_at = obj.submitted_at.replace(tzinfo=timezone.utc)
+        return obj
 
 
 # ============================================================

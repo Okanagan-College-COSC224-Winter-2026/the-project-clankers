@@ -16,7 +16,7 @@ class StudentSubmission(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey("User.id", ondelete="CASCADE"), nullable=False, index=True)
     filename = db.Column(db.String(255), nullable=False)  # Original filename
     file_path = db.Column(db.String(500), nullable=False)  # Server-side unique path
-    submitted_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    submitted_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     assignment = db.relationship("Assignment", back_populates="student_submissions")
@@ -27,6 +27,8 @@ class StudentSubmission(db.Model):
         self.student_id = student_id
         self.filename = filename
         self.file_path = file_path
+        # Ensure submitted_at is always timezone-aware UTC
+        self.submitted_at = datetime.now(timezone.utc)
 
     def __repr__(self):
         return f"<StudentSubmission id={self.id} assignment_id={self.assignment_id} student_id={self.student_id} filename={self.filename}>"
