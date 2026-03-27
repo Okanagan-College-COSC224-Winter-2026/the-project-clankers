@@ -488,6 +488,23 @@ export default function PeerReviews() {
   const [receivedReviews, setReceivedReviews] = useState<ReceivedReviewData[]>([]);
   const [selectedReviewComments, setSelectedReviewComments] = useState<{ reviewId: number; comments: string[] } | null>(null);
 
+  // Helper function to get color classes based on grade percentage
+  const getGradeColorClasses = (grade: number | null | undefined) => {
+    if (grade === null || grade === undefined) {
+      return 'bg-gray-100 text-gray-400';
+    }
+
+    if (grade >= 80) {
+      return 'bg-green-100 text-green-600';
+    } else if (grade >= 60) {
+      return 'bg-blue-100 text-blue-600';
+    } else if (grade >= 40) {
+      return 'bg-yellow-100 text-yellow-700';
+    } else {
+      return 'bg-red-100 text-red-600';
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -691,15 +708,9 @@ export default function PeerReviews() {
                   >
                     My Comments
                   </button>
-                  {review.grade !== undefined && review.grade !== null ? (
-                    <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
-                      {review.grade.toFixed(1)}
-                    </div>
-                  ) : (
-                    <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
-                      N/A
-                    </div>
-                  )}
+                  <div className={`text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center ${getGradeColorClasses(review.grade)}`}>
+                    {review.grade !== undefined && review.grade !== null ? review.grade.toFixed(1) : 'N/A'}
+                  </div>
                 </div>
               </div>
             ))}
@@ -728,15 +739,9 @@ export default function PeerReviews() {
                   >
                     Comments
                   </button>
-                  {review.grade !== undefined && review.grade !== null ? (
-                    <div className="text-xl font-semibold text-blue-600 py-2 px-4 bg-green-100 rounded-lg min-w-[60px] text-center">
-                      {review.grade.toFixed(1)}
-                    </div>
-                  ) : (
-                    <div className="text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center bg-gray-100 text-gray-400">
-                      N/A
-                    </div>
-                  )}
+                  <div className={`text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center ${getGradeColorClasses(review.grade)}`}>
+                    {review.grade !== undefined && review.grade !== null ? review.grade.toFixed(1) : 'N/A'}
+                  </div>
                 </div>
               </div>
             ))}
