@@ -1,4 +1,4 @@
-import { logout, isStudent } from '../util/login'
+import { logout, isStudent, isAdmin } from '../util/login'
 import { cn } from '@/lib/utils'
 import { LogOut, Home, User, Search } from 'lucide-react'
 
@@ -46,6 +46,16 @@ export default function Sidebar() {
         >
           My Info
         </SidebarRow>
+
+        {isAdmin() && (
+          <>
+            <div className="border-t my-2" />
+            <div className="text-xs font-semibold text-sidebar-foreground/70 px-3 py-2">Admin</div>
+            <SidebarRow selected={location.includes('/admin/users')} href="/admin/users">
+              Manage Users
+            </SidebarRow>
+          </>
+        )}
       </nav>
     </aside>
   )

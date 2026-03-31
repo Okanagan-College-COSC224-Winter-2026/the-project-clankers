@@ -1,0 +1,11 @@
+// This snippet shows the admin route added to App.tsx
+
+// Import at top:
+import ManageUsers from "./pages/ManageUsers";
+
+// Route added in the router:
+<Route path="/admin/users" element={
+  <ProtectedRoute>
+    <ManageUsers />
+  </ProtectedRoute>
+} />

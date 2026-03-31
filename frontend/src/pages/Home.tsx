@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Users, Loader2, Archive } from 'lucide-react'
+import { Plus, Loader2, Archive, Users } from 'lucide-react'
 import ClassCard from '../components/ClassCard'
 import { listClasses, listAssignments, getArchivedClasses, unarchiveClass } from '../util/api'
 import { isTeacher, isAdmin } from '../util/login'
@@ -182,17 +182,6 @@ export default function Home() {
           </Card>
         )}
 
-        {isAdmin() && (
-          <Card
-            className="flex cursor-pointer items-center justify-center border-2 border-dashed transition-colors hover:border-primary hover:bg-accent"
-            onClick={() => (window.location.href = '/admin/create-teacher')}
-          >
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Users className="mb-2 h-8 w-8 text-muted-foreground" />
-              <span className="font-medium">Create Teacher</span>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {showArchivedModal && (
