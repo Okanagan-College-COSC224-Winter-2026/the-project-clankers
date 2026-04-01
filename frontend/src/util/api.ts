@@ -368,6 +368,222 @@ export const unarchiveClass = async (classId: number) => {
   return await response.json();
 }
 
+export interface GradebookAssignmentEntry {
+  assignment_id: number;
+  assignment_name: string;
+  due_date: string | null;
+  submission_status: 'submitted' | 'submitted late' | 'no submission';
+  submission: {
+    id: number;
+    filename: string;
+    submitted_at: string;
+  } | null;
+  peer_evaluation: {
+    completed: number;
+    expected: number;
+    ratio: number;
+    status: 'complete' | 'incomplete' | 'not required';
+  };
+  computed_grade: number | null;
+  penalty_applied_percent: number;
+  effective_grade: number | null;
+  override_grade: number | null;
+  override_reason: string | null;
+  grade_source: 'override' | 'computed' | 'pending';
+}
+
+export interface GradebookStudentRow {
+  student_id: number;
+  student_name: string;
+  student_number: string | null;
+  email: string;
+  course_total_grade: number | null;
+  assignments: GradebookAssignmentEntry[];
+}
+
+export interface GradebookAggregate {
+  assignment_id: number;
+  assignment_name: string;
+  due_date: string | null;
+  submitted_count: number;
+  late_count: number;
+  missing_count: number;
+  average_grade: number | null;
+}
+
+export interface GradebookData {
+  class: {
+    id: number;
+    name: string;
+  };
+  policy: {
+    late_penalty_percent: number;
+    incomplete_evaluation_penalty_percent: number;
+  };
+  assignment_aggregates: GradebookAggregate[];
+  students: GradebookStudentRow[];
+  generated_at: string;
+}
+
+export interface StudentGradebookDetail {
+  class: {
+    id: number;
+    name: string;
+  };
+  student: {
+    id: number;
+    name: string;
+    email: string;
+    student_number: string | null;
+  };
+  course_total_grade: number | null;
+  assignments: Array<
+    GradebookAssignmentEntry & {
+      all_submissions: Array<{
+        id: number;
+        filename: string;
+        submitted_at: string;
+      }>;
+      received_reviews: Array<{
+        review_id: number;
+        review_type: string;
+        reviewer_id: number;
+        reviewer_name: string;
+        is_complete: boolean;
+        grade: number | null;
+      }>;
+    }
+  >;
+}
+
+export interface MyCourseGradeData {
+  class: {
+    id: number;
+    name: string;
+  };
+  student: {
+    id: number;
+    name: string;
+  };
+  course_total_grade: number | null;
+  status: string;
+  assignments: GradebookAssignmentEntry[];
+}
+
+export const getClassGradebook = async (classId: number): Promise<GradebookData> => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const getStudentGradebookDetail = async (
+  classId: number,
+  studentId: number
+): Promise<StudentGradebookDetail> => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/student/${studentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const updateClassGradePolicy = async (
+  classId: number,
+  data: {
+    late_penalty_percent?: number;
+    incomplete_evaluation_penalty_percent?: number;
+  }
+) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/policy`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const updateGradeOverride = async (
+  classId: number,
+  data: {
+    assignment_id: number;
+    student_id: number;
+    override_grade?: number | null;
+    reason?: string;
+  }
+) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/overrides`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const getMyCourseGrade = async (
+  classId: number,
+  studentId?: number
+): Promise<MyCourseGradeData> => {
+  const query = studentId ? `?student_id=${studentId}` : '';
+  const response = await fetch(`${BASE_URL}/class/${classId}/my-grade${query}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
 export const listAssignments = async (classId: string) => {
   const resp = await fetch(`${BASE_URL}/assignment/`+classId, {
     method: 'GET',

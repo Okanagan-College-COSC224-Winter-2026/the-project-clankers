@@ -358,6 +358,10 @@ export default function ClassStudentSubmissions() {
                   label: "Student Submissions",
                   path: `/classes/${id}/student-submissions`,
                 },
+                {
+                  label: "Grades",
+                  path: `/classes/${id}/grades`,
+                },
               ]
             : [
                 {
@@ -367,6 +371,10 @@ export default function ClassStudentSubmissions() {
                 {
                   label: "Members",
                   path: `/classes/${id}/members`,
+                },
+                {
+                  label: "Grades",
+                  path: `/classes/${id}/grades`,
                 },
               ]
         }

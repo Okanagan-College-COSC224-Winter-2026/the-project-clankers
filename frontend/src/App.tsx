@@ -9,6 +9,7 @@ import ClassHome from "./pages/ClassHome";
 import ClassMembers from "./pages/ClassMembers";
 import ClassGroupManagement from "./pages/ClassGroupManagement";
 import ClassStudentSubmissions from "./pages/ClassStudentSubmissions";
+import ClassGrades from "./pages/ClassGrades";
 import Assignment from "./pages/Assignment";
 import AssignmentMembers from "./pages/AssignmentMembers";
 import AssignmentGroups from "./pages/AssignmentGroups";
@@ -89,6 +90,12 @@ function AppContent() {
           <Route path="/classes/:id/student-submissions" element={
             <ProtectedRoute>
               <ClassStudentSubmissions />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/classes/:id/grades" element={
+            <ProtectedRoute>
+              <ClassGrades />
             </ProtectedRoute>
           } />
 

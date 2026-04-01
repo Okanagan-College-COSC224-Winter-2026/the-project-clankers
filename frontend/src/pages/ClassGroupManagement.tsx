@@ -453,6 +453,10 @@ export default function ClassGroupManagement() {
                   label: "Student Submissions",
                   path: `/classes/${id}/student-submissions`,
                 },
+                {
+                  label: "Grades",
+                  path: `/classes/${id}/grades`,
+                },
               ]
             : [
                 {
@@ -462,6 +466,10 @@ export default function ClassGroupManagement() {
                 {
                   label: "Members",
                   path: `/classes/${id}/members`,
+                },
+                {
+                  label: "Grades",
+                  path: `/classes/${id}/grades`,
                 },
               ]
         }

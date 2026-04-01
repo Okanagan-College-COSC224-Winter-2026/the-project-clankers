@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Plus, Users, Loader2, Archive } from 'lucide-react'
 import ClassCard from '../components/ClassCard'
-import { listClasses, listAssignments, getArchivedClasses, unarchiveClass } from '../util/api'
+import { listClasses, listAssignments, getArchivedClasses, unarchiveClass, getMyCourseGrade } from '../util/api'
 import { isTeacher, isAdmin } from '../util/login'
 import { Button } from '@/components/ui/button'
 
@@ -15,6 +15,8 @@ interface Course {
 interface CourseWithAssignments extends Course {
   assignments: unknown[]
   assignmentCount: number
+  courseTotalGrade?: number | null
+  gradeStatus?: string
 }
 
 export default function Home() {
@@ -35,10 +37,26 @@ export default function Home() {
         coursesResp.map(async (course: Course) => {
           try {
             const assignments = await listAssignments(String(course.id))
+            let courseTotalGrade: number | null = null
+            let gradeStatus = 'pending evaluations'
+
+            if (!isTeacher() && !isAdmin()) {
+              try {
+                const gradeData = await getMyCourseGrade(course.id)
+                courseTotalGrade = gradeData.course_total_grade
+                gradeStatus = gradeData.status
+              } catch {
+                courseTotalGrade = null
+                gradeStatus = 'grade unavailable'
+              }
+            }
+
             return {
               ...course,
               assignments: assignments || [],
               assignmentCount: assignments?.length || 0,
+              courseTotalGrade,
+              gradeStatus,
             }
           } catch (error) {
             console.error(`Error fetching assignments for course ${course.id}:`, error)
@@ -46,6 +64,8 @@ export default function Home() {
               ...course,
               assignments: [],
               assignmentCount: 0,
+              courseTotalGrade: null,
+              gradeStatus: 'grade unavailable',
             }
           }
         })
@@ -88,16 +108,34 @@ export default function Home() {
         coursesResp.map(async (course: Course) => {
           try {
             const assignments = await listAssignments(String(course.id))
+              let courseTotalGrade: number | null = null
+              let gradeStatus = 'pending evaluations'
+
+              if (!isTeacher() && !isAdmin()) {
+                try {
+                  const gradeData = await getMyCourseGrade(course.id)
+                  courseTotalGrade = gradeData.course_total_grade
+                  gradeStatus = gradeData.status
+                } catch {
+                  courseTotalGrade = null
+                  gradeStatus = 'grade unavailable'
+                }
+              }
+
             return {
               ...course,
               assignments: assignments || [],
               assignmentCount: assignments?.length || 0,
+                courseTotalGrade,
+                gradeStatus,
             }
           } catch (error) {
             return {
               ...course,
               assignments: [],
               assignmentCount: 0,
+                courseTotalGrade: null,
+                gradeStatus: 'grade unavailable',
             }
           }
         })
@@ -162,6 +200,21 @@ export default function Home() {
                 image="https://crc.losrios.edu//shared/img/social-1200-630/programs/general-science-social.jpg"
                 name={course.name}
                 subtitle={assignmentText}
+                action={
+                  !isTeacher() && !isAdmin() ? (
+                    <details className="w-full rounded-md border px-2 py-1 text-xs">
+                      <summary className="cursor-pointer font-medium">
+                        Course Grade:{' '}
+                        {course.courseTotalGrade !== null && course.courseTotalGrade !== undefined
+                          ? course.courseTotalGrade.toFixed(1)
+                          : 'Pending'}
+                      </summary>
+                      <p className="mt-1 text-muted-foreground">
+                        {course.gradeStatus || 'pending evaluations'}
+                      </p>
+                    </details>
+                  ) : undefined
+                }
                 onclick={() => {
                   window.location.href = `/classes/${course.id}/home`
                 }}
