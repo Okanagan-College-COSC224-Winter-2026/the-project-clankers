@@ -203,12 +203,13 @@ export default function Home() {
                 action={
                   !isTeacher() && !isAdmin() ? (
                     <details className="w-full rounded-md border px-2 py-1 text-xs">
-                      <summary className="cursor-pointer font-medium">
+                      <summary className="cursor-pointer font-medium">View Course Total</summary>
+                      <p className="mt-1 font-medium">
                         Course Grade:{' '}
                         {course.courseTotalGrade !== null && course.courseTotalGrade !== undefined
                           ? course.courseTotalGrade.toFixed(1)
                           : 'Pending'}
-                      </summary>
+                      </p>
                       <p className="mt-1 text-muted-foreground">
                         {course.gradeStatus || 'pending evaluations'}
                       </p>

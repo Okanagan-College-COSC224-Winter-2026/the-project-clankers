@@ -8,6 +8,8 @@ import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
 import ViewSubmissionModal from "../components/ViewSubmissionModal";
+import AssignmentGradebookView from "../components/AssignmentGradebookView";
+import RubricDisplay from "../components/RubricDisplay";
 import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
 import ReactMarkdown from "react-markdown";
@@ -52,6 +54,8 @@ export default function Assignment() {
   const isManageTab = location.pathname.includes('/manage');
   const isSubmissionTab = location.pathname.includes('/submission');
   const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
+  const isGradebookTab =
+    location.pathname.includes('/gradebook') || location.pathname.includes('/grades');
   const isPeerReviewsTab = location.pathname.includes('/peer-reviews');
 
   // Fetch assignment details to get the name
@@ -243,6 +247,10 @@ export default function Assignment() {
                   path: `/assignments/${id}/student-submissions`,
                 },
                 {
+                  label: "Grades",
+                  path: `/assignments/${id}/grades`,
+                },
+                {
                   label: "Manage",
                   path: `/assignments/${id}/manage`,
                 }
@@ -276,6 +284,8 @@ export default function Assignment() {
       ) : isStudentSubmissionsTab && isTeacher() ? (
         /* Teacher view of all student submissions */
         <TeacherSubmissionView assignmentId={Number(id)} />
+      ) : isGradebookTab && isTeacher() ? (
+        <AssignmentGradebookView assignmentId={Number(id)} />
       ) : isPeerReviewsTab && !isTeacher() ? (
         /* Student peer reviews tab */
         <PeerReviews />

@@ -9,6 +9,7 @@ from ..models import (
     Assignment,
     Course,
     CourseGradePolicy,
+    CourseTotalOverride,
     CourseGroup,
     Criterion,
     CriteriaDescription,
@@ -297,6 +298,19 @@ def _course_total_from_entries(entries):
     return round(sum(grades) / len(grades), 2)
 
 
+def _effective_course_total(course_id, student_id, entries):
+    computed = _course_total_from_entries(entries)
+    override = CourseTotalOverride.get_for_course_student(course_id, student_id)
+    effective = override.override_total if override else computed
+    return {
+        "computed": computed,
+        "effective": round(effective, 2) if effective is not None else None,
+        "override": round(override.override_total, 2) if override else None,
+        "reason": override.reason if override else None,
+        "source": "override" if override else ("computed" if computed is not None else "pending"),
+    }
+
+
 @bp.route("/<int:class_id>/gradebook", methods=["GET"])
 @jwt_required()
 def get_gradebook(class_id):
@@ -344,7 +358,8 @@ def get_gradebook(class_id):
                 "student_name": student.name,
                 "student_number": student.student_id,
                 "email": student.email,
-                "course_total_grade": _course_total_from_entries(entries),
+                "course_total": _effective_course_total(course.id, student.id, entries),
+                "course_total_grade": _effective_course_total(course.id, student.id, entries)["effective"],
                 "assignments": entries,
             }
         )
@@ -447,7 +462,8 @@ def get_student_gradebook_detail(class_id, student_id):
                 "email": student.email,
                 "student_number": student.student_id,
             },
-            "course_total_grade": _course_total_from_entries(details),
+            "course_total": _effective_course_total(class_id, student.id, details),
+            "course_total_grade": _effective_course_total(class_id, student.id, details)["effective"],
             "assignments": details,
         }
     ), 200
@@ -554,6 +570,56 @@ def upsert_grade_override(class_id):
     return jsonify({"msg": "Grade override updated"}), 200
 
 
+@bp.route("/<int:class_id>/gradebook/course-total-overrides", methods=["PUT"])
+@jwt_required()
+def upsert_course_total_override(class_id):
+    user, _course, error = _ensure_course_access(class_id, require_teacher=True)
+    if error:
+        return error
+
+    data = request.get_json() or {}
+    student_id = data.get("student_id")
+    override_total = data.get("override_total")
+    reason = data.get("reason")
+
+    if student_id is None:
+        return jsonify({"msg": "student_id is required"}), 400
+
+    enrollment = User_Course.get(student_id, class_id)
+    if not enrollment:
+        return jsonify({"msg": "Student is not enrolled in this class"}), 404
+
+    existing = CourseTotalOverride.get_for_course_student(class_id, student_id)
+
+    if override_total is None:
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
+        return jsonify({"msg": "Course total override cleared"}), 200
+
+    total_value = float(override_total)
+    if total_value < 0 or total_value > 100:
+        return jsonify({"msg": "override_total must be between 0 and 100"}), 400
+
+    if existing:
+        existing.override_total = total_value
+        existing.reason = reason
+        existing.updated_by = user.id
+    else:
+        db.session.add(
+            CourseTotalOverride(
+                courseID=class_id,
+                studentID=student_id,
+                override_total=total_value,
+                reason=reason,
+                updated_by=user.id,
+            )
+        )
+
+    db.session.commit()
+    return jsonify({"msg": "Course total override updated"}), 200
+
+
 @bp.route("/<int:class_id>/my-grade", methods=["GET"])
 @jwt_required()
 def get_my_course_grade(class_id):
@@ -584,13 +650,15 @@ def get_my_course_grade(class_id):
     classmates = _course_students(class_id)
     assignments = Assignment.query.filter_by(courseID=class_id).order_by(Assignment.id).all()
     entries = [_grade_entry(policy, assignment, student, classmates) for assignment in assignments]
-    course_total = _course_total_from_entries(entries)
+    total_info = _effective_course_total(class_id, student.id, entries)
+    course_total = total_info["effective"]
 
     return jsonify(
         {
             "class": {"id": course.id, "name": course.name},
             "student": {"id": student.id, "name": student.name},
             "course_total_grade": course_total,
+            "course_total": total_info,
             "status": "available" if course_total is not None else "pending evaluations",
             "assignments": entries,
         }

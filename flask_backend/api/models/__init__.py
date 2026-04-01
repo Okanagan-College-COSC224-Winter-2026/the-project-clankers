@@ -2,6 +2,7 @@ from .assignment_model import Assignment
 from .assignment_file_model import AssignmentFile
 from .course_group_model import CourseGroup
 from .course_grade_policy_model import CourseGradePolicy
+from .course_total_override_model import CourseTotalOverride
 from .course_model import Course
 from .criteria_description_model import CriteriaDescription
 from .criterion_model import Criterion
@@ -42,6 +43,7 @@ __all__ = [
     "User",
     "Course",
     "CourseGradePolicy",
+    "CourseTotalOverride",
     "Assignment",
     "AssignmentFile",
     "Rubric",

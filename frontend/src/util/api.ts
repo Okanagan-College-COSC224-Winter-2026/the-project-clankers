@@ -397,6 +397,13 @@ export interface GradebookStudentRow {
   student_name: string;
   student_number: string | null;
   email: string;
+  course_total?: {
+    computed: number | null;
+    effective: number | null;
+    override: number | null;
+    reason: string | null;
+    source: 'override' | 'computed' | 'pending';
+  };
   course_total_grade: number | null;
   assignments: GradebookAssignmentEntry[];
 }
@@ -436,6 +443,13 @@ export interface StudentGradebookDetail {
     email: string;
     student_number: string | null;
   };
+  course_total?: {
+    computed: number | null;
+    effective: number | null;
+    override: number | null;
+    reason: string | null;
+    source: 'override' | 'computed' | 'pending';
+  };
   course_total_grade: number | null;
   assignments: Array<
     GradebookAssignmentEntry & {
@@ -464,6 +478,13 @@ export interface MyCourseGradeData {
   student: {
     id: number;
     name: string;
+  };
+  course_total?: {
+    computed: number | null;
+    effective: number | null;
+    override: number | null;
+    reason: string | null;
+    source: 'override' | 'computed' | 'pending';
   };
   course_total_grade: number | null;
   status: string;
@@ -563,12 +584,88 @@ export const updateGradeOverride = async (
   return await response.json();
 }
 
+export const updateCourseTotalOverride = async (
+  classId: number,
+  data: {
+    student_id: number;
+    override_total?: number | null;
+    reason?: string;
+  }
+) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/course-total-overrides`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
 export const getMyCourseGrade = async (
   classId: number,
   studentId?: number
 ): Promise<MyCourseGradeData> => {
   const query = studentId ? `?student_id=${studentId}` : '';
   const response = await fetch(`${BASE_URL}/class/${classId}/my-grade${query}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export interface AssignmentGradebookData {
+  class: {
+    id: number;
+    name: string;
+  };
+  assignment: {
+    id: number;
+    name: string;
+    due_date: string | null;
+  };
+  policy: {
+    late_penalty_percent: number;
+    incomplete_evaluation_penalty_percent: number;
+  };
+  aggregate: {
+    submitted_count: number;
+    late_count: number;
+    missing_count: number;
+    average_grade: number | null;
+  };
+  students: Array<{
+    student_id: number;
+    student_name: string;
+    student_number: string | null;
+    email: string;
+    entry: GradebookAssignmentEntry;
+  }>;
+}
+
+export const getAssignmentGradebook = async (
+  assignmentId: number
+): Promise<AssignmentGradebookData> => {
+  const response = await fetch(`${BASE_URL}/assignment/${assignmentId}/gradebook`, {
     method: 'GET',
     credentials: 'include'
   });

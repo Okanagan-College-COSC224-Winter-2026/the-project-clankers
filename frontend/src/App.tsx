@@ -147,6 +147,18 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
+          <Route path="/assignments/:id/gradebook" element={
+            <ProtectedRoute>
+              <Assignment />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/assignments/:id/grades" element={
+            <ProtectedRoute>
+              <Assignment />
+            </ProtectedRoute>
+          } />
+
           <Route path="/assignments/:id/peer-reviews" element={
             <ProtectedRoute>
               <Assignment />

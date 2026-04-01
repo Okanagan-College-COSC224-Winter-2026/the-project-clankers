@@ -5,7 +5,19 @@ from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from werkzeug.utils import secure_filename
 
-from ..models import Course, Assignment, AssignmentFile, User, AssignmentSchema, AssignmentFileSchema, CourseGroup, Group_Members, UserSchema
+from ..models import (
+    Course,
+    Assignment,
+    AssignmentFile,
+    User,
+    AssignmentSchema,
+    AssignmentFileSchema,
+    CourseGroup,
+    Group_Members,
+    UserSchema,
+    CourseGradePolicy,
+)
+from .gradebook_controller import _course_students, _grade_entry
 from .auth_controller import jwt_teacher_required
 
 bp = Blueprint("assignment", __name__, url_prefix="/assignment")
@@ -266,6 +278,86 @@ def get_assignment_details(assignment_id):
         assignment_data["group_count"] = len(course_groups)
     
     return jsonify(assignment_data), 200
+
+
+@bp.route("/<int:assignment_id>/gradebook", methods=["GET"])
+@jwt_required()
+def get_assignment_gradebook(assignment_id):
+    """Get gradebook/progress data scoped to a single assignment (teacher/admin only)."""
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    is_teacher = course.teacherID == user.id
+    if not (is_teacher or user.is_admin()):
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    policy = CourseGradePolicy.get_or_create(course.id)
+    students = _course_students(course.id)
+
+    student_rows = []
+    grade_values = []
+    submitted = 0
+    late = 0
+    missing = 0
+
+    for student in students:
+        entry = _grade_entry(policy, assignment, student, students)
+        status = entry["submission_status"]
+        if status == "submitted":
+            submitted += 1
+        elif status == "submitted late":
+            late += 1
+        else:
+            missing += 1
+
+        if entry["effective_grade"] is not None:
+            grade_values.append(entry["effective_grade"])
+
+        student_rows.append(
+            {
+                "student_id": student.id,
+                "student_name": student.name,
+                "student_number": student.student_id,
+                "email": student.email,
+                "entry": entry,
+            }
+        )
+
+    return jsonify(
+        {
+            "class": {"id": course.id, "name": course.name},
+            "assignment": {
+                "id": assignment.id,
+                "name": assignment.name,
+                "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+            },
+            "policy": {
+                "late_penalty_percent": float(policy.late_penalty_percent or 0.0),
+                "incomplete_evaluation_penalty_percent": float(
+                    policy.incomplete_evaluation_penalty_percent or 0.0
+                ),
+            },
+            "aggregate": {
+                "submitted_count": submitted,
+                "late_count": late,
+                "missing_count": missing,
+                "average_grade": round(sum(grade_values) / len(grade_values), 2)
+                if grade_values
+                else None,
+            },
+            "students": student_rows,
+        }
+    ), 200
 
 
 def allowed_document_file(filename):
