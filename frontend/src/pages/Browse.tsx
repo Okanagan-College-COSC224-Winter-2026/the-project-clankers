@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ClassCard from "../components/ClassCard";
 import './Browse.css';
-import { browseAllClasses, listAssignments, enrollInCourse, listClasses } from "../util/api";
+import { browseAllClasses, listAssignments, requestEnrollment, listClasses } from "../util/api";
 import { isStudent } from "../util/login";
 
 export default function Browse() {
@@ -59,16 +59,16 @@ export default function Browse() {
   const handleEnroll = async (courseId: number) => {
     try {
       setEnrollingCourseId(courseId);
-      await enrollInCourse(courseId);
+      await requestEnrollment(courseId);
 
       // Update the enrolled courses set
       setEnrolledCourseIds(prev => new Set([...prev, courseId]));
 
       // Show success message
-      alert("Successfully enrolled in course!");
+      alert("Enrollment request submitted! Waiting for teacher approval.");
     } catch (error) {
-      console.error("Error enrolling in course:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to enroll in course.";
+      console.error("Error requesting enrollment:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to request enrollment in course.";
       alert(errorMessage);
     } finally {
       setEnrollingCourseId(null);
@@ -124,8 +124,9 @@ export default function Browse() {
                     <button
                       onClick={() => handleEnroll(course.id)}
                       disabled={isEnrolled || isEnrolling}
+                      className="border border-green-600 text-green-600 px-3 py-2 rounded hover:bg-green-50 disabled:opacity-50"
                     >
-                      {isEnrolling ? "Enrolling..." : isEnrolled ? "Enrolled" : "Join Course"}
+                      {isEnrolling ? "Requesting..." : isEnrolled ? "Enrolled" : "Request to Join"}
                     </button>
                   ) : null
                 }
