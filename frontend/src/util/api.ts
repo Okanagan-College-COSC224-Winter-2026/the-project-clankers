@@ -586,11 +586,11 @@ export const getCriteria = async (rubricID: number) => {
   return await resp.json()
 }
 
-export const createCriteria = async (rubricID: number, question: string, scoreMax: number, canComment: boolean, hasScore: boolean = true, description: string = '') => {
+export const createCriteria = async (rubricID: number, question: string, scoreMax: number, canComment: boolean, hasScore: boolean = true, description: string = '', criteriaType: string = 'both') => {
   const response = await fetch(`${BASE_URL}/create_criteria`, {
     method: 'POST',
     body: JSON.stringify({
-      rubricID, question, scoreMax, canComment, hasScore, description
+      rubricID, question, scoreMax, canComment, hasScore, description, criteria_type: criteriaType
     }),
     headers: {
       'Content-Type': 'application/json',

@@ -175,6 +175,7 @@ def get_review():
         revieweeID: ID of the reviewee
         revieweeType: Type of reviewee ('user' or 'group'), defaults to 'user'
         reviewerType: Type of reviewer ('user' or 'group'), defaults to 'user'
+        reviewType: Type of review ('internal' or 'external') for filtering criteria
 
     Returns:
         - grades: array of grades indexed by criteria row position
@@ -186,6 +187,7 @@ def get_review():
     reviewee_id = request.args.get("revieweeID", type=int)
     reviewee_type = request.args.get("revieweeType", "user")  # Default to 'user' for backwards compatibility
     reviewer_type = request.args.get("reviewerType", "user")  # Default to 'user'
+    review_type = request.args.get("reviewType", None)  # 'internal' or 'external'
 
     if not all([assignment_id, reviewer_id, reviewee_id]):
         return jsonify({"msg": "Missing required query parameters"}), 400
@@ -253,10 +255,17 @@ def get_review():
     if not rubric:
         return jsonify({"grades": [], "comments": [], "review": ReviewSchema().dump(review)}), 200
 
-    # Get criteria descriptions in order
+    # Get criteria descriptions in order, filtered by review type if specified
     criteria_descriptions = rubric.criteria_descriptions.order_by(
         CriteriaDescription.id
     ).all()
+
+    # Filter criteria based on review type
+    if review_type in ['internal', 'external']:
+        criteria_descriptions = [
+            c for c in criteria_descriptions
+            if c.criteria_type == 'both' or c.criteria_type == review_type
+        ]
 
     # Build grades array: grades[row_index] = grade_value
     # Build comments array: comments[row_index] = comment_text

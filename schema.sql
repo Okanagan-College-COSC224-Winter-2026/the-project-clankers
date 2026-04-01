@@ -87,7 +87,10 @@ CREATE TABLE Criteria_Description (
     rubricID INT NOT NULL,
     question VARCHAR(255),
     scoreMax INT,
-    hasScore BIT NOT NULL DEFAULT 1
+    hasScore BIT NOT NULL DEFAULT 1,
+    description TEXT,
+    criteria_type VARCHAR(50) NOT NULL DEFAULT 'both',
+    allow_comments BIT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE AssignmentFile (

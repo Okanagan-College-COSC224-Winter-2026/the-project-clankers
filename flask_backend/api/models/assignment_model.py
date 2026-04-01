@@ -17,9 +17,9 @@ class Assignment(db.Model):
     rubric_text = db.Column("rubric", db.String(255), nullable=True)
 
     # NEW: start date field (assignment not visible to students before this date)
-    start_date = db.Column(db.DateTime, nullable=True, index=True)
+    start_date = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     # NEW: due date field (acceptance criteria: edit/delete allowed before due date)
-    due_date = db.Column(db.DateTime, nullable=True, index=True)
+    due_date = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     
     # Submission type: 'individual' or 'group'
     submission_type = db.Column(db.String(20), default='individual', nullable=False)

@@ -15,7 +15,7 @@ class AssignmentFile(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey("Assignment.id", ondelete="CASCADE"), nullable=False, index=True)
     filename = db.Column(db.String(255), nullable=False)  # Original filename
     file_path = db.Column(db.String(500), nullable=False)  # Server-side unique path
-    uploaded_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    uploaded_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     uploaded_by = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False)
 
     # Relationships
