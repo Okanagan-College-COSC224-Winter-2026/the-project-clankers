@@ -98,14 +98,14 @@ export default function Browse() {
       <h1>Browse All Courses</h1>
       <p className="subtitle">Explore all available courses in the system</p>
 
-      <div className="Classes">
-        {courses.length === 0 ? (
-          <div className="empty-state">
-            <h2>No courses available</h2>
-            <p>There are no courses in the system yet.</p>
-          </div>
-        ) : (
-          courses.map((course) => {
+      {courses.length === 0 ? (
+        <div className="empty-state">
+          <h2>No courses available</h2>
+          <p>There are no courses in the system yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {courses.map((course) => {
             const assignmentText = `${course.assignmentCount || 0} assignments`;
             const isEnrolled = enrolledCourseIds.has(course.id);
             const isEnrolling = enrollingCourseId === course.id;
@@ -131,9 +131,9 @@ export default function Browse() {
                 }
               />
             )
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   )
 }
