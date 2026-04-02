@@ -13,12 +13,16 @@ export default function AssignmentRubric() {
   const [assignmentName, setAssignmentName] = useState('')
   const [courseId, setCourseId] = useState<number | null>(null)
   const [courseName, setCourseName] = useState('')
+  const [internalReview, setInternalReview] = useState(false)
+  const [externalReview, setExternalReview] = useState(false)
 
   useEffect(() => {
     ;(async () => {
       try {
         const data = await getAssignmentDetails(Number(id))
         setAssignmentName(data.name)
+        setInternalReview(data.internal_review || false)
+        setExternalReview(data.external_review || false)
 
         if (data.courseID) {
           setCourseId(data.courseID)
@@ -76,8 +80,14 @@ export default function AssignmentRubric() {
           <h3 className="text-lg font-medium">Rubric</h3>
         </div>
 
-        <Card className="p-4">
-          <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+        <Card className="p-6">
+          <RubricDisplay
+            rubricId={Number(id)}
+            onCriterionSelect={() => {}}
+            grades={[]}
+            internalReviewEnabled={internalReview}
+            externalReviewEnabled={externalReview}
+          />
         </Card>
 
         {isTeacher() && <RubricCreator id={Number(id)} />}

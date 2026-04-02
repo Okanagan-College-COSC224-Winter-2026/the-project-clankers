@@ -24,6 +24,7 @@ interface RubricViewModalProps {
 export default function RubricViewModal({ isOpen, onClose, rubricId, internalReviewEnabled = true, externalReviewEnabled = true }: RubricViewModalProps) {
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'internal' | 'external'>('internal');
 
   useEffect(() => {
     if (isOpen && rubricId) {
@@ -42,6 +43,15 @@ export default function RubricViewModal({ isOpen, onClose, rubricId, internalRev
     }
   }, [isOpen, rubricId]);
 
+  // Set initial tab based on what's enabled
+  useEffect(() => {
+    if (internalReviewEnabled) {
+      setActiveTab('internal');
+    } else if (externalReviewEnabled) {
+      setActiveTab('external');
+    }
+  }, [internalReviewEnabled, externalReviewEnabled]);
+
   const filterCriteriaByType = (type: 'internal' | 'external'): Criterion[] => {
     return criteria.filter(c =>
       !c.criteriaType || c.criteriaType === 'both' || c.criteriaType === type
@@ -51,55 +61,33 @@ export default function RubricViewModal({ isOpen, onClose, rubricId, internalRev
   const internalCriteria = filterCriteriaByType('internal');
   const externalCriteria = filterCriteriaByType('external');
 
-  const renderCriteriaSection = (title: string, criteriaList: Criterion[]) => (
-    <div className="mb-6">
-      <h3 className="text-lg font-semibold mb-4 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
-        {title}
-      </h3>
-      {criteriaList.length === 0 ? (
-        <p className="text-gray-500 italic py-4">No criteria for this type</p>
-      ) : (
-        <div className="space-y-4">
-          {criteriaList.map((criterion, idx) => (
-            <div key={criterion.id || idx} className="border rounded-lg p-4 bg-white">
-              {/* Criterion Question */}
-              <div className="mb-2">
-                <h4 className="font-semibold text-base text-gray-800">{criterion.question}</h4>
-              </div>
+  const renderCriteriaList = (criteriaList: Criterion[]) => {
+    if (criteriaList.length === 0) {
+      return <p className="text-center text-gray-400 py-8">No criteria for this review type</p>;
+    }
 
-              {/* Criterion Description (if available) */}
-              {criterion.description && (
-                <div className="mb-3 p-2 bg-gray-50 rounded">
-                  <p className="text-sm text-gray-700">{criterion.description}</p>
-                </div>
-              )}
-
-              {/* Score Display */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">Max Score:</span>
-                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded font-medium">
-                  {criterion.hasScore ? criterion.scoreMax : '100'}
-                </span>
-              </div>
-
-              {/* Comments Enabled Badge */}
-              {criterion.canComment && (
-                <div className="mt-2">
-                  <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                    Comments Enabled
-                  </span>
-                </div>
-              )}
+    return (
+      <div className="space-y-4">
+        {criteriaList.map((criterion, idx) => (
+          <div key={criterion.id || idx} className="border rounded-lg p-4 bg-white">
+            <div className="flex justify-between items-start gap-4 mb-2">
+              <h4 className="font-semibold text-base text-gray-800">{criterion.question}</h4>
+              <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded font-medium text-sm whitespace-nowrap">
+                {(!criterion.hasScore || criterion.scoreMax === 0) ? '100' : criterion.scoreMax}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            {criterion.description && (
+              <p className="text-sm text-gray-600">{criterion.description}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent showCloseButton={true} className="!max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent showCloseButton={true} className="!max-w-6xl h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Rubric</DialogTitle>
         </DialogHeader>
@@ -113,13 +101,43 @@ export default function RubricViewModal({ isOpen, onClose, rubricId, internalRev
             <p className="text-gray-500">No rubric available for this assignment</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Internal Section - only show if internal review is enabled */}
-            {internalReviewEnabled && renderCriteriaSection('Internal', internalCriteria)}
+          <>
+            {/* Sticky Tabs - Outside the scrollable/centered area */}
+            <div className="flex gap-2 mb-6 border-b">
+              {internalReviewEnabled && (
+                <button
+                  onClick={() => setActiveTab('internal')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    activeTab === 'internal'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Internal Review
+                </button>
+              )}
+              {externalReviewEnabled && (
+                <button
+                  onClick={() => setActiveTab('external')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    activeTab === 'external'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  External Review
+                </button>
+              )}
+            </div>
 
-            {/* External Section - only show if external review is enabled */}
-            {externalReviewEnabled && renderCriteriaSection('External', externalCriteria)}
-          </div>
+            {/* Vertically Centered Scrollable Content */}
+            <div className="flex-1 overflow-y-auto flex items-start justify-center">
+              <div className="w-full">
+                {activeTab === 'internal' && internalReviewEnabled && renderCriteriaList(internalCriteria)}
+                {activeTab === 'external' && externalReviewEnabled && renderCriteriaList(externalCriteria)}
+              </div>
+            </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

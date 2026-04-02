@@ -370,3 +370,75 @@ Students can now view and download submitted files directly within the peer revi
 - ✅ Teachers see peer review dates in Manage tab without editing
 - ✅ Students get red alert when peer reviews unavailable (either not started or deadline passed)
 - ✅ All unavailability messages display with formatted date and time in student's timezone
+
+## Rubric Display Remodel (Added 2026-04-02)
+
+### What Was Changed
+Redesigned the rubric display to be cleaner and more organized. Implemented tabbed interface for separating internal and external review criteria. Applied this design to both the peer review modal and the teacher's assignment rubric page.
+
+### Frontend Changes
+
+#### RubricViewModal Component (`frontend/src/components/RubricViewModal.tsx`)
+**Peer Review Modal Rubric Display**
+- Added **tab-based interface** switching between "Internal Review" and "External Review"
+- Tabs remain **sticky at the top** while content scrolls below
+- **Simplified criteria display**:
+  - Bold criterion question as main heading
+  - Regular text description below (if available)
+  - Score badge on the right side showing max score (or 100 if "no score" selected)
+- Removed clutter: no criteria type badges, minimal visual noise
+- Modal width: `max-w-6xl` (very wide)
+- Modal height: `h-[85vh]` (static, 85% of viewport with buffer)
+- Content flows from top to bottom with proper scrolling
+- Tabs show only when both internal and external reviews are enabled
+
+#### PeerReviews Page Integration (`frontend/src/pages/PeerReviews.tsx`)
+- Removed individual `max-height` and `overflow-y-auto` from rubric scoring and feedback sections
+- Now uses a **single scrollbar** for the entire review form
+- Content flows naturally without nested scroll containers
+- Rubric scoring and feedback sections centered horizontally in their container
+- Improved layout: right side container uses `flex justify-center` for proper centering
+
+#### RubricDisplay Component (`frontend/src/components/RubricDisplay.tsx`)
+**Teacher Assignment Rubric Page**
+- Refactored to use new tabbed layout matching peer review modal design
+- **Tabbed interface**:
+  - Shows tabs only when needed (both internal and external reviews enabled)
+  - Switches between "Internal Review" and "External Review"
+- Same compact criteria display:
+  - Question (bold) + description (if available) + score badge
+- Removed duplicate "Rubric" heading in component (now handled by page)
+
+#### AssignmentRubric Page (`frontend/src/pages/AssignmentRubric.tsx`)
+- Added state for `internalReview` and `externalReview` flags
+- Fetches these from assignment details on load
+- Passes review type flags to `RubricDisplay`
+- Wraps RubricDisplay in a Card component with single "Rubric" heading
+- Clean layout without visual duplication
+
+### Visual Improvements
+
+**Before:**
+- Stacked sections with lots of visual noise
+- Max scores, type badges, long descriptions all visible
+- No clear separation between internal and external criteria
+- Duplicate "Rubric" headings on teacher view
+- Multiple scroll bars for different sections in review modal
+
+**After:**
+- Clean tabbed interface for clear separation
+- Minimal criterion cards with just question, description, and score
+- Consistent design between peer review modal and teacher view
+- Single "Rubric" heading with organized content below
+- Single scrollbar for entire peer review form
+- Professional, focused presentation
+
+### User Experience Improvements
+- ✅ Cleaner, less cluttered rubric display
+- ✅ Clear separation of internal and external criteria via tabs
+- ✅ Consistent design across peer review modal and teacher pages
+- ✅ Sticky tabs at top for easy switching without scrolling
+- ✅ Fixed score display: shows 100 for criteria with "no score" option
+- ✅ Single scrollbar for peer review form reduces confusion
+- ✅ Horizontally centered review form for better readability
+- ✅ Tabs dynamically hidden/shown based on review settings

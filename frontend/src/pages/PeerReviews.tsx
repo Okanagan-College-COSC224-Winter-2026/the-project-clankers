@@ -390,7 +390,7 @@ function PeerReviewModal({
           </div>
 
           {/* Right side - Rubric scoring */}
-          <div className="flex-1 p-5 flex items-center justify-center overflow-y-auto">
+          <div className="flex-1 p-5 overflow-y-auto flex justify-center">
             {selectedTarget ? (
               <div className="w-full max-w-md flex flex-col gap-8">
                 <h3 className="m-0 text-2xl text-gray-800">Review for: {selectedTarget.name}</h3>
@@ -469,7 +469,7 @@ function PeerReviewModal({
                       return (
                         <>
                           {/* Rubric Scoring Section */}
-                          <div className="w-full max-h-[350px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
+                          <div className="w-full border rounded-md p-4 bg-gray-50 flex flex-col gap-5">
                             {filteredCriteria.map((criterion, displayIndex) => {
                               // Find the actual index in the full criteria array
                               const actualIndex = criteria.findIndex(c => c.id === criterion.id);
@@ -504,7 +504,7 @@ function PeerReviewModal({
                           {commentableCriteria.length > 0 && (
                             <div className="w-full flex flex-col gap-4">
                               <h4 className="m-0 font-semibold text-gray-800 text-base pb-2 border-b border-gray-300">Feedback</h4>
-                              <div className="w-full max-h-[250px] overflow-y-auto flex flex-col gap-4 pr-2">
+                              <div className="w-full flex flex-col gap-4">
                                 {commentableCriteria.map((criterion) => {
                                   const actualIndex = criteria.findIndex(c => c.id === criterion.id);
                                   return (
