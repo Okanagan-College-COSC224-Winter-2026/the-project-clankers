@@ -75,17 +75,12 @@ export default function RubricViewModal({ isOpen, onClose, rubricId, internalRev
               )}
 
               {/* Score Display */}
-              {criterion.hasScore && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-600">Max Score:</span>
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded font-medium">
-                    {criterion.scoreMax}
-                  </span>
-                </div>
-              )}
-              {!criterion.hasScore && (
-                <div className="text-sm text-gray-500 italic">Comment-only criterion</div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Max Score:</span>
+                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded font-medium">
+                  {criterion.hasScore ? criterion.scoreMax : '100'}
+                </span>
+              </div>
 
               {/* Comments Enabled Badge */}
               {criterion.canComment && (
