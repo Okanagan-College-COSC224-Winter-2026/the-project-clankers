@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import ViewSubmissionModal from "./ViewSubmissionModal";
 
 interface StudentSubmission {
   id: number;
-  filename: string;
-  file_path: string;
+  filename?: string;
+  file_path?: string;
+  submission_text?: string;
   submitted_at: string;
   student_id: number;
   student_name: string;
@@ -57,6 +59,9 @@ export default function TeacherSubmissionView({
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isGroupAssignment, setIsGroupAssignment] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewModalEntityName, setViewModalEntityName] = useState("");
   const navigate = useNavigate();
 
   // Load all student submissions and class roster
@@ -108,15 +113,31 @@ export default function TeacherSubmissionView({
     // Filter to only include students (not the teacher)
     const students: Student[] = (classMembersData || []).filter((member: { role: string }) => member.role === 'student');
 
-    // Create a map of student_id -> submission for quick lookup
-    const submissionMap = new Map<number, StudentSubmission>();
+    // Consolidate multiple submissions per student (text + file)
+    const consolidatedMap = new Map<number, StudentSubmission>();
     submissionsData.forEach((sub: StudentSubmission) => {
-      submissionMap.set(sub.student_id, sub);
+      if (consolidatedMap.has(sub.student_id)) {
+        const existing = consolidatedMap.get(sub.student_id)!;
+        // Use the later timestamp
+        if (new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
+          existing.submitted_at = sub.submitted_at;
+        }
+        // Add text or file if missing
+        if (sub.submission_text && !existing.submission_text) {
+          existing.submission_text = sub.submission_text;
+        }
+        if (sub.filename && !existing.filename) {
+          existing.filename = sub.filename;
+          existing.file_path = sub.file_path;
+        }
+      } else {
+        consolidatedMap.set(sub.student_id, { ...sub });
+      }
     });
 
     // Merge students with their submission status
     const merged: StudentWithSubmission[] = students.map((student) => {
-      const submission = submissionMap.get(student.id) || null;
+      const submission = consolidatedMap.get(student.id) || null;
 
       let status: "Submitted" | "Submitted Late" | "No Submission" = "No Submission";
 
@@ -147,11 +168,18 @@ export default function TeacherSubmissionView({
     // Fetch all groups in the course
     const groupsData = await getCourseGroups(classId);
 
-    // Create a map of student_id -> submission for quick lookup
-    const submissionMap = new Map<number, StudentSubmission>();
-    submissionsData.forEach((sub: StudentSubmission) => {
-      submissionMap.set(sub.student_id, sub);
-    });
+    // Consolidate submissions by group
+    const groupSubmissionMap = new Map<number, StudentSubmission[]>();
+
+    for (const group of groupsData) {
+      const groupMemberIds = (await getGroupMembers(classId, group.id)).map((m: any) => m.id);
+      const groupSubs = submissionsData.filter((sub: StudentSubmission) =>
+        groupMemberIds.includes(sub.student_id)
+      );
+      if (groupSubs.length > 0) {
+        groupSubmissionMap.set(group.id, groupSubs);
+      }
+    }
 
     // For each group, fetch members and check for submissions
     const merged: GroupWithSubmission[] = await Promise.all(
@@ -168,16 +196,32 @@ export default function TeacherSubmissionView({
             email: member.email
           }));
 
-          // Find if any group member has submitted
-          let groupSubmission: StudentSubmission | null = null;
+          // Get all submissions from group members and consolidate
+          let groupSubmission: StudentSubmission | undefined = undefined;
           let submittedBy: string | undefined = undefined;
 
-          for (const member of members) {
-            const submission = submissionMap.get(member.id);
-            if (submission) {
-              groupSubmission = submission;
-              submittedBy = member.name;
-              break; // Use the first submission found
+          const groupSubs = groupSubmissionMap.get(group.id);
+          if (groupSubs && groupSubs.length > 0) {
+            // Find who submitted
+            const firstSubmitter = members.find(m =>
+              groupSubs.some(sub => sub.student_id === m.id)
+            );
+            submittedBy = firstSubmitter?.name;
+
+            // Consolidate all submissions (text + file)
+            groupSubmission = { ...groupSubs[0] };
+            for (let i = 1; i < groupSubs.length; i++) {
+              const sub = groupSubs[i];
+              if (sub.submission_text && !groupSubmission.submission_text) {
+                groupSubmission.submission_text = sub.submission_text;
+              }
+              if (sub.filename && !groupSubmission.filename) {
+                groupSubmission.filename = sub.filename;
+                groupSubmission.file_path = sub.file_path;
+              }
+              if (new Date(sub.submitted_at) > new Date(groupSubmission.submitted_at)) {
+                groupSubmission.submitted_at = sub.submitted_at;
+              }
             }
           }
 
@@ -225,22 +269,10 @@ export default function TeacherSubmissionView({
     setGroupsWithSubmissions(merged);
   };
 
-  const handleDownload = async (submissionId: number, filename: string) => {
-    try {
-      const blob = await downloadStudentSubmission(submissionId);
-
-      // Create a download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
-    }
+  const handleViewSubmission = (submission: StudentSubmission, entityName: string) => {
+    setSelectedSubmission(submission);
+    setViewModalEntityName(entityName);
+    setIsViewModalOpen(true);
   };
 
   const handleViewProfile = (studentId: number) => {
@@ -366,10 +398,10 @@ export default function TeacherSubmissionView({
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDownload(groupItem.submission!.id, groupItem.submission!.filename);
+                                  handleViewSubmission(groupItem.submission!, groupItem.group.name);
                                 }}
                               >
-                                Download
+                                View
                               </Button>
                             </div>
                           )}
@@ -498,14 +530,14 @@ export default function TeacherSubmissionView({
                         {item.submission ? (
                           <div className="flex flex-col gap-1">
                             <span className="text-sm">
-                              {item.submission.filename}
+                              {item.submission.filename || "Text Submission"}
                             </span>
                             <Button
                               variant="default"
                               size="sm"
-                              onClick={() => handleDownload(item.submission!.id, item.submission!.filename)}
+                              onClick={() => handleViewSubmission(item.submission!, item.student.name)}
                             >
-                              Download
+                              View
                             </Button>
                           </div>
                         ) : (
@@ -522,6 +554,17 @@ export default function TeacherSubmissionView({
           )
         )}
       </CardContent>
+      {selectedSubmission && (
+        <ViewSubmissionModal
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setSelectedSubmission(null);
+          }}
+          submission={selectedSubmission}
+          entityName={viewModalEntityName}
+        />
+      )}
     </Card>
   );
 }

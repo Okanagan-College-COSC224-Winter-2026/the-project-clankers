@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 interface StudentSubmission {
   id: number;
-  filename: string;
-  file_path: string;
+  filename?: string;
+  file_path?: string;
+  submission_text?: string;
   submitted_at: string;
   student_id: number;
   student_name?: string;
@@ -297,7 +298,7 @@ export default function StudentSubmissionUpload({
                     {/* Text submission display */}
                     {isTextSubmission && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md max-h-40 overflow-y-auto">
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.filename || 'No text content'}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.submission_text || 'No text content'}</p>
                       </div>
                     )}
 
@@ -435,7 +436,7 @@ export default function StudentSubmissionUpload({
 
         {uploadSuccess && (
           <div className="mt-4 p-3 rounded bg-green-50 text-green-800 border border-green-400">
-            File submitted successfully!
+            {submissionMode === 'text' ? 'Text submitted successfully!' : 'File submitted successfully!'}
           </div>
         )}
       </CardContent>

@@ -70,11 +70,8 @@ def upload_student_submission(assignment_id):
             submission_text=submission_text,
         )
         StudentSubmission.create(new_submission)
-        return jsonify({
-            "msg": "Text submitted successfully",
-            "submission": StudentSubmissionSchema().dump(new_submission)
-        }), 200
-    else:
+
+    if has_file:
         # Handle file submission
         file = request.files["file"]
 
@@ -106,10 +103,9 @@ def upload_student_submission(assignment_id):
         )
         StudentSubmission.create(new_submission)
 
-        return jsonify({
-            "msg": "File submitted successfully",
-            "submission": StudentSubmissionSchema().dump(new_submission)
-        }), 200
+    return jsonify({
+        "msg": "Submission(s) uploaded successfully"
+    }), 200
 
 
 @bp.route("/assignment/<int:assignment_id>", methods=["GET"])

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
 import RubricViewModal from "../components/RubricViewModal";
+import ViewSubmissionModal from "../components/ViewSubmissionModal";
 import {
   getAssignmentDetails,
   getUserId,
@@ -54,6 +55,8 @@ function PeerReviewModal({
   const [userGroupId, setUserGroupId] = useState<number | null>(null);
   const [targetSubmissions, setTargetSubmissions] = useState<any[]>([]);
   const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
+  const [selectedSubmissionForView, setSelectedSubmissionForView] = useState<any>(null);
+  const [isViewSubmissionModalOpen, setIsViewSubmissionModalOpen] = useState(false);
 
   // Rubric and criteria state
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -414,31 +417,43 @@ function PeerReviewModal({
                     </button>
                     {submissionsExpanded && (
                       <div className="border-t border-blue-200 p-3 flex flex-col gap-2 bg-white">
-                        {targetSubmissions.map((submission) => (
-                          <button
-                            key={submission.id}
-                            onClick={async () => {
-                              try {
-                                const blob = await downloadStudentSubmission(submission.id);
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = submission.filename;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                window.URL.revokeObjectURL(url);
-                              } catch (error) {
-                                console.error('Error downloading submission:', error);
-                                alert('Failed to download submission');
-                              }
-                            }}
-                            className="flex items-center justify-between p-2 rounded border border-blue-100 hover:bg-blue-50 transition-colors text-sm cursor-pointer text-left"
-                          >
-                            <span className="text-blue-600 font-medium truncate flex-1">{submission.filename}</span>
-                            <span className="text-blue-500 ml-2">↓</span>
-                          </button>
-                        ))}
+                        {targetSubmissions.map((submission) => {
+                          const isTextSubmission = submission.submission_text;
+                          const isFileSubmission = submission.filename;
+
+                          return (
+                            <button
+                              key={submission.id}
+                              onClick={async () => {
+                                if (isTextSubmission) {
+                                  setSelectedSubmissionForView(submission);
+                                  setIsViewSubmissionModalOpen(true);
+                                } else {
+                                  try {
+                                    const blob = await downloadStudentSubmission(submission.id);
+                                    const url = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = submission.filename;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                  } catch (error) {
+                                    console.error('Error downloading submission:', error);
+                                    alert('Failed to download submission');
+                                  }
+                                }
+                              }}
+                              className="flex items-center justify-between p-2 rounded border border-blue-100 hover:bg-blue-50 transition-colors text-sm cursor-pointer text-left"
+                            >
+                              <span className="text-blue-600 font-medium truncate flex-1">
+                                {isTextSubmission ? '📝 Text Submission' : submission.filename}
+                              </span>
+                              <span className="text-blue-500 ml-2">{isTextSubmission ? '👁️' : '↓'}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -534,6 +549,19 @@ function PeerReviewModal({
           </div>
         </div>
       </div>
+      {selectedSubmissionForView && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ViewSubmissionModal
+            isOpen={isViewSubmissionModalOpen}
+            onClose={() => {
+              setIsViewSubmissionModalOpen(false);
+              setSelectedSubmissionForView(null);
+            }}
+            submission={selectedSubmissionForView}
+            entityName={selectedTarget?.name || "Target"}
+          />
+        </div>
+      )}
     </div>
   );
 }
