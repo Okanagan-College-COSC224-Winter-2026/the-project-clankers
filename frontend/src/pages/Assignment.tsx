@@ -132,7 +132,12 @@ export default function Assignment() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
+    // Parse as local time (backend stores times without timezone indicator)
+    const [date, time] = dateString.split('T');
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const localDate = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
       year: 'numeric',
@@ -141,12 +146,16 @@ export default function Assignment() {
       hour: '2-digit',
       minute: '2-digit'
     };
-    return date.toLocaleDateString('en-US', options);
+    return localDate.toLocaleDateString('en-US', options);
   };
 
   const calculateTimeRemaining = (dueDate: string | null) => {
     if (!dueDate) return "N/A";
-    const due = new Date(dueDate);
+    // Parse as local time (backend stores times without timezone indicator)
+    const [date, time] = dueDate.split('T');
+    const [year, month, day] = date.split('-');
+    const [hour, minute] = time.split(':');
+    const due = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
     const now = new Date();
     const diff = due.getTime() - now.getTime();
 
@@ -307,7 +316,7 @@ export default function Assignment() {
           )}
 
           {/* Submission Details Table - Student Only */}
-          {!isTeacher() && submissions.length > 0 && (
+          {!isTeacher() && (
             <Card>
               <CardContent className="p-4">
                 <h3 className="font-semibold text-lg mb-4">Submission Details</h3>
@@ -324,7 +333,7 @@ export default function Assignment() {
                         <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Submission status</td>
                         <td className="py-2 px-2">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                            Submitted for grading
+                            {submissions.length > 0 ? "Submitted for grading" : "Not submitted"}
                           </span>
                         </td>
                       </tr>
@@ -332,7 +341,7 @@ export default function Assignment() {
                         <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Grading status</td>
                         <td className="py-2 px-2">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                            Graded
+                            {submissions.length > 0 ? "Graded" : "Not graded"}
                           </span>
                         </td>
                       </tr>
@@ -340,28 +349,26 @@ export default function Assignment() {
                         <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Time remaining</td>
                         <td className="py-2 px-2">{calculateTimeRemaining(dueDate)}</td>
                       </tr>
+                      <tr className="border-b">
+                        <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Last modified</td>
+                        <td className="py-2 px-2">{submissions.length > 0 ? formatDate(submissions[0].submitted_at) : "-"}</td>
+                      </tr>
                       {submissions.length > 0 && (
-                        <>
-                          <tr className="border-b">
-                            <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Last modified</td>
-                            <td className="py-2 px-2">{formatDate(submissions[0].submitted_at)}</td>
-                          </tr>
-                          <tr>
-                            <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">File submissions</td>
-                            <td className="py-2 px-2">
-                              <div className="space-y-2">
-                                {submissions.map((submission, idx) => (
-                                  <div key={idx} className="flex items-center gap-2">
-                                    <span className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
-                                      {submission.filename}
-                                    </span>
-                                    <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        </>
+                        <tr>
+                          <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">File submissions</td>
+                          <td className="py-2 px-2">
+                            <div className="space-y-2">
+                              {submissions.map((submission, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <span className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                                    {submission.filename}
+                                  </span>
+                                  <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
