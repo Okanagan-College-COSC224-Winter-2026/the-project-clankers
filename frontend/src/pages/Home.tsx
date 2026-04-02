@@ -23,7 +23,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showArchivedModal, setShowArchivedModal] = useState(false)
-  const [archivedClasses, setArchivedClasses] = useState<any[]>([])
+  const [archivedClasses, setArchivedClasses] = useState<Course[]>([])
   const [loadingArchived, setLoadingArchived] = useState(false)
 
   const fetchCourses = async () => {
@@ -94,6 +94,7 @@ export default function Home() {
               assignmentCount: assignments?.length || 0,
             }
           } catch (error) {
+            console.error(`Error fetching assignments for course ${course.id}:`, error)
             return {
               ...course,
               assignments: [],

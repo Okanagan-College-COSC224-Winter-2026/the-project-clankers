@@ -31,6 +31,23 @@ interface PeerReviewModalProps {
   onReviewSubmitted?: () => void;
 }
 
+interface TeamMember {
+  id: number;
+  name: string;
+}
+
+interface Group {
+  id: number;
+  name: string;
+}
+
+interface ClassMember {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
 function PeerReviewModal({
   isOpen,
   onClose,
@@ -91,8 +108,8 @@ function PeerReviewModal({
           if (internalReviewEnabled && submissionType === 'group') {
             const groupData = await listStuGroup(assignmentId, currentUserId);
             const teammates = groupData
-              .filter((member: any) => member.id !== currentUserId)
-              .map((member: any) => ({
+              .filter((member: TeamMember) => member.id !== currentUserId)
+              .map((member: TeamMember) => ({
                 id: member.id,
                 name: member.name || `User ${member.id}`
               }));
@@ -104,8 +121,8 @@ function PeerReviewModal({
             if (submissionType === 'group') {
               const groups = await getCourseGroups(courseId);
               const groupList = groups
-                .filter((group: any) => group.id !== fetchedUserGroupId)
-                .map((group: any) => ({
+                .filter((group: Group) => group.id !== fetchedUserGroupId)
+                .map((group: Group) => ({
                   id: group.id,
                   name: group.name || `Group ${group.id}`
                 }));
@@ -113,8 +130,8 @@ function PeerReviewModal({
             } else {
               const members = await listCourseMembers(String(courseId));
               const classmates = members
-                .filter((member: any) => member.id !== currentUserId && member.role === 'student')
-                .map((member: any) => ({
+                .filter((member: ClassMember) => member.id !== currentUserId && member.role === 'student')
+                .map((member: ClassMember) => ({
                   id: member.id,
                   name: member.name || member.email
                 }));
@@ -213,7 +230,7 @@ function PeerReviewModal({
 
         // Refresh rubric to ensure we have latest criteria (in case teacher added new ones)
         let currentCriteria = criteria;
-        let finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
+        const finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
         try {
           const freshRubric = await getRubric(assignmentId, true);
           const freshCriteria = await getCriteria(freshRubric.id);

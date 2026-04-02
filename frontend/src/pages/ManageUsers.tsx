@@ -153,15 +153,11 @@ export default function ManageUsers() {
   };
 
   const handleEditSave = async (userId: number, updates: Partial<User>) => {
-    try {
-      await updateUser(userId, updates);
-      setSuccessMessage('User updated successfully');
-      setShowEditModal(false);
-      setSelectedUser(null);
-      await loadData();
-    } catch (err) {
-      throw err; // Let EditUserModal handle the error
-    }
+    await updateUser(userId, updates);
+    setSuccessMessage('User updated successfully');
+    setShowEditModal(false);
+    setSelectedUser(null);
+    await loadData();
   };
 
   // Change password
@@ -171,15 +167,11 @@ export default function ManageUsers() {
   };
 
   const handleChangePasswordSave = async (userId: number, password: string) => {
-    try {
-      await changeUserPassword(userId, password);
-      setSuccessMessage('Password changed successfully');
-      setShowChangePasswordModal(false);
-      setSelectedUser(null);
-      await loadData();
-    } catch (err) {
-      throw err; // Let ChangePasswordModal handle the error
-    }
+    await changeUserPassword(userId, password);
+    setSuccessMessage('Password changed successfully');
+    setShowChangePasswordModal(false);
+    setSelectedUser(null);
+    await loadData();
   };
 
   // Delete user

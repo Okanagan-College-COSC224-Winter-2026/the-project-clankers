@@ -1229,7 +1229,7 @@ export const createUser = async (
 
   try {
     return await response.json();
-  } catch (e) {
+  } catch {
     throw new Error('Invalid response from server');
   }
 }
@@ -1240,7 +1240,14 @@ export const updateUser = async (
   updates: { name?: string; email?: string; role?: string; student_id?: string | null; hash_pass?: string }
 ) => {
   // Convert hash_pass to password for the backend
-  const backendUpdates: any = { ...updates };
+  interface BackendUpdates {
+    name?: string;
+    email?: string;
+    role?: string;
+    student_id?: string | null;
+    password?: string;
+  }
+  const backendUpdates: BackendUpdates = { ...updates };
   if (backendUpdates.hash_pass) {
     backendUpdates.password = backendUpdates.hash_pass;
     delete backendUpdates.hash_pass;
@@ -1272,7 +1279,7 @@ export const updateUser = async (
 
   try {
     return await response.json();
-  } catch (e) {
+  } catch {
     throw new Error('Invalid response from server');
   }
 }
@@ -1300,7 +1307,7 @@ export const deleteUser = async (userId: number) => {
 
   try {
     return await response.json();
-  } catch (e) {
+  } catch {
     throw new Error('Invalid response from server');
   }
 }
@@ -1332,7 +1339,7 @@ export const changeUserPassword = async (userId: number, password: string) => {
 
   try {
     return await response.json();
-  } catch (e) {
+  } catch {
     throw new Error('Invalid response from server');
   }
 }

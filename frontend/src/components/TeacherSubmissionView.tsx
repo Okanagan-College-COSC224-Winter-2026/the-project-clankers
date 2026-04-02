@@ -161,7 +161,7 @@ export default function TeacherSubmissionView({
           const membersData = await getGroupMembers(classId, group.id);
 
           // Convert to Student type
-          const members: Student[] = membersData.map((member: any) => ({
+          const members: Student[] = membersData.map((member: Student) => ({
             id: member.id,
             student_id: member.student_id,
             name: member.name,

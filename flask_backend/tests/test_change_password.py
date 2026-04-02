@@ -299,7 +299,7 @@ def test_change_password_clears_must_change_flag(test_client):
     WHEN they change their password
     THEN the must_change_password flag should be cleared
     """
-    from flask_backend.api.models import User
+    from api.models import User
 
     # Create a user with must_change_password flag
     test_client.post(

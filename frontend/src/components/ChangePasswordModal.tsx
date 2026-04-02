@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import Textbox from './Textbox';
 import PasswordInput from './PasswordInput';
 import PasswordCriteria from './PasswordCriteria';
 import StatusMessage from './StatusMessage';

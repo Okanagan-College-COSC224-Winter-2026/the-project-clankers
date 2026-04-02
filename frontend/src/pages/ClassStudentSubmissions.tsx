@@ -55,6 +55,14 @@ interface Student {
   student_id: string;
 }
 
+interface ClassMember {
+  id: number;
+  name: string;
+  email: string;
+  student_id: string;
+  role: string;
+}
+
 interface Group {
   id: number;
   name: string;
@@ -141,8 +149,8 @@ export default function ClassStudentSubmissions() {
       // Get all students in the class
       const classMembersData = await listCourseMembers(id as string);
       const students: Student[] = (classMembersData || [])
-        .filter((member: { role: string }) => member.role === 'student')
-        .map((member: any) => ({
+        .filter((member: ClassMember) => member.role === 'student')
+        .map((member: ClassMember) => ({
           id: member.id,
           name: member.name,
           email: member.email,
@@ -346,7 +354,7 @@ export default function ClassStudentSubmissions() {
         ) : (
           <div className="space-y-5">
             {submissionsByAssignment.map(({ assignment, rows, isGroupAssignment }) => {
-              const submittedCount = rows.filter((row: any) => row.status !== "Not Submitted").length;
+              const submittedCount = rows.filter((row: GroupSubmissionRow | IndividualSubmissionRow) => row.status !== "Not Submitted").length;
               const total = rows.length;
               const entityType = isGroupAssignment ? 'groups' : 'students';
               const isExpanded = expandedAssignmentId === assignment.id;
