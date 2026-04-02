@@ -442,3 +442,68 @@ Redesigned the rubric display to be cleaner and more organized. Implemented tabb
 - ✅ Single scrollbar for peer review form reduces confusion
 - ✅ Horizontally centered review form for better readability
 - ✅ Tabs dynamically hidden/shown based on review settings
+
+## Rubric Import Improvements (Added 2026-04-02)
+
+### What Was Changed
+Enhanced the rubric import feature on the RubricCreator component with better UX and safety checks. Teachers can now import rubrics at any time, with duplicate prevention and better feedback.
+
+### Frontend Changes
+
+#### RubricCreator Component (`frontend/src/components/RubricCreator.tsx`)
+
+**1. Import Button Availability**
+- **Before**: Import button only appeared when no rubric existed for the assignment
+- **After**: Import button is always visible, allowing teachers to:
+  - Build custom criteria manually
+  - Save the rubric
+  - Import additional criteria from past assignments
+  - Mix and match custom and imported criteria
+- Removed conditional check `{!rubricId &&` from Import button JSX
+
+**2. Import Strategy Tooltips**
+- Added TooltipProvider and Tooltip components for interactive help
+- Each of the three import strategies now has a hover tooltip:
+  - **Perfect Match Only**: "Only import criteria with exact type matches. No conversions or 'For Both' criteria will be included."
+  - **Skip Incompatible**: "Import criteria that match this assignment's settings. Incompatible types are skipped, but 'For Both' criteria are included and converted as needed."
+  - **Force Convert**: "Import all criteria and automatically convert incompatible types to match this assignment's review settings."
+- Removed the descriptive text box below the buttons (space previously used for explanations now comes from tooltips)
+
+**3. Duplicate Criteria Prevention**
+- Added duplicate detection in `handleConfirmImport()`:
+  - Compares imported criteria questions to existing criteria (case-insensitive)
+  - Filters out any criteria with duplicate questions before saving
+  - Applied to all three import strategies (convert, skip, perfect)
+- Specific error messages for all-duplicates scenario:
+  - "This criterion is a duplicate of an existing criterion." (single item)
+  - "All criteria are duplicates of existing criteria and were excluded." (multiple items)
+
+**4. Duplicate Notification**
+- When duplicates are excluded during import, users see a message like:
+  - `"Rubric imported successfully! (3 criteria imported) - 2 duplicate criteria were excluded"`
+- Message updates count dynamically based on how many criteria were filtered
+
+**5. Automatic Import Execution** (Major UX Improvement)
+- **Before**: Users selected an import strategy, criteria were added to form, then had to click "Save Changes" button
+- **After**: Import now automatically saves to database on strategy selection
+  - All imported criteria saved as database records immediately
+  - Page reloads after 1.5 seconds to show updated rubric
+  - No manual "Save Changes" step required
+- Changed `handleConfirmImport()` from synchronous to async function
+- Now calls `createRubric()` and `createCriteria()` directly (same as manual save flow)
+- Automatically creates rubric if one doesn't exist yet
+- Includes try-catch error handling with user feedback
+
+**6. Dialog Closing on Duplicate Error**
+- **Before**: Duplicate errors kept user inside the import dialogs
+- **After**: Both dialogs (import preview and rubric selector) close automatically on any error
+- User sees error message at top of page and can retry or choose different approach
+
+### User Experience Improvements (Import)
+- ✅ Can import rubrics even after building custom criteria
+- ✅ Hover tooltips explain each import strategy without cluttering UI
+- ✅ Duplicate prevention prevents accidental duplicate criteria
+- ✅ Clear feedback when duplicates are excluded from import
+- ✅ One-click import - no extra "Save" step needed
+- ✅ Automatic page reload shows updated criteria immediately
+- ✅ Better error handling keeps UI clean and responsive
