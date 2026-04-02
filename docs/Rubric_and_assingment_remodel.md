@@ -260,21 +260,91 @@ Teachers can now set optional start and end dates for peer review submissions on
 - ✅ Dates display in full format with time: "Apr 2, 2026, 11:59 PM"
 - ✅ Consistent datetime picker experience across all date fields
 
+## Student Submissions in Peer Reviews (Added 2026-04-02)
+
+### What Was Added
+Students can now view and download submitted files directly within the peer review modal when reviewing peers. This allows reviewers to easily access the work they're evaluating without leaving the review interface.
+
+### Backend Changes
+
+#### Student Submission Controller (`flask_backend/api/controllers/student_submission_controller.py`)
+
+**New Endpoint**: `GET /submissions/peer-review/<assignment_id>/<target_id>`
+- Fetches submissions for a specific peer review target (student or group)
+- Accepts query parameter `type=user|group` to determine target type
+- For individual targets: returns all submissions from that student
+- For group targets: returns submissions from all group members
+- Authorization: User must be enrolled in the course
+- Returns empty array if no submissions found
+
+**Updated Endpoint**: `GET /submissions/download/<submission_id>`
+- Added peer reviewer authorization check
+- Students can now download submissions when:
+  - Assignment has peer review enabled (`internal_review` OR `external_review`)
+  - Student is enrolled in the course
+  - This supplements existing checks (owner, group member, teacher)
+- Maintains security: only active peer review participants can access
+
+### Frontend Changes
+
+#### API Utilities (`frontend/src/util/api.ts`)
+- Added `getPeerReviewSubmissions()` function
+  - Parameters: `assignmentId`, `targetId`, `targetType` ('user' | 'group')
+  - Query parameter handling for type filtering
+  - Returns array of submission objects with id, filename, created_at, etc.
+- Existing `downloadStudentSubmission()` function now serves peer review context
+
+#### Peer Reviews Modal (`frontend/src/pages/PeerReviews.tsx`)
+
+**Dynamic Submission Display**:
+- New state: `submissionsExpanded` - controls dropdown visibility
+- New section added right below "Review for: [Name]" heading
+- Only displays when submissions exist for selected target
+
+**Collapsible UI**:
+- Discrete compact header: "📎 Submissions [count] ▼"
+- Click to expand/collapse file list
+- Arrow rotates 180° when expanded for visual feedback
+- Clean white background with blue border when expanded
+- Dropdown automatically resets when selecting new review target
+
+**File Display**:
+- Each file shown as clickable button with filename and download arrow
+- Hover effects provide visual feedback
+- Direct download on click using blob download pattern
+- Error handling with user alerts if download fails
+
+**Integration**:
+- `loadTargetSubmissions()` function fetches submissions when target changes
+- Handles both individual and group assignment contexts
+- Works for both internal and external peer reviews
+- Resets dropdown state when switching targets
+
+### User Experience Improvements (Submissions in Peer Review)
+- ✅ Reviewers can access submitted work without leaving review modal
+- ✅ Discrete minimal UI doesn't clutter the review interface
+- ✅ Expandable dropdown keeps submissions hidden until needed
+- ✅ Works seamlessly for both individual and group assignments
+- ✅ Supports multiple submissions per student/group
+- ✅ Clear visual indicators (count badge, arrow rotation)
+- ✅ Error handling for failed downloads
+
 ## Summary of Changes
 
 ### Files Created
 - `frontend/src/components/RubricViewModal.tsx` - Split rubric display component
 
 ### Files Modified
-- `frontend/src/util/api.ts` - Updated createAssignment() function; added peer review date parameters
+- `frontend/src/util/api.ts` - Updated createAssignment() function; added peer review date parameters; added getPeerReviewSubmissions() for peer review submissions
 - `frontend/src/pages/ClassHome.tsx` - Assignment creation modal; added peer review date fields
 - `frontend/src/components/AssignmentSettings.tsx` - Dialog-based edit form; shows peer review dates in Manage tab; added peer review date edit fields
 - `frontend/src/pages/Assignment.tsx` - Description display, student info, rubric removal, file download functionality, grading status logic
-- `frontend/src/pages/PeerReviews.tsx` - View Rubric button and modal integration; peer review availability checking; red alert styling for all unavailability states
+- `frontend/src/pages/PeerReviews.tsx` - View Rubric button and modal integration; peer review availability checking; red alert styling for all unavailability states; collapsible submissions display with download functionality
 - `frontend/src/index.css` - Markdown styling
 - `frontend/tsconfig.app.json` - Removed deprecated option
 - `flask_backend/api/models/assignment_model.py` - Added description, peer_review_start_date, peer_review_due_date fields; added availability check methods
 - `flask_backend/api/controllers/assignment_controller.py` - Updated create/edit functions
+- `flask_backend/api/controllers/student_submission_controller.py` - Added peer review submission endpoint; added peer reviewer authorization to download endpoint
 - `flask_backend/api/models/schemas.py` - Updated AssignmentSchema; added peer review date fields
 
 ### Database Migration

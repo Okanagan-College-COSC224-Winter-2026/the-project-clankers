@@ -17,7 +17,9 @@ import {
   getSubmittedReviews,
   getReceivedReviews,
   SubmittedReviewData,
-  ReceivedReviewData
+  ReceivedReviewData,
+  getPeerReviewSubmissions,
+  downloadStudentSubmission
 } from "../util/api";
 
 interface PeerReviewModalProps {
@@ -50,6 +52,8 @@ function PeerReviewModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [userGroupId, setUserGroupId] = useState<number | null>(null);
+  const [targetSubmissions, setTargetSubmissions] = useState<any[]>([]);
+  const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
 
   // Rubric and criteria state
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -146,7 +150,10 @@ function PeerReviewModal({
     const member = groupMembers.find(m => m.id === memberId);
     if (member) {
       setSelectedTarget({ ...member, type: 'internal' });
+      setSubmissionsExpanded(false);
       loadExistingReview(currentUserId, memberId, 'user', 'internal');
+      // Load submissions for this member
+      loadTargetSubmissions(memberId, 'user');
     }
   };
 
@@ -154,7 +161,10 @@ function PeerReviewModal({
     const target = externalTargets.find(t => t.id === targetId);
     if (target) {
       setSelectedTarget({ ...target, type: 'external' });
+      setSubmissionsExpanded(false);
       loadExistingReview(currentUserId, targetId, submissionType === 'group' ? 'group' : 'user', 'external');
+      // Load submissions for this target
+      loadTargetSubmissions(targetId, submissionType === 'group' ? 'group' : 'user');
     }
   };
 
@@ -199,6 +209,16 @@ function PeerReviewModal({
       console.warn('No existing review found or error loading:', error);
       setGrades(new Array(criteria.length).fill(0));
       setComments(new Array(criteria.length).fill(''));
+    }
+  };
+
+  const loadTargetSubmissions = async (targetId: number, targetType: 'user' | 'group') => {
+    try {
+      const submissions = await getPeerReviewSubmissions(assignmentId, targetId, targetType);
+      setTargetSubmissions(submissions);
+    } catch (error) {
+      console.warn('Error loading target submissions:', error);
+      setTargetSubmissions([]);
     }
   };
 
@@ -374,6 +394,55 @@ function PeerReviewModal({
                 <p className="text-gray-500 m-0 text-base">
                   {selectedTarget.type === 'internal' ? 'Internal Review' : 'External Review'}
                 </p>
+
+                {/* Submissions Section */}
+                {targetSubmissions.length > 0 && (
+                  <div className="w-full border rounded-md bg-blue-50 border-blue-200 overflow-hidden">
+                    <button
+                      onClick={() => setSubmissionsExpanded(!submissionsExpanded)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-blue-700">📎 Submissions</span>
+                        <span className="inline-block px-2 py-0.5 bg-blue-200 text-blue-700 rounded text-xs font-medium">
+                          {targetSubmissions.length}
+                        </span>
+                      </div>
+                      <span className={`text-blue-600 transition-transform ${submissionsExpanded ? 'rotate-180' : ''}`}>
+                        ▼
+                      </span>
+                    </button>
+                    {submissionsExpanded && (
+                      <div className="border-t border-blue-200 p-3 flex flex-col gap-2 bg-white">
+                        {targetSubmissions.map((submission) => (
+                          <button
+                            key={submission.id}
+                            onClick={async () => {
+                              try {
+                                const blob = await downloadStudentSubmission(submission.id);
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = submission.filename;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Error downloading submission:', error);
+                                alert('Failed to download submission');
+                              }
+                            }}
+                            className="flex items-center justify-between p-2 rounded border border-blue-100 hover:bg-blue-50 transition-colors text-sm cursor-pointer text-left"
+                          >
+                            <span className="text-blue-600 font-medium truncate flex-1">{submission.filename}</span>
+                            <span className="text-blue-500 ml-2">↓</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {criteria.length > 0 ? (
                   <>

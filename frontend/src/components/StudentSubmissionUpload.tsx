@@ -34,6 +34,8 @@ export default function StudentSubmissionUpload({
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [submissionMode, setSubmissionMode] = useState<'file' | 'text'>('file');
+  const [textInput, setTextInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allowedExtensions = ["pdf", "docx", "txt", "zip"];
@@ -104,6 +106,32 @@ export default function StudentSubmissionUpload({
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
+      setUploadSuccess(false);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) {
+      setUploadError("Please enter some text");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    try {
+      await uploadStudentSubmission(assignmentId, textInput);
+      setUploadSuccess(true);
+      setUploadError(null);
+      setTextInput('');
+      await loadSubmissions(); // Reload the submission list
+      // Clear success message after 3 seconds
+      setTimeout(() => setUploadSuccess(false), 3000);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Submission failed");
       setUploadSuccess(false);
     } finally {
       setIsUploading(false);
@@ -230,17 +258,18 @@ export default function StudentSubmissionUpload({
             {submissions.map((submission) => {
               const isOwnSubmission = currentUserId === submission.student_id;
               const isGroupAssignment = assignment?.submission_type === 'group';
+              const isTextSubmission = !submission.filename;
               const status = getSubmissionStatus(submission.submitted_at);
 
               return (
                 <div key={submission.id} className="flex items-center justify-between p-4 bg-white border-2 border-green-500 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 w-full">
                     {/* File name and icon */}
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">📄</span>
+                      <span className="text-2xl">{isTextSubmission ? '📝' : '📄'}</span>
                       <div className="flex-1">
                         <div className="text-base font-semibold mb-1">
-                          {submission.filename}
+                          {isTextSubmission ? 'Text Submission' : submission.filename}
                         </div>
                       </div>
                     </div>
@@ -265,15 +294,24 @@ export default function StudentSubmissionUpload({
                       </div>
                     </div>
 
+                    {/* Text submission display */}
+                    {isTextSubmission && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md max-h-40 overflow-y-auto">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.filename || 'No text content'}</p>
+                      </div>
+                    )}
+
                     {/* Action buttons */}
                     <div className="flex gap-2 items-center">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleDownload(submission.id, submission.filename)}
-                      >
-                        Download
-                      </Button>
+                      {!isTextSubmission && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleDownload(submission.id, submission.filename)}
+                        >
+                          Download
+                        </Button>
+                      )}
                       {isOwnSubmission && (
                         <Button
                           variant="destructive"
@@ -300,46 +338,93 @@ export default function StudentSubmissionUpload({
 
         {/* Upload new submission section */}
         <div className="mt-5 pt-5 border-t-2 border-gray-300">
-          <h4 className="text-lg font-semibold mb-4">Submit New File</h4>
-          <div
-            className={`w-full min-h-[200px] border-3 border-dashed rounded-lg flex items-center justify-center bg-white cursor-pointer transition-all ${
-              isDragging
-                ? "border-green-500 bg-green-50 border-solid"
-                : "border-gray-300 hover:border-green-500 hover:bg-blue-50"
-            }`}
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileInputChange}
-              accept=".pdf,.docx,.txt,.zip"
-              className="hidden"
-            />
+          <h4 className="text-lg font-semibold mb-4">Submit New</h4>
 
-            <div className="text-center p-5">
-              <div className="text-5xl mb-4">📁</div>
-              <p className="text-lg text-muted-foreground my-2.5">
-                {isDragging ? "Drop file here..." : "Drag and drop a file here"}
-              </p>
-              <p className="text-sm text-muted-foreground my-4">or</p>
+          {/* Submission mode tabs */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setSubmissionMode('file')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                submissionMode === 'file'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Upload File
+            </button>
+            <button
+              onClick={() => setSubmissionMode('text')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                submissionMode === 'text'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Submit Text
+            </button>
+          </div>
+
+          {/* File upload section */}
+          {submissionMode === 'file' ? (
+            <div
+              className={`w-full min-h-[200px] border-3 border-dashed rounded-lg flex items-center justify-center bg-white cursor-pointer transition-all ${
+                isDragging
+                  ? "border-green-500 bg-green-50 border-solid"
+                  : "border-gray-300 hover:border-green-500 hover:bg-blue-50"
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileInputChange}
+                accept=".pdf,.docx,.txt,.zip"
+                className="hidden"
+              />
+
+              <div className="text-center p-5">
+                <div className="text-5xl mb-4">📁</div>
+                <p className="text-lg text-muted-foreground my-2.5">
+                  {isDragging ? "Drop file here..." : "Drag and drop a file here"}
+                </p>
+                <p className="text-sm text-muted-foreground my-4">or</p>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={handleBrowseClick}
+                  disabled={isUploading}
+                  className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  {isUploading ? "Uploading..." : "Browse Files"}
+                </Button>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Text submission section */
+            <div className="space-y-3">
+              <textarea
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Enter your text submission here..."
+                className="w-full min-h-[200px] p-3 border-2 border-gray-300 rounded-lg resize-vertical focus:border-green-500 focus:outline-none"
+              />
               <Button
                 variant="default"
                 size="lg"
-                onClick={handleBrowseClick}
-                disabled={isUploading}
-                className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white"
+                onClick={handleTextSubmit}
+                disabled={isUploading || !textInput.trim()}
+                className="w-full bg-green-500 hover:bg-green-600 text-white"
               >
-                {isUploading ? "Uploading..." : "Browse Files"}
+                {isUploading ? "Submitting..." : "Submit Text"}
               </Button>
-              <p className="text-sm text-muted-foreground mt-4">
-                Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
-              </p>
             </div>
-          </div>
+          )}
         </div>
 
         {uploadError && (

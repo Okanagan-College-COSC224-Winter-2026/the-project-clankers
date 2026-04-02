@@ -1067,10 +1067,15 @@ export const deleteAssignmentFile = async (fileId: number) => {
 // STUDENT SUBMISSION API FUNCTIONS
 // ================================
 
-// Upload a student submission file
-export const uploadStudentSubmission = async (assignmentId: number, file: File) => {
+// Upload a student submission file or text
+export const uploadStudentSubmission = async (assignmentId: number, fileOrText?: File | string) => {
   const formData = new FormData();
-  formData.append('file', file);
+
+  if (fileOrText instanceof File) {
+    formData.append('file', fileOrText);
+  } else if (typeof fileOrText === 'string') {
+    formData.append('submissionText', fileOrText);
+  }
 
   const response = await fetch(`${BASE_URL}/submissions/upload/${assignmentId}`, {
     method: 'POST',
@@ -1088,9 +1093,27 @@ export const uploadStudentSubmission = async (assignmentId: number, file: File) 
   return await response.json();
 };
 
-// Get student submissions for an assignment (students get their own, teachers get all)
+// Get student submissions for an assignment
 export const getStudentSubmissions = async (assignmentId: number) => {
   const response = await fetch(`${BASE_URL}/submissions/assignment/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.submissions || [];
+};
+
+// Get submissions for a specific target (student or group) within an assignment for peer review
+export const getPeerReviewSubmissions = async (assignmentId: number, targetId: number, targetType: 'user' | 'group' = 'user') => {
+  const response = await fetch(`${BASE_URL}/submissions/peer-review/${assignmentId}/${targetId}?type=${targetType}`, {
     method: 'GET',
     credentials: 'include'
   });

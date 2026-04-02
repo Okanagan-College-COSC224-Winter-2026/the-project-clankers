@@ -14,19 +14,21 @@ class StudentSubmission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     assignment_id = db.Column(db.Integer, db.ForeignKey("Assignment.id", ondelete="CASCADE"), nullable=False, index=True)
     student_id = db.Column(db.Integer, db.ForeignKey("User.id", ondelete="CASCADE"), nullable=False, index=True)
-    filename = db.Column(db.String(255), nullable=False)  # Original filename
-    file_path = db.Column(db.String(500), nullable=False)  # Server-side unique path
+    filename = db.Column(db.String(255), nullable=True)  # Original filename (nullable for text submissions)
+    file_path = db.Column(db.String(500), nullable=True)  # Server-side unique path (nullable for text submissions)
+    submission_text = db.Column(db.Text, nullable=True)  # Text submission content (nullable for file submissions)
     submitted_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     assignment = db.relationship("Assignment", back_populates="student_submissions")
     student = db.relationship("User", foreign_keys=[student_id])
 
-    def __init__(self, assignment_id, student_id, filename, file_path):
+    def __init__(self, assignment_id, student_id, filename=None, file_path=None, submission_text=None):
         self.assignment_id = assignment_id
         self.student_id = student_id
         self.filename = filename
         self.file_path = file_path
+        self.submission_text = submission_text
         # Ensure submitted_at is always timezone-aware UTC
         self.submitted_at = datetime.now(timezone.utc)
 
