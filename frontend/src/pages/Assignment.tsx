@@ -7,6 +7,7 @@ import AssignmentFileUpload from "../components/AssignmentFileUpload";
 import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
+import ViewSubmissionModal from "../components/ViewSubmissionModal";
 import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
 import ReactMarkdown from "react-markdown";
@@ -42,6 +43,8 @@ export default function Assignment() {
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [selectedTextSubmission, setSelectedTextSubmission] = useState<any>(null);
+  const [isViewTextModalOpen, setIsViewTextModalOpen] = useState(false);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
@@ -382,24 +385,61 @@ export default function Assignment() {
                         <td className="py-2 px-2">{submissions.length > 0 ? formatDate(submissions[0].submitted_at) : "-"}</td>
                       </tr>
                       {submissions.length > 0 && (
-                        <tr>
-                          <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">File submissions</td>
-                          <td className="py-2 px-2">
-                            <div className="space-y-2">
-                              {submissions.map((submission, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleDownload(submission.id, submission.filename)}
-                                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                                  >
-                                    {submission.filename}
-                                  </button>
-                                  <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
+                        <>
+                          {submissions.some(s => s.submission_text) && (
+                            <tr className="border-b">
+                              <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">Text submission</td>
+                              <td className="py-2 px-2">
+                                <div className="space-y-2">
+                                  {submissions
+                                    .filter(s => s.submission_text)
+                                    .map((submission, idx) => (
+                                      <div key={idx} className="flex flex-col gap-2">
+                                        <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 whitespace-pre-wrap break-words">
+                                          {submission.submission_text.substring(0, 150)}
+                                          {submission.submission_text.length > 150 && '...'}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => {
+                                              setSelectedTextSubmission(submission);
+                                              setIsViewTextModalOpen(true);
+                                            }}
+                                            className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-sm"
+                                          >
+                                            View full text
+                                          </button>
+                                          <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
+                                        </div>
+                                      </div>
+                                    ))}
                                 </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
+                              </td>
+                            </tr>
+                          )}
+                          {submissions.some(s => s.filename) && (
+                            <tr>
+                              <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">File submission</td>
+                              <td className="py-2 px-2">
+                                <div className="space-y-2">
+                                  {submissions
+                                    .filter(s => s.filename)
+                                    .map((submission, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => handleDownload(submission.id, submission.filename)}
+                                          className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                        >
+                                          {submission.filename}
+                                        </button>
+                                        <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       )}
                     </tbody>
                   </table>
@@ -408,6 +448,17 @@ export default function Assignment() {
             </Card>
           )}
         </div>
+      )}
+      {selectedTextSubmission && (
+        <ViewSubmissionModal
+          isOpen={isViewTextModalOpen}
+          onClose={() => {
+            setIsViewTextModalOpen(false);
+            setSelectedTextSubmission(null);
+          }}
+          submission={selectedTextSubmission}
+          entityName="My Submission"
+        />
       )}
     </div>
   );
