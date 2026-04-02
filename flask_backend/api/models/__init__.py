@@ -5,7 +5,9 @@ from .course_model import Course
 from .criteria_description_model import CriteriaDescription
 from .criterion_model import Criterion
 from .db import db, ma
+from .enrollment_request_model import EnrollmentRequest
 from .group_members_model import Group_Members
+from .notification_model import Notification
 from .review_model import Review
 from .rubric_model import Rubric
 from .student_submission_model import StudentSubmission
@@ -17,7 +19,9 @@ from .schemas import (
     CourseSchema,
     CriteriaDescriptionSchema,
     CriterionSchema,
+    EnrollmentRequestSchema,
     GroupMembersSchema,
+    NotificationSchema,
     ReviewSchema,
     RubricSchema,
     StudentSubmissionSchema,
@@ -48,6 +52,8 @@ __all__ = [
     "User_Course",
     "Submission",
     "StudentSubmission",
+    "EnrollmentRequest",
+    "Notification",
     "UserSchema",
     "UserRegistrationSchema",
     "UserLoginSchema",
@@ -64,4 +70,6 @@ __all__ = [
     "GroupMembersSchema",
     "UserCourseSchema",
     "SubmissionSchema",
+    "EnrollmentRequestSchema",
+    "NotificationSchema",
 ]

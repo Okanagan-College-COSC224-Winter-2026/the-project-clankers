@@ -1150,13 +1150,142 @@ export const browseAllClasses = async () => {
   return await response.json();
 }
 
-// Self-enroll in a course (for students)
-export const enrollInCourse = async (courseId: number) => {
-  const response = await fetch(`${BASE_URL}/class/enroll`, {
+// Request to enroll in a course (for students)
+// Creates an enrollment request that must be approved by the teacher
+export const requestEnrollment = async (courseId: number) => {
+  const response = await fetch(`${BASE_URL}/enrollments/request`, {
     method: 'POST',
     body: JSON.stringify({
       course_id: courseId
     }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Response status: ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+// Keep enrollInCourse for backward compatibility (now calls requestEnrollment)
+export const enrollInCourse = async (courseId: number) => {
+  return requestEnrollment(courseId);
+}
+
+// Get pending enrollment requests for a teacher
+export const getEnrollmentRequests = async () => {
+  const response = await fetch(`${BASE_URL}/enrollments/teacher/requests`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Approve an enrollment request
+export const approveEnrollmentRequest = async (requestId: number) => {
+  const response = await fetch(`${BASE_URL}/enrollments/${requestId}/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Response status: ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+// Reject an enrollment request
+export const rejectEnrollmentRequest = async (requestId: number, notes?: string) => {
+  const response = await fetch(`${BASE_URL}/enrollments/${requestId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({
+      notes: notes || ''
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Response status: ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+// Get all notifications for the current user
+export const getNotifications = async () => {
+  const response = await fetch(`${BASE_URL}/notifications`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Get unread notifications for the current user
+export const getUnreadNotifications = async () => {
+  const response = await fetch(`${BASE_URL}/notifications/unread`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Mark a notification as read
+export const markNotificationAsRead = async (notificationId: number) => {
+  const response = await fetch(`${BASE_URL}/notifications/${notificationId}/read`, {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },

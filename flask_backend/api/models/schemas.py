@@ -7,7 +7,9 @@ from .course_model import Course
 from .criteria_description_model import CriteriaDescription
 from .criterion_model import Criterion
 from .db import db, ma
+from .enrollment_request_model import EnrollmentRequest
 from .group_members_model import Group_Members
+from .notification_model import Notification
 from .review_model import Review
 from .rubric_model import Rubric
 from .student_submission_model import StudentSubmission
@@ -275,3 +277,47 @@ class SubmissionSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = False
         sqla_session = db.session
+
+
+# ============================================================
+# ENROLLMENT & NOTIFICATION SCHEMAS
+# ============================================================
+
+
+class EnrollmentRequestSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for enrollment requests"""
+
+    class Meta:
+        model = EnrollmentRequest
+        load_instance = True
+        include_fk = True
+        sqla_session = db.session
+
+    id = fields.Int(dump_only=True)
+    studentID = fields.Int()
+    courseID = fields.Int()
+    status = fields.Str(validate=validate.OneOf(["pending", "approved", "rejected"]))
+    created_at = fields.DateTime(dump_only=True)
+    resolved_at = fields.DateTime(dump_only=True, allow_none=True)
+    teacher_notes = fields.Str(allow_none=True)
+    student = fields.Nested(UserListSchema, dump_only=True)
+    course = fields.Nested(CourseListSchema, dump_only=True)
+
+
+class NotificationSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for notifications"""
+
+    class Meta:
+        model = Notification
+        load_instance = True
+        include_fk = True
+        sqla_session = db.session
+
+    id = fields.Int(dump_only=True)
+    userID = fields.Int()
+    type = fields.Str()
+    related_id = fields.Int()
+    message = fields.Str()
+    is_read = fields.Bool()
+    created_at = fields.DateTime(dump_only=True)
+
