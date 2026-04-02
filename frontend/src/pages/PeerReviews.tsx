@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
+import RubricViewModal from "../components/RubricViewModal";
 import {
   getAssignmentDetails,
   getUserId,
@@ -487,6 +488,8 @@ export default function PeerReviews() {
   const [submittedReviews, setSubmittedReviews] = useState<SubmittedReviewData[]>([]);
   const [receivedReviews, setReceivedReviews] = useState<ReceivedReviewData[]>([]);
   const [selectedReviewComments, setSelectedReviewComments] = useState<{ reviewId: number; comments: string[] } | null>(null);
+  const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
+  const [rubricId, setRubricId] = useState<number | null>(null);
 
   // Helper function to get color classes based on grade percentage
   const getGradeColorClasses = (grade: number | null | undefined) => {
@@ -511,6 +514,16 @@ export default function PeerReviews() {
         setIsLoading(true);
         const assignmentData = await getAssignmentDetails(Number(id));
         setAssignment(assignmentData);
+
+        // Fetch rubric ID for the "View Rubrics" button
+        try {
+          const rubricData = await getRubric(Number(id), true);
+          if (rubricData && rubricData.id) {
+            setRubricId(rubricData.id);
+          }
+        } catch (error) {
+          console.warn('No rubric found for assignment:', error);
+        }
 
         // Fetch submitted and received reviews using batch endpoints (2 API calls instead of N)
         const [submitted, received] = await Promise.all([
@@ -663,6 +676,19 @@ export default function PeerReviews() {
         <p className="text-gray-500 m-0">Submit reviews for this assignment</p>
       </div>
 
+      {/* View Rubrics Section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center p-5 border rounded-lg bg-white hover:shadow-md transition-shadow">
+          <div className="flex-1">
+            <h3 className="m-0 mb-2.5 text-xl">View Rubric</h3>
+            <p className="text-gray-500 m-0 text-sm">Click the button below to view the scoring rubric for this assignment. The rubric is split into Internal and External review sections.</p>
+          </div>
+          <Button onClick={() => setIsRubricModalOpen(true)} disabled={!rubricId}>
+            {rubricId ? 'View Rubrics' : 'No Rubric Available'}
+          </Button>
+        </div>
+      </div>
+
       <div className="mb-8">
         <div className="flex justify-between items-center p-5 border rounded-lg bg-white hover:shadow-md transition-shadow">
           <div className="flex-1">
@@ -810,6 +836,14 @@ export default function PeerReviews() {
           }}
         />
       )}
+
+      <RubricViewModal
+        isOpen={isRubricModalOpen}
+        onClose={() => setIsRubricModalOpen(false)}
+        rubricId={rubricId}
+        internalReviewEnabled={assignment?.internal_review || false}
+        externalReviewEnabled={assignment?.external_review || false}
+      />
     </div>
   );
 }

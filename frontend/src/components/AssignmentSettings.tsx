@@ -200,7 +200,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                   value={editedRubric}
                   onChange={(e) => setEditedRubric(e.target.value)}
                   placeholder="Enter rubric description"
-                  className="resize-y min-h-[80px]"
+                  className="resize-none min-h-[80px] max-h-[200px] overflow-y-auto"
                   rows={3}
                 />
               </div>

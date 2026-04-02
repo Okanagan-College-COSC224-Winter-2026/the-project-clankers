@@ -18,6 +18,7 @@ def create_assignment():
     course_id = data.get("courseID")
     assignment_name = data.get("name")
     rubric_text = data.get("rubric")
+    description = data.get("description")
     submission_type = data.get("submission_type", "individual")  # Default to individual
     internal_review = data.get("internal_review", False)  # Default to False
     external_review = data.get("external_review", False)  # Default to False
@@ -59,6 +60,7 @@ def create_assignment():
         courseID=course_id,
         name=assignment_name,
         rubric_text=rubric_text,
+        description=description,
         start_date=start_date,
         due_date=due_date,
         submission_type=submission_type,
@@ -104,6 +106,9 @@ def edit_assignment(assignment_id):
 
     assignment.name = data.get("name", assignment.name)
     assignment.rubric_text = data.get("rubric", assignment.rubric_text)
+
+    if "description" in data:
+        assignment.description = data.get("description")
 
     start_date = data.get("start_date")
     if start_date:

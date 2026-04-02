@@ -15,6 +15,7 @@ class Assignment(db.Model):
     courseID = db.Column(db.Integer, db.ForeignKey("Course.id"), index=True)
     name = db.Column(db.String(255), nullable=True)
     rubric_text = db.Column("rubric", db.String(255), nullable=True)
+    description = db.Column(db.Text, nullable=True)  # Assignment description/details with markdown support
 
     # NEW: start date field (assignment not visible to students before this date)
     start_date = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
@@ -51,10 +52,11 @@ class Assignment(db.Model):
         "StudentSubmission", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, submission_type='individual', internal_review=False, external_review=False, anonymous_review=False, attachment_filename=None, attachment_path=None):
+    def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, submission_type='individual', internal_review=False, external_review=False, anonymous_review=False, attachment_filename=None, attachment_path=None, description=None):
         self.courseID = courseID
         self.name = name
         self.rubric_text = rubric_text
+        self.description = description
         self.start_date = start_date
         self.due_date = due_date
         self.submission_type = submission_type

@@ -7,12 +7,13 @@ import AssignmentFileUpload from "../components/AssignmentFileUpload";
 import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
-import RubricDisplay from "../components/RubricDisplay";
 import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 
 import {
-  getRubric,
   getAssignmentDetails
 } from "../util/api";
 
@@ -28,6 +29,7 @@ export default function Assignment() {
   const [review, setReview] = useState<number[]>([]);
   // const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
+  const [assignmentDescription, setAssignmentDescription] = useState<string | null>(null);
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseName, setCourseName] = useState<string>("");
 
@@ -45,6 +47,9 @@ export default function Assignment() {
         if (assignmentData && assignmentData.name) {
           setAssignmentName(assignmentData.name);
         }
+        if (assignmentData && assignmentData.description) {
+          setAssignmentDescription(assignmentData.description);
+        }
         if (assignmentData && assignmentData.courseID) {
           setCourseId(assignmentData.courseID);
           // Fetch the course name
@@ -59,16 +64,6 @@ export default function Assignment() {
     })();
   }, [id]);
 
-  // Load criteria descriptions for the rubric
-  useEffect(() => {
-    (async () => {
-      try {
-        await getRubric(Number(id), true); // true = use as assignmentID
-      } catch (error) {
-        console.error('Error fetching rubric:', error);
-      }
-    })();
-  }, [id]);
 
   const handleCriterionSelect = (row: number, column: number) => {
     // Check if this criterion is already selected
@@ -184,6 +179,31 @@ export default function Assignment() {
       ) : (
         /* Home tab - default view */
         <div className="flex-1 space-y-6 p-6">
+          {assignmentDescription && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-lg mb-2">Assignment Details</h3>
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                    components={{
+                      p: ({node, ...props}) => <p className="my-2" {...props} />,
+                      ul: ({node, ...props}) => <ul className="my-2 ml-6" {...props} />,
+                      ol: ({node, ...props}) => <ol className="my-2 ml-6" {...props} />,
+                      li: ({node, ...props}) => <li className="my-1" {...props} />,
+                      h1: ({node, ...props}) => <h1 className="text-2xl font-semibold mt-4 mb-2" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mt-4 mb-2" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-3 mb-2" {...props} />,
+                    }}
+                  >
+                    {assignmentDescription}
+                  </ReactMarkdown>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* File upload/display section */}
           {isTeacher() ? (
             <AssignmentFileUpload
@@ -194,12 +214,6 @@ export default function Assignment() {
               assignmentId={Number(id)}
             />
           )}
-
-          <Card>
-            <CardContent className="p-4">
-              <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
-            </CardContent>
-          </Card>
         </div>
       )}
     </div>

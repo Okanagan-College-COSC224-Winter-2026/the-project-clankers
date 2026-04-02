@@ -115,6 +115,7 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
         sqla_session = db.session
 
     course = fields.Nested(CourseListSchema, dump_only=True)
+    description = fields.Str(allow_none=True)
 
 
 class AssignmentFileSchema(ma.SQLAlchemyAutoSchema):

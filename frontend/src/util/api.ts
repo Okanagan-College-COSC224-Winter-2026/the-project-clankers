@@ -667,7 +667,10 @@ export const createAssignment = async (
   submissionType: 'individual' | 'group' = 'individual',
   internalReview: boolean = false,
   externalReview: boolean = false,
-  anonymousReview: boolean = false
+  anonymousReview: boolean = false,
+  startDate?: string,
+  dueDate?: string,
+  description?: string
 )=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
@@ -677,7 +680,10 @@ export const createAssignment = async (
       submission_type: submissionType,
       internal_review: internalReview,
       external_review: externalReview,
-      anonymous_review: anonymousReview
+      anonymous_review: anonymousReview,
+      ...(startDate && { start_date: startDate }),
+      ...(dueDate && { due_date: dueDate }),
+      ...(description && { description: description })
     }),
     headers: {
       'Content-Type': 'application/json',
