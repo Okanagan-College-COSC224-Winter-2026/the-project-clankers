@@ -17,7 +17,8 @@ import {
   getAssignmentDetails,
   getStudentSubmissions,
   listStuGroup,
-  getCurrentUserProfile
+  getCurrentUserProfile,
+  downloadStudentSubmission
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -40,6 +41,7 @@ export default function Assignment() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
@@ -179,6 +181,24 @@ export default function Assignment() {
     return `${minutes} minute${minutes > 1 ? 's' : ''} remaining`;
   };
 
+  const handleDownload = async (submissionId: number, filename: string) => {
+    try {
+      setDownloadError(null);
+      const blob = await downloadStudentSubmission(submissionId);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Download failed");
+    }
+  };
+
   return (
     <div className="flex flex-1 flex-col">
       {courseId && (
@@ -304,6 +324,14 @@ export default function Assignment() {
             </Card>
           )}
 
+          {downloadError && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
+              <CardContent className="p-4">
+                <p className="text-sm text-red-800 dark:text-red-200">❌ Download error: {downloadError}</p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* File upload/display section */}
           {isTeacher() ? (
             <AssignmentFileUpload
@@ -341,7 +369,7 @@ export default function Assignment() {
                         <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Grading status</td>
                         <td className="py-2 px-2">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                            {submissions.length > 0 ? "Graded" : "Not graded"}
+                            {submissions.length > 0 && submissions[0].grade != null ? "Graded" : "Not graded"}
                           </span>
                         </td>
                       </tr>
@@ -360,9 +388,12 @@ export default function Assignment() {
                             <div className="space-y-2">
                               {submissions.map((submission, idx) => (
                                 <div key={idx} className="flex items-center gap-2">
-                                  <span className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                                  <button
+                                    onClick={() => handleDownload(submission.id, submission.filename)}
+                                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                  >
                                     {submission.filename}
-                                  </span>
+                                  </button>
                                   <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
                                 </div>
                               ))}
