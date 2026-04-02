@@ -129,6 +129,14 @@ class Assignment(db.Model):
         now = self._get_current_utc_time()
         return now >= start
 
+    def is_visible_to_students(self):
+        """Check if the assignment is visible to students based on start date."""
+        if self.start_date is None:
+            return True  # No start date means it's always visible
+        start = self._ensure_timezone_aware(self.start_date)
+        now = self._get_current_utc_time()
+        return now >= start
+
     def update(self):
         """Update assignment in the database"""
         db.session.commit()
