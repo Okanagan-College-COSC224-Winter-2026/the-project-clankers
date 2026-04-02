@@ -44,27 +44,27 @@ def list_student_groups(assignment_id, student_id):
     
     # Find the student's group in this course
     student_membership = Group_Members.query.filter_by(userID=student_id).first()
-    
+
     if not student_membership:
         # Student is not in any group
         return jsonify([]), 200
-    
+
     # Get the group
     group = CourseGroup.get_by_id(student_membership.groupID)
     if not group or group.courseID != course.id:
         # Group doesn't belong to this course
         return jsonify([]), 200
-    
+
     # Get all members of this group (excluding the student themselves for peer review)
     group_members = Group_Members.query.filter_by(groupID=group.id).all()
     member_users = []
-    
+
     for membership in group_members:
         if membership.userID != student_id:  # Exclude the student themselves
             member_user = User.get_by_id(membership.userID)
             if member_user:
                 member_users.append(member_user)
-    
+
     # Return user data without passwords
     return jsonify(UserSchema(many=True).dump(member_users)), 200
 

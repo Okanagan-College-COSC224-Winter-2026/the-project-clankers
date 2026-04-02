@@ -19,7 +19,8 @@ import {
   getStudentSubmissions,
   listStuGroup,
   getCurrentUserProfile,
-  downloadStudentSubmission
+  downloadStudentSubmission,
+  getMyGroup
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -41,6 +42,7 @@ export default function Assignment() {
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [groupInfo, setGroupInfo] = useState<any>(null);
+  const [isGroupAssignment, setIsGroupAssignment] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [selectedTextSubmission, setSelectedTextSubmission] = useState<any>(null);
@@ -88,8 +90,12 @@ export default function Assignment() {
             const submissionsData = await getStudentSubmissions(Number(id));
             setSubmissions(submissionsData);
 
-            const groupData = await listStuGroup(Number(id), userProfile.id);
-            setGroupInfo(groupData);
+            // Check if it's a group assignment
+            if (assignmentData.submission_type === 'group') {
+              setIsGroupAssignment(true);
+              const groupData = await getMyGroup(assignmentData.courseID);
+              setGroupInfo(groupData);
+            }
           } catch (error) {
             console.error('Error fetching submission details:', error);
           }
@@ -354,10 +360,10 @@ export default function Assignment() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <tbody>
-                      {groupInfo && (
+                      {isGroupAssignment && (
                         <tr className="border-b">
                           <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Group</td>
-                          <td className="py-2 px-2">{groupInfo.group_name || "N/A"}</td>
+                          <td className="py-2 px-2">{groupInfo?.groupName || "Not assigned to a group"}</td>
                         </tr>
                       )}
                       <tr className="border-b">
