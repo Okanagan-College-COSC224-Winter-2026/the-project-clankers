@@ -189,22 +189,93 @@ This installs:
 - **Implementation**: Updated condition from `submissions.length > 0` to `submissions.length > 0 && submissions[0].grade != null`
 - **Result**: Shows "Not graded" until grading functionality adds grade values to submissions
 
+## Peer Review Start and Due Dates (Added 2026-04-02)
+
+### What Was Added
+Teachers can now set optional start and end dates for peer review submissions on assignments. This prevents peer reviews from being available immediately and allows teachers to control when students can submit reviews.
+
+### Backend Changes
+
+#### Assignment Model (`flask_backend/api/models/assignment_model.py`)
+- Added `peer_review_start_date` column (DateTime, nullable, indexed)
+- Added `peer_review_due_date` column (DateTime, nullable, indexed)
+- Updated `__init__` method to accept `peer_review_start_date` and `peer_review_due_date` parameters
+- Added helper method `is_peer_review_available()`:
+  - Checks if current time is within review window
+  - Handles cases where start or due dates are not set
+  - Returns true if reviews are open, false otherwise
+- Added helper method `is_peer_review_started()`:
+  - Returns true if start date has arrived (or no start date is set)
+  - Used for determining availability messages
+
+#### Assignment Schema (`flask_backend/api/models/schemas.py`)
+- Added `peer_review_start_date` and `peer_review_due_date` fields to AssignmentSchema
+- Allows optional datetime fields for display and API responses
+
+### Frontend Changes
+
+#### Assignment Creation Dialog (`frontend/src/pages/ClassHome.tsx`)
+- Added `peerReviewStartDate` and `peerReviewDueDate` state variables
+- Added two new datetime input fields to the modal:
+  - "Peer Review Start Date" (optional)
+  - "Peer Review Due Date" (optional)
+- Passes these fields to `createAssignment()` API call
+- Fields use `datetime-local` format matching existing start/due date pattern
+
+#### Assignment Edit Dialog (`frontend/src/components/AssignmentSettings.tsx`)
+- Added state for `editedPeerReviewStartDate` and `editedPeerReviewDueDate`
+- **Assignment Information Card** now displays:
+  - Peer Review Start Date displayed as "Peer Review Start:" with date or "Not Set"
+  - Peer Review Due Date displayed as "Peer Review Due:" with date or "Not Set"
+  - Shows dates even when no edit is in progress (improved UX for teachers)
+- **Edit Dialog** includes:
+  - "Peer Review Start Date" input field (optional)
+  - "Peer Review Due Date" input field (optional)
+  - Properly loaded from assignment data using `.slice(0, 16)` parsing pattern
+  - Submitted as ISO strings to backend
+
+#### Peer Reviews Page (`frontend/src/pages/PeerReviews.tsx`)
+- Updated `isPeerReviewAvailable()` helper to check peer review date windows
+- Returns object with `{ available: boolean; message?: string }`
+- Messages show formatted dates with time using `formatDateWithTime()` function
+- Two scenarios:
+  - **Before start date**: "Peer reviews are not yet available. They will start on [date]"
+  - **After due date**: "Peer review deadline has passed (was due [date])"
+- Added alert display that shows either message with conditional styling
+- Alert styling: **All peer review unavailability messages now display in red** (`border-red-300 bg-red-50`, `text-red-800`)
+- Peer review info section displays:
+  - "Review starts:" with formatted date and time
+  - "Review due:" with formatted date and time
+- Submit Review button disabled when reviews not available
+
+#### API Utilities (`frontend/src/util/api.ts`)
+- Updated `createAssignment()` to accept and send `peer_review_start_date` and `peer_review_due_date`
+- Updated `editAssignment()` to accept and send these fields
+
+### User Experience Improvements
+- ✅ Teachers can optionally set when peer reviews should be available
+- ✅ Students see clear unavailability messages at top of peer reviews page
+- ✅ Teachers can see peer review dates in Manage tab without needing to edit
+- ✅ All peer review unavailability states display in red (blocking/alert color)
+- ✅ Dates display in full format with time: "Apr 2, 2026, 11:59 PM"
+- ✅ Consistent datetime picker experience across all date fields
+
 ## Summary of Changes
 
 ### Files Created
 - `frontend/src/components/RubricViewModal.tsx` - Split rubric display component
 
 ### Files Modified
-- `frontend/src/util/api.ts` - Updated createAssignment() function
-- `frontend/src/pages/ClassHome.tsx` - Assignment creation modal
-- `frontend/src/components/AssignmentSettings.tsx` - Dialog-based edit form
+- `frontend/src/util/api.ts` - Updated createAssignment() function; added peer review date parameters
+- `frontend/src/pages/ClassHome.tsx` - Assignment creation modal; added peer review date fields
+- `frontend/src/components/AssignmentSettings.tsx` - Dialog-based edit form; shows peer review dates in Manage tab; added peer review date edit fields
 - `frontend/src/pages/Assignment.tsx` - Description display, student info, rubric removal, file download functionality, grading status logic
-- `frontend/src/pages/PeerReviews.tsx` - View Rubric button and modal integration
+- `frontend/src/pages/PeerReviews.tsx` - View Rubric button and modal integration; peer review availability checking; red alert styling for all unavailability states
 - `frontend/src/index.css` - Markdown styling
 - `frontend/tsconfig.app.json` - Removed deprecated option
-- `flask_backend/api/models/assignment_model.py` - Added description field
+- `flask_backend/api/models/assignment_model.py` - Added description, peer_review_start_date, peer_review_due_date fields; added availability check methods
 - `flask_backend/api/controllers/assignment_controller.py` - Updated create/edit functions
-- `flask_backend/api/models/schemas.py` - Updated AssignmentSchema
+- `flask_backend/api/models/schemas.py` - Updated AssignmentSchema; added peer review date fields
 
 ### Database Migration
 - `migrate_assignment_description.py` - Added to flask_backend directory
@@ -225,3 +296,7 @@ This installs:
 - ✅ Smooth scrolling modals for better readability
 - ✅ Submitted files are downloadable from assignment submission details table
 - ✅ Grading status accurately reflects whether teacher has graded (not just submitted)
+- ✅ Optional peer review start and end dates control when students can submit reviews
+- ✅ Teachers see peer review dates in Manage tab without editing
+- ✅ Students get red alert when peer reviews unavailable (either not started or deadline passed)
+- ✅ All unavailability messages display with formatted date and time in student's timezone
