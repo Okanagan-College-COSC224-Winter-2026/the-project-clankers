@@ -20,6 +20,8 @@ interface AssignmentDetails {
   description?: string;
   start_date: string | null;
   due_date: string | null;
+  peer_review_start_date?: string | null;
+  peer_review_due_date?: string | null;
   courseID: number;
   submission_type?: string;
   internal_review?: boolean;
@@ -41,6 +43,8 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   const [editedDescription, setEditedDescription] = useState("");
   const [editedStartDate, setEditedStartDate] = useState("");
   const [editedDueDate, setEditedDueDate] = useState("");
+  const [editedPeerReviewStartDate, setEditedPeerReviewStartDate] = useState("");
+  const [editedPeerReviewDueDate, setEditedPeerReviewDueDate] = useState("");
   const [editedSubmissionType, setEditedSubmissionType] = useState<'individual' | 'group'>('individual');
   const [editedInternalReview, setEditedInternalReview] = useState(false);
   const [editedExternalReview, setEditedExternalReview] = useState(false);
@@ -57,6 +61,8 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setEditedDescription(data.description || "");
       setEditedStartDate(data.start_date ? data.start_date.slice(0, 16) : "");
       setEditedDueDate(data.due_date ? data.due_date.slice(0, 16) : "");
+      setEditedPeerReviewStartDate(data.peer_review_start_date ? data.peer_review_start_date.slice(0, 16) : "");
+      setEditedPeerReviewDueDate(data.peer_review_due_date ? data.peer_review_due_date.slice(0, 16) : "");
       setEditedSubmissionType((data.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(data.internal_review || false);
       setEditedExternalReview(data.external_review || false);
@@ -93,6 +99,8 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
         description?: string,
         start_date?: string,
         due_date?: string,
+        peer_review_start_date?: string,
+        peer_review_due_date?: string,
         submission_type?: string,
         internal_review?: boolean,
         external_review?: boolean,
@@ -112,6 +120,14 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
 
       if (editedDueDate) {
         updateData.due_date = new Date(editedDueDate).toISOString();
+      }
+
+      if (editedPeerReviewStartDate) {
+        updateData.peer_review_start_date = new Date(editedPeerReviewStartDate).toISOString();
+      }
+
+      if (editedPeerReviewDueDate) {
+        updateData.peer_review_due_date = new Date(editedPeerReviewDueDate).toISOString();
       }
 
       console.log("Sending update data:", updateData);
@@ -138,6 +154,8 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setEditedDescription(assignment.description || "");
       setEditedStartDate(assignment.start_date ? assignment.start_date.slice(0, 16) : "");
       setEditedDueDate(assignment.due_date ? assignment.due_date.slice(0, 16) : "");
+      setEditedPeerReviewStartDate(assignment.peer_review_start_date ? assignment.peer_review_start_date.slice(0, 16) : "");
+      setEditedPeerReviewDueDate(assignment.peer_review_due_date ? assignment.peer_review_due_date.slice(0, 16) : "");
       setEditedSubmissionType((assignment.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(assignment.internal_review || false);
       setEditedExternalReview(assignment.external_review || false);
@@ -264,6 +282,22 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
               <span className="font-semibold text-gray-600 min-w-[120px]">Rubrics Created:</span>
               <span className="text-gray-800 flex-1">{assignment.rubrics?.length || 0}</span>
             </div>
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Peer Review Start:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.peer_review_start_date
+                  ? new Date(assignment.peer_review_start_date).toLocaleDateString()
+                  : "Not Set"}
+              </span>
+            </div>
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Peer Review Due:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.peer_review_due_date
+                  ? new Date(assignment.peer_review_due_date).toLocaleDateString()
+                  : "Not Set"}
+              </span>
+            </div>
             {assignment.rubrics && assignment.rubrics.length > 0 && (
               <div className="mt-2.5 flex flex-col gap-2">
                 {assignment.rubrics.map((rubric) => (
@@ -356,6 +390,26 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                 type="datetime-local"
                 value={editedDueDate}
                 onChange={(e) => setEditedDueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editPeerReviewStartDate">Peer Review Start Date (Optional)</Label>
+              <Input
+                id="editPeerReviewStartDate"
+                type="datetime-local"
+                value={editedPeerReviewStartDate}
+                onChange={(e) => setEditedPeerReviewStartDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editPeerReviewDueDate">Peer Review Due Date (Optional)</Label>
+              <Input
+                id="editPeerReviewDueDate"
+                type="datetime-local"
+                value={editedPeerReviewDueDate}
+                onChange={(e) => setEditedPeerReviewDueDate(e.target.value)}
               />
             </div>
 

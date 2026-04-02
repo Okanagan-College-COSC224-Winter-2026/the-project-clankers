@@ -478,6 +478,8 @@ interface AssignmentDetails {
   external_review?: boolean;
   anonymous_review?: boolean;
   due_date?: string;
+  peer_review_start_date?: string;
+  peer_review_due_date?: string;
 }
 
 export default function PeerReviews() {
@@ -506,6 +508,45 @@ export default function PeerReviews() {
     } else {
       return 'bg-red-100 text-red-600';
     }
+  };
+
+  // Helper function to format date/time with user's timezone
+  const formatDateWithTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Helper function to check if peer review is available
+  const isPeerReviewAvailable = (): { available: boolean; message?: string } => {
+    if (!assignment) return { available: true };
+
+    const now = new Date();
+    const startDate = assignment.peer_review_start_date ? new Date(assignment.peer_review_start_date) : null;
+    const dueDate = assignment.peer_review_due_date ? new Date(assignment.peer_review_due_date) : null;
+
+    // If no start date, check if past due date
+    if (!startDate && dueDate && now > dueDate) {
+      return { available: false, message: `Peer review deadline has passed (was due ${formatDateWithTime(dueDate.toISOString())})` };
+    }
+
+    // If start date hasn't arrived yet
+    if (startDate && now < startDate) {
+      return { available: false, message: `Peer reviews are not yet available. They will start on ${formatDateWithTime(startDate.toISOString())}` };
+    }
+
+    // If past due date
+    if (dueDate && now > dueDate) {
+      return { available: false, message: `Peer review deadline has passed (was due ${formatDateWithTime(dueDate.toISOString())})` };
+    }
+
+    return { available: true };
   };
 
   useEffect(() => {
@@ -669,12 +710,28 @@ export default function PeerReviews() {
     );
   }
 
+  const reviewAvailability = isPeerReviewAvailable();
+
   return (
     <div className="p-5 max-w-6xl mx-auto">
       <div className="mb-8">
         <h2 className="mb-1">Peer Reviews Dashboard</h2>
         <p className="text-gray-500 m-0">Submit reviews for this assignment</p>
       </div>
+
+      {!reviewAvailability.available && (
+        <div className={`mb-8 p-4 border rounded-lg ${
+          reviewAvailability.message?.includes('deadline') ?
+            'border-red-300 bg-red-50' :
+            'border-yellow-300 bg-yellow-50'
+        }`}>
+          <p className={`m-0 font-medium ${
+            reviewAvailability.message?.includes('deadline') ?
+              'text-red-800' :
+              'text-yellow-800'
+          }`}>{reviewAvailability.message}</p>
+        </div>
+      )}
 
       {/* View Rubrics Section */}
       <div className="mb-8">
@@ -706,8 +763,21 @@ export default function PeerReviews() {
                 Due: {new Date(assignment.due_date).toLocaleDateString()}
               </p>
             )}
+            {assignment.peer_review_start_date && (
+              <p className="text-gray-500 text-sm m-0">
+                Review starts: {formatDateWithTime(assignment.peer_review_start_date)}
+              </p>
+            )}
+            {assignment.peer_review_due_date && (
+              <p className="text-gray-500 text-sm m-0">
+                Review due: {formatDateWithTime(assignment.peer_review_due_date)}
+              </p>
+            )}
           </div>
-          <Button onClick={() => setIsModalOpen(true)}>
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            disabled={!reviewAvailability.available}
+          >
             Start Review
           </Button>
         </div>

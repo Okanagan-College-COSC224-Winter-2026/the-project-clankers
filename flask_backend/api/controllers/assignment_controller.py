@@ -40,6 +40,18 @@ def create_assignment():
     else:
         due_date = datetime.fromisoformat(due_date)
 
+    peer_review_start_date = data.get("peer_review_start_date")
+    if not peer_review_start_date:
+        peer_review_start_date = None
+    else:
+        peer_review_start_date = datetime.fromisoformat(peer_review_start_date)
+
+    peer_review_due_date = data.get("peer_review_due_date")
+    if not peer_review_due_date:
+        peer_review_due_date = None
+    else:
+        peer_review_due_date = datetime.fromisoformat(peer_review_due_date)
+
     if not course_id:
         return jsonify({"msg": "Course ID is required"}), 400
     if not assignment_name:
@@ -66,7 +78,9 @@ def create_assignment():
         submission_type=submission_type,
         internal_review=internal_review,
         external_review=external_review,
-        anonymous_review=anonymous_review
+        anonymous_review=anonymous_review,
+        peer_review_start_date=peer_review_start_date,
+        peer_review_due_date=peer_review_due_date
     )
     Assignment.create(new_assignment)
     return (
@@ -132,6 +146,18 @@ def edit_assignment(assignment_id):
 
     if "anonymous_review" in data:
         assignment.anonymous_review = data.get("anonymous_review", assignment.anonymous_review)
+
+    peer_review_start_date = data.get("peer_review_start_date")
+    if peer_review_start_date:
+        assignment.peer_review_start_date = datetime.fromisoformat(peer_review_start_date)
+    elif "peer_review_start_date" in data and peer_review_start_date is None:
+        assignment.peer_review_start_date = None
+
+    peer_review_due_date = data.get("peer_review_due_date")
+    if peer_review_due_date:
+        assignment.peer_review_due_date = datetime.fromisoformat(peer_review_due_date)
+    elif "peer_review_due_date" in data and peer_review_due_date is None:
+        assignment.peer_review_due_date = None
 
     assignment.update()
     return (

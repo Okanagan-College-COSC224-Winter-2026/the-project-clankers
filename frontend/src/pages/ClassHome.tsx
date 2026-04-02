@@ -68,6 +68,8 @@ export default function ClassHome() {
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
+  const [peerReviewStartDate, setPeerReviewStartDate] = useState('')
+  const [peerReviewDueDate, setPeerReviewDueDate] = useState('')
 
   useEffect(() => {
     ;(async () => {
@@ -97,7 +99,9 @@ export default function ClassHome() {
         anonymousReview,
         startDate || undefined,
         dueDate || undefined,
-        description || undefined
+        description || undefined,
+        peerReviewStartDate || undefined,
+        peerReviewDueDate || undefined
       )
       const createdAssignment = response?.assignment
 
@@ -114,6 +118,8 @@ export default function ClassHome() {
       setStartDate('')
       setDueDate('')
       setDescription('')
+      setPeerReviewStartDate('')
+      setPeerReviewDueDate('')
       setIsCreateDialogOpen(false)
       setStatusType('success')
       setStatusMessage('Assignment created successfully!')
@@ -398,6 +404,26 @@ export default function ClassHome() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="peerReviewStartDate">Peer Review Start Date (Optional)</Label>
+              <Input
+                id="peerReviewStartDate"
+                type="datetime-local"
+                value={peerReviewStartDate}
+                onChange={(e) => setPeerReviewStartDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="peerReviewDueDate">Peer Review Due Date (Optional)</Label>
+              <Input
+                id="peerReviewDueDate"
+                type="datetime-local"
+                value={peerReviewDueDate}
+                onChange={(e) => setPeerReviewDueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Submission Type</Label>
               <div className="flex gap-4">
                 <label className="flex cursor-pointer items-center gap-2">
@@ -477,6 +503,8 @@ export default function ClassHome() {
                 setStartDate('')
                 setDueDate('')
                 setDescription('')
+                setPeerReviewStartDate('')
+                setPeerReviewDueDate('')
               }}
               variant="outline"
             >

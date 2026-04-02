@@ -670,7 +670,9 @@ export const createAssignment = async (
   anonymousReview: boolean = false,
   startDate?: string,
   dueDate?: string,
-  description?: string
+  description?: string,
+  peerReviewStartDate?: string,
+  peerReviewDueDate?: string
 )=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
@@ -683,7 +685,9 @@ export const createAssignment = async (
       anonymous_review: anonymousReview,
       ...(startDate && { start_date: startDate }),
       ...(dueDate && { due_date: dueDate }),
-      ...(description && { description: description })
+      ...(description && { description: description }),
+      ...(peerReviewStartDate && { peer_review_start_date: peerReviewStartDate }),
+      ...(peerReviewDueDate && { peer_review_due_date: peerReviewDueDate })
     }),
     headers: {
       'Content-Type': 'application/json',

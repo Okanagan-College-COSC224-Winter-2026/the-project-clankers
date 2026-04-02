@@ -58,6 +58,13 @@ def create_review():
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
 
+    # Check if peer review period is available
+    if not assignment.is_peer_review_available():
+        if not assignment.is_peer_review_started():
+            return jsonify({"msg": "Peer reviews are not yet available for this assignment"}), 403
+        else:
+            return jsonify({"msg": "Peer review deadline has passed"}), 403
+
     # Verify the authenticated user matches the reviewer
     email = get_jwt_identity()
     user = User.get_by_email(email)
