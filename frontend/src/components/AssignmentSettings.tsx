@@ -5,7 +5,9 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
+import { Checkbox } from "./ui/checkbox";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import StatusMessage from "./StatusMessage";
 
 interface AssignmentSettingsProps {
@@ -15,7 +17,7 @@ interface AssignmentSettingsProps {
 interface AssignmentDetails {
   id: number;
   name: string;
-  rubric_text: string;
+  description?: string;
   start_date: string | null;
   due_date: string | null;
   courseID: number;
@@ -34,9 +36,9 @@ interface AssignmentDetails {
 export default function AssignmentSettings({ assignmentId }: AssignmentSettingsProps) {
   const navigate = useNavigate();
   const [assignment, setAssignment] = useState<AssignmentDetails | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedName, setEditedName] = useState("");
-  const [editedRubric, setEditedRubric] = useState("");
+  const [editedDescription, setEditedDescription] = useState("");
   const [editedStartDate, setEditedStartDate] = useState("");
   const [editedDueDate, setEditedDueDate] = useState("");
   const [editedSubmissionType, setEditedSubmissionType] = useState<'individual' | 'group'>('individual');
@@ -52,9 +54,9 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       const data = await getAssignmentDetails(assignmentId);
       setAssignment(data);
       setEditedName(data.name || "");
-      setEditedRubric(data.rubric_text || "");
-      setEditedStartDate(data.start_date ? data.start_date.split('T')[0] : "");
-      setEditedDueDate(data.due_date ? data.due_date.split('T')[0] : "");
+      setEditedDescription(data.description || "");
+      setEditedStartDate(data.start_date ? data.start_date.slice(0, 16) : "");
+      setEditedDueDate(data.due_date ? data.due_date.slice(0, 16) : "");
       setEditedSubmissionType((data.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(data.internal_review || false);
       setEditedExternalReview(data.external_review || false);
@@ -71,7 +73,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   }, [loadAssignmentDetails]);
 
   const handleEdit = () => {
-    setIsEditing(true);
+    setIsEditDialogOpen(true);
     setStatusMessage("");
   };
 
@@ -88,7 +90,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     try {
       const updateData: {
         name?: string,
-        rubric?: string,
+        description?: string,
         start_date?: string,
         due_date?: string,
         submission_type?: string,
@@ -97,7 +99,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
         anonymous_review?: boolean
       } = {
         name: editedName,
-        rubric: editedRubric,
+        description: editedDescription,
         submission_type: editedSubmissionType,
         internal_review: editedInternalReview,
         external_review: editedExternalReview,
@@ -109,7 +111,6 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       }
 
       if (editedDueDate) {
-        // Convert to ISO format for backend
         updateData.due_date = new Date(editedDueDate).toISOString();
       }
 
@@ -117,7 +118,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       const response = await editAssignment(assignmentId, updateData);
       console.log("Response from backend:", response);
       setAssignment(response.assignment);
-      setIsEditing(false);
+      setIsEditDialogOpen(false);
       setStatusType('success');
       setStatusMessage("Assignment updated successfully!");
     } catch (error) {
@@ -130,13 +131,13 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
+    setIsEditDialogOpen(false);
     setStatusMessage("");
     if (assignment) {
       setEditedName(assignment.name || "");
-      setEditedRubric(assignment.rubric_text || "");
-      setEditedStartDate(assignment.start_date ? assignment.start_date.split('T')[0] : "");
-      setEditedDueDate(assignment.due_date ? assignment.due_date.split('T')[0] : "");
+      setEditedDescription(assignment.description || "");
+      setEditedStartDate(assignment.start_date ? assignment.start_date.slice(0, 16) : "");
+      setEditedDueDate(assignment.due_date ? assignment.due_date.slice(0, 16) : "");
       setEditedSubmissionType((assignment.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(assignment.internal_review || false);
       setEditedExternalReview(assignment.external_review || false);
@@ -182,162 +183,54 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
           <CardTitle>Assignment Information</CardTitle>
         </CardHeader>
         <CardContent>
-          {isEditing ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <Label className="font-semibold text-gray-600 text-sm">Assignment Name:</Label>
-                <Input
-                  type="text"
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  placeholder="Enter assignment name"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label className="font-semibold text-gray-600 text-sm">Rubric Description:</Label>
-                <Textarea
-                  value={editedRubric}
-                  onChange={(e) => setEditedRubric(e.target.value)}
-                  placeholder="Enter rubric description"
-                  className="resize-none min-h-[80px] max-h-[200px] overflow-y-auto"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label className="font-semibold text-gray-600 text-sm">Start Date:</Label>
-                <Input
-                  type="date"
-                  value={editedStartDate}
-                  onChange={(e) => setEditedStartDate(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label className="font-semibold text-gray-600 text-sm">Due Date:</Label>
-                <Input
-                  type="date"
-                  value={editedDueDate}
-                  onChange={(e) => setEditedDueDate(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label className="font-semibold text-gray-600 text-sm">Submission Type:</Label>
-                <div className="flex gap-5 items-center">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      value="individual"
-                      checked={editedSubmissionType === 'individual'}
-                      onChange={(e) => {
-                        setEditedSubmissionType(e.target.value as 'individual');
-                        setEditedInternalReview(false); // Clear internal review for individual assignments
-                      }}
-                    />
-                    Individual
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      value="group"
-                      checked={editedSubmissionType === 'group'}
-                      onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
-                    />
-                    Group
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label className="font-semibold text-gray-600 text-sm">Peer Review Settings:</Label>
-                <div className="flex flex-col gap-2.5">
-                  {editedSubmissionType === 'group' && (
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editedInternalReview}
-                        onChange={(e) => setEditedInternalReview(e.target.checked)}
-                      />
-                      Internal Review (Teammates Review Each Other)
-                    </label>
-                  )}
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editedExternalReview}
-                      onChange={(e) => setEditedExternalReview(e.target.checked)}
-                    />
-                    External Review
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editedAnonymousReview}
-                    onChange={(e) => setEditedAnonymousReview(e.target.checked)}
-                  />
-                  Anonymous Reviews (Hide Reviewer Names from Students)
-                </label>
-              </div>
-
-              <div className="flex gap-2.5 mt-4">
-                <Button onClick={handleSave} disabled={isLoading}>
-                  {isLoading ? "Saving..." : "Save Changes"}
-                </Button>
-                <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
-                  Cancel
-                </Button>
-              </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Name:</span>
+              <span className="text-gray-800 flex-1">{assignment.name || "No name"}</span>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Name:</span>
-                <span className="text-gray-800 flex-1">{assignment.name || "No name"}</span>
-              </div>
 
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Rubric:</span>
-                <span className="text-gray-800 flex-1">{assignment.rubric_text || "No rubric description"}</span>
-              </div>
-
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Start Date:</span>
-                <span className="text-gray-800 flex-1">
-                  {assignment.start_date
-                    ? new Date(assignment.start_date).toLocaleDateString()
-                    : "No start date set"}
-                </span>
-              </div>
-
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Due Date:</span>
-                <span className="text-gray-800 flex-1">
-                  {assignment.due_date
-                    ? new Date(assignment.due_date).toLocaleDateString()
-                    : "No due date set"}
-                </span>
-              </div>
-
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Assignment Type:</span>
-                <span className="text-gray-800 flex-1">
-                  {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
-                </span>
-              </div>
-
-              <div className="flex gap-2.5 mt-4">
-                <Button onClick={handleEdit} disabled={isLoading}>
-                  Edit Assignment
-                </Button>
-              </div>
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Description:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.description ? (
+                  <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">Enabled</span>
+                ) : (
+                  <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm font-medium">Disabled</span>
+                )}
+              </span>
             </div>
-          )}
+
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Start Date:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.start_date
+                  ? new Date(assignment.start_date).toLocaleDateString()
+                  : "No start date set"}
+              </span>
+            </div>
+
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Due Date:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.due_date
+                  ? new Date(assignment.due_date).toLocaleDateString()
+                  : "No due date set"}
+              </span>
+            </div>
+
+            <div className="flex gap-2.5 py-2 border-b border-gray-200">
+              <span className="font-semibold text-gray-600 min-w-[120px]">Assignment Type:</span>
+              <span className="text-gray-800 flex-1">
+                {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
+              </span>
+            </div>
+
+            <div className="flex gap-2.5 mt-4">
+              <Button onClick={handleEdit} disabled={isLoading}>
+                Edit Assignment
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -416,6 +309,138 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
           </Button>
         </CardContent>
       </Card>
+
+      {/* Edit Assignment Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent showCloseButton={true} className="!max-w-6xl !max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editAssignmentName">Assignment Name</Label>
+              <Input
+                id="editAssignmentName"
+                placeholder="Enter assignment name"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editDescription">Assignment Details (Optional)</Label>
+              <Textarea
+                id="editDescription"
+                placeholder="Enter assignment description (supports markdown formatting)"
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                className="resize-none min-h-40 max-h-96 overflow-y-auto"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editStartDate">Start Date (Optional)</Label>
+              <Input
+                id="editStartDate"
+                type="datetime-local"
+                value={editedStartDate}
+                onChange={(e) => setEditedStartDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editDueDate">Due Date (Optional)</Label>
+              <Input
+                id="editDueDate"
+                type="datetime-local"
+                value={editedDueDate}
+                onChange={(e) => setEditedDueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Submission Type</Label>
+              <div className="flex gap-4">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    value="individual"
+                    checked={editedSubmissionType === 'individual'}
+                    onChange={(e) => {
+                      setEditedSubmissionType(e.target.value as 'individual');
+                      setEditedInternalReview(false);
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">Individual</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    value="group"
+                    checked={editedSubmissionType === 'group'}
+                    onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">Group</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Peer Review Options</Label>
+              <div className="flex flex-col gap-3">
+                {editedSubmissionType === 'group' && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editInternalReview"
+                      checked={editedInternalReview}
+                      onCheckedChange={(checked) => setEditedInternalReview(!!checked)}
+                    />
+                    <Label htmlFor="editInternalReview" className="cursor-pointer text-sm font-normal">
+                      Internal Review
+                    </Label>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="editExternalReview"
+                    checked={editedExternalReview}
+                    onCheckedChange={(checked) => setEditedExternalReview(!!checked)}
+                  />
+                  <Label htmlFor="editExternalReview" className="cursor-pointer text-sm font-normal">
+                    External Review
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="editAnonymousReview"
+                    checked={editedAnonymousReview}
+                    onCheckedChange={(checked) => setEditedAnonymousReview(!!checked)}
+                  />
+                  <Label htmlFor="editAnonymousReview" className="cursor-pointer text-sm font-normal">
+                    Anonymous Reviews
+                  </Label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={handleCancel}
+              variant="outline"
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isLoading}>
+              {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
