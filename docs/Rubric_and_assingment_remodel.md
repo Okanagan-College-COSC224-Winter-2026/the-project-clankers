@@ -171,6 +171,24 @@ This installs:
 ### TypeScript Configuration
 - Removed `"ignoreDeprecations": "6.0"` from `frontend/tsconfig.app.json` (was causing compilation errors)
 
+### File Submission Download (Fixed 2026-04-02)
+- **Issue**: Submitted files in the "File Submissions" section were displayed as links but clicking them did nothing
+- **Fix**: Added `handleDownload()` function to Assignment.tsx that:
+  - Calls `downloadStudentSubmission()` API to fetch the file
+  - Creates a blob and triggers browser download with original filename
+  - Includes error handling and user feedback
+- **Changes**:
+  - Added `downloadStudentSubmission` to imports from api.ts
+  - Added `downloadError` state for displaying download errors
+  - Converted filename span to clickable button with download handler
+  - Added error card display for download failures
+
+### Grading Status Display (Fixed 2026-04-02)
+- **Issue**: "Grading status" badge showed "Graded" as soon as a student submitted, even though teacher hadn't graded yet
+- **Fix**: Changed logic to only show "Graded" when a submission has an actual `grade` value (not null/undefined)
+- **Implementation**: Updated condition from `submissions.length > 0` to `submissions.length > 0 && submissions[0].grade != null`
+- **Result**: Shows "Not graded" until grading functionality adds grade values to submissions
+
 ## Summary of Changes
 
 ### Files Created
@@ -180,7 +198,7 @@ This installs:
 - `frontend/src/util/api.ts` - Updated createAssignment() function
 - `frontend/src/pages/ClassHome.tsx` - Assignment creation modal
 - `frontend/src/components/AssignmentSettings.tsx` - Dialog-based edit form
-- `frontend/src/pages/Assignment.tsx` - Description display, student info, rubric removal
+- `frontend/src/pages/Assignment.tsx` - Description display, student info, rubric removal, file download functionality, grading status logic
 - `frontend/src/pages/PeerReviews.tsx` - View Rubric button and modal integration
 - `frontend/src/index.css` - Markdown styling
 - `frontend/tsconfig.app.json` - Removed deprecated option
@@ -205,3 +223,5 @@ This installs:
 - ✅ All dates use consistent datetime-local picker across app
 - ✅ Markdown support with XSS protection
 - ✅ Smooth scrolling modals for better readability
+- ✅ Submitted files are downloadable from assignment submission details table
+- ✅ Grading status accurately reflects whether teacher has graded (not just submitted)
