@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
+import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers, getAssignmentGradebook } from "../util/api";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import ViewSubmissionModal from "./ViewSubmissionModal";
 
 interface StudentSubmission {
@@ -62,6 +61,8 @@ export default function TeacherSubmissionView({
   const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewModalEntityName, setViewModalEntityName] = useState("");
+  // Map of student_id -> { completed, expected } peer evaluation counts
+  const [evalMap, setEvalMap] = useState<Map<number, { completed: number; expected: number }>>(new Map());
   const navigate = useNavigate();
 
   // Load all student submissions and class roster
@@ -84,7 +85,19 @@ export default function TeacherSubmissionView({
       }
 
       // Fetch all submissions for this assignment
-      const submissionsData = await getStudentSubmissions(assignmentId);
+      const [submissionsData] = await Promise.all([
+        getStudentSubmissions(assignmentId),
+        getAssignmentGradebook(assignmentId).then((gb) => {
+          const map = new Map<number, { completed: number; expected: number }>();
+          gb.students.forEach((s) => {
+            map.set(s.student_id, {
+              completed: s.entry.peer_evaluation.completed,
+              expected: s.entry.peer_evaluation.expected,
+            });
+          });
+          setEvalMap(map);
+        }).catch(() => { /* gradebook may not exist yet */ }),
+      ]);
 
       if (submissionType === 'group') {
         // Handle group assignments
@@ -318,11 +331,7 @@ export default function TeacherSubmissionView({
   };
 
   return (
-    <Card className="w-full my-5">
-      <CardHeader>
-        <CardTitle>Student Submissions {isGroupAssignment && "(Group Assignment)"}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full">
         {isLoadingSubmissions ? (
           <p className="text-center text-muted-foreground italic py-5">Loading submissions...</p>
         ) : error ? (
@@ -332,7 +341,7 @@ export default function TeacherSubmissionView({
         ) : isGroupAssignment ? (
           // Render group submissions accordion
           groupsWithSubmissions.length > 0 ? (
-            <div className="mt-5">
+            <div>
               {groupsWithSubmissions.map((groupItem) => {
                 const isExpanded = expandedGroups.has(groupItem.group.id);
                 return (
@@ -419,6 +428,7 @@ export default function TeacherSubmissionView({
                               <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Student ID</th>
                               <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Email</th>
                               <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Status</th>
+                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Evaluations</th>
                               <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Grade</th>
                             </tr>
                           </thead>
@@ -457,6 +467,14 @@ export default function TeacherSubmissionView({
                                       {groupItem.status}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                      {(() => {
+                                        const ev = evalMap.get(member.id);
+                                        if (!ev || ev.expected === 0) return <span className="text-muted-foreground">—</span>;
+                                        const color = ev.completed >= ev.expected ? 'text-green-600' : 'text-orange-500';
+                                        return <span className={`font-medium ${color}`}>{ev.completed}/{ev.expected}</span>;
+                                      })()}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
                                       {groupItem.grade || '-'}
                                     </td>
                                   </tr>
@@ -464,7 +482,7 @@ export default function TeacherSubmissionView({
                               })
                             ) : (
                               <tr>
-                                <td colSpan={5} className="p-5 text-center text-muted-foreground">
+                                <td colSpan={6} className="p-5 text-center text-muted-foreground">
                                   No members in this group
                                 </td>
                               </tr>
@@ -478,19 +496,20 @@ export default function TeacherSubmissionView({
               })}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No groups created for this class</p>
+            <p className="text-center text-muted-foreground italic p-4 rounded border border-dashed border-gray-300">No groups created for this class</p>
           )
         ) : (
           // Render individual submissions table
           studentsWithSubmissions.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse mt-5 bg-white shadow-sm rounded-lg overflow-hidden ring-1 ring-foreground/10">
+              <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden ring-1 ring-foreground/10">
                 <thead>
                   <tr className="bg-gray-100 border-b-2 border-gray-200">
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Name</th>
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Student ID</th>
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Email</th>
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Evaluations</th>
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Grade</th>
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Last Modified</th>
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">File Submission</th>
@@ -519,6 +538,14 @@ export default function TeacherSubmissionView({
                       </td>
                       <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(item.status)}`}>
                         {item.status}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                        {(() => {
+                          const ev = evalMap.get(item.student.id);
+                          if (!ev || ev.expected === 0) return <span className="text-muted-foreground">—</span>;
+                          const color = ev.completed >= ev.expected ? 'text-green-600' : 'text-orange-500';
+                          return <span className={`font-medium ${color}`}>{ev.completed}/{ev.expected}</span>;
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 align-middle">
                         {item.grade || '-'}
@@ -550,10 +577,10 @@ export default function TeacherSubmissionView({
               </table>
             </div>
           ) : (
-            <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No students enrolled in this class</p>
+            <p className="text-center text-muted-foreground italic p-4 rounded border border-dashed border-gray-300">No students enrolled in this class</p>
           )
         )}
-      </CardContent>
+    </div>
       {selectedSubmission && (
         <ViewSubmissionModal
           isOpen={isViewModalOpen}
@@ -565,6 +592,6 @@ export default function TeacherSubmissionView({
           entityName={viewModalEntityName}
         />
       )}
-    </Card>
+    </div>
   );
 }

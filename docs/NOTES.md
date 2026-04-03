@@ -11,6 +11,7 @@
     - Is there anything that can be approved for the U.I? 
     - Suggestions for additional features 
     - Is Assignment Averages necessary in the u.I?
+    - 
 
 
 
@@ -42,4 +43,19 @@
 
 
 - Show assignments in each assignment per student for grade book 
-0-  
+- Success / Error pop-up location (ask)
+- Gradebook csv 
+- Reset password from admins 
+- 
+
+
+- Grade Book 
+    - Add a download CSV/PDF document of the grade book 
+    - Add ability to edit all assignment grades 
+    - If i click on the student hyperlink it will show all Assignments / Reviews / As well as that students submission.
+        - The submission should be the assignment that was submitted to click on and view or download
+    - Remove the submission and eval and put the in the student hyperlink information for each assignment status
+    - Clean up the use interface (Maybe allow a edit button that lets the teacher add or remove parts of the grade book for example we can toggle Assignment Averages and Grade Policy etc)
+
+    
+    

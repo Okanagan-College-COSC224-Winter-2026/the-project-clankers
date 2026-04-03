@@ -10,9 +10,10 @@ import ClassMembers from "./pages/ClassMembers";
 import ClassGroupManagement from "./pages/ClassGroupManagement";
 import ClassStudentSubmissions from "./pages/ClassStudentSubmissions";
 import ClassGrades from "./pages/ClassGrades";
+import ClassSettings from "./pages/ClassSettings";
 import Assignment from "./pages/Assignment";
 import AssignmentMembers from "./pages/AssignmentMembers";
-import AssignmentGroups from "./pages/AssignmentGroups";
+
 import AssignmentRubric from "./pages/AssignmentRubric";
 import Group from "./pages/Group";
 import RegisterPage from "./pages/RegisterPage";
@@ -99,6 +100,12 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
+          <Route path="/classes/:id/settings" element={
+            <ProtectedRoute>
+              <ClassSettings />
+            </ProtectedRoute>
+          } />
+
           <Route path="/assignments/:id" element={
             <ProtectedRoute>
               <Assignment />
@@ -108,12 +115,6 @@ function AppContent() {
           <Route path="/assignments/:id/members" element={
             <ProtectedRoute>
               <AssignmentMembers />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/assignments/:id/groups" element={
-            <ProtectedRoute>
-              <AssignmentGroups />
             </ProtectedRoute>
           } />
 

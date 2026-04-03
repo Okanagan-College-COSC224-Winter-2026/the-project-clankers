@@ -4,10 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import StatusMessage from "../components/StatusMessage";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { listClasses } from "../util/api";
-import { importCSV } from "../util/csv";
 import { isTeacher } from "../util/login";
-import RosterUploadResult from "../components/RosterUploadResult";
-import ErrorModal from "../components/ErrorModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -17,28 +14,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-
-interface RosterUploadResultData {
-  message: string;
-  enrolled_count: number;
-  created_count: number;
-  existing_count?: number;
-  new_students?: Array<{
-    email: string;
-    student_id: string;
-    temp_password: string;
-  }>;
-  enrolled_existing_students?: Array<{
-    email: string;
-    student_id: string;
-    name: string;
-  }>;
-  existing_students?: Array<{
-    email: string;
-    student_id: string;
-    name: string;
-  }>;
-}
 
 interface CourseGroup {
   id: number;
@@ -59,9 +34,6 @@ export default function ClassGroupManagement() {
   const [statusType, setStatusType] = useState<"error" | "success">("success");
   const [loading, setLoading] = useState(true);
   const [className, setClassName] = useState<string>("");
-  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
-  const [isUploadingRoster, setIsUploadingRoster] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const isCreating = useRef(false);
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -395,27 +367,6 @@ export default function ClassGroupManagement() {
     });
   };
 
-  const handleRosterUpload = () => {
-    if (isUploadingRoster) return;
-    setIsUploadingRoster(true);
-    importCSV(
-      id as string,
-      (result) => {
-        setIsUploadingRoster(false);
-        setRosterResult(result);
-        loadData();
-      },
-      (error) => {
-        setIsUploadingRoster(false);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        setUploadError(errorMessage);
-      },
-      () => {
-        setIsUploadingRoster(false);
-      }
-    );
-  };
-
   if (loading) {
     return <div className="text-center py-12">Loading groups...</div>;
   }
@@ -424,13 +375,7 @@ export default function ClassGroupManagement() {
     <>
       <div className="flex flex-row justify-between items-center p-3">
         <h2 className="text-xl font-semibold">{className || "Loading..."}</h2>
-        <div>
-          {isTeacher() ? (
-            <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>
-              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
-            </Button>
-          ) : null}
-        </div>
+
       </div>
 
       <TabNavigation
@@ -446,12 +391,12 @@ export default function ClassGroupManagement() {
                   path: `/classes/${id}/members`,
                 },
                 {
-                  label: "Groups",
-                  path: `/classes/${id}/groups`,
-                },
-                {
                   label: "Grades",
                   path: `/classes/${id}/grades`,
+                },
+                {
+                  label: "Settings",
+                  path: `/classes/${id}/settings`,
                 },
               ]
             : [
@@ -632,25 +577,7 @@ export default function ClassGroupManagement() {
         />
       )}
 
-      {rosterResult && (
-        <RosterUploadResult
-          enrolledCount={rosterResult.enrolled_count}
-          createdCount={rosterResult.created_count}
-          existingCount={rosterResult.existing_count}
-          newStudents={rosterResult.new_students}
-          enrolledExistingStudents={rosterResult.enrolled_existing_students}
-          existingStudents={rosterResult.existing_students}
-          onClose={() => setRosterResult(null)}
-        />
-      )}
 
-      {uploadError && (
-        <ErrorModal
-          title="CSV Upload Error"
-          message={uploadError}
-          onClose={() => setUploadError(null)}
-        />
-      )}
     </>
   );
 }

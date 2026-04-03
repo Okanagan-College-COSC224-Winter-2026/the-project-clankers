@@ -10,6 +10,7 @@ export default function Browse() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [enrollingCourseId, setEnrollingCourseId] = useState<number | null>(null);
+  const [enrollMsg, setEnrollMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     ;(async () => {
@@ -64,12 +65,12 @@ export default function Browse() {
       // Update the enrolled courses set
       setEnrolledCourseIds(prev => new Set([...prev, courseId]));
 
-      // Show success message
-      alert("Enrollment request submitted! Waiting for teacher approval.");
+      setEnrollMsg({ type: 'success', text: 'Enrollment request submitted! Waiting for teacher approval.' });
+      setTimeout(() => setEnrollMsg(null), 5000);
     } catch (error) {
       console.error("Error requesting enrollment:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to request enrollment in course.";
-      alert(errorMessage);
+      setEnrollMsg({ type: 'error', text: errorMessage });
     } finally {
       setEnrollingCourseId(null);
     }
@@ -97,6 +98,18 @@ export default function Browse() {
     <div className="Browse">
       <h1>Browse All Courses</h1>
       <p className="subtitle">Explore all available courses in the system</p>
+
+      {enrollMsg && (
+        <div
+          className={`mb-4 rounded-md border px-4 py-2 text-sm ${
+            enrollMsg.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {enrollMsg.text}
+        </div>
+      )}
 
       {courses.length === 0 ? (
         <div className="empty-state">

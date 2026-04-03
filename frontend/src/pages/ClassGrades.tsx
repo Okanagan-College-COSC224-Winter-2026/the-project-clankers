@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
+import { BookOpen, BarChart2, ClipboardList, ShieldCheck } from 'lucide-react'
 
 import TabNavigation from '../components/TabNavigation'
 import { Badge } from '../components/ui/badge'
@@ -25,6 +26,7 @@ import {
   getMyCourseGrade,
   getStudentGradebookDetail,
   getStudentSubmissions,
+  listClasses,
   listCourseMembers,
   updateClassGradePolicy,
   updateGradeOverride,
@@ -49,6 +51,7 @@ export default function ClassGrades() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [className, setClassName] = useState<string | null>(null)
 
   // Grade Policy state
   const [latePenalty, setLatePenalty] = useState('0')
@@ -57,6 +60,7 @@ export default function ClassGrades() {
   // UI toggle state — which sections are visible
   const [showPolicy, setShowPolicy] = useState(false)
   const [showAggregates, setShowAggregates] = useState(false)
+  const [lastOpenedPanel, setLastOpenedPanel] = useState<'policy' | 'aggregates' | 'submissions' | null>(null)
 
   // Inline edit mode — allows editing grade cells directly in the matrix
   const [editMode, setEditMode] = useState(false)
@@ -106,6 +110,10 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!id) return
+    listClasses().then((classes) => {
+      const match = classes.find((c: { id: number }) => c.id === classId)
+      if (match) setClassName(match.name)
+    }).catch(() => {})
     loadAll(false)
   }, [id])
 
@@ -316,26 +324,10 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50/40">
+    <div className="flex flex-1 flex-col">
       {/* ── Page header ── */}
-      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            {teacherView ? 'Gradebook & Progress' : 'My Grades'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {teacherView
-              ? 'Monitor submissions, evaluations, and grades with instructor controls.'
-              : 'Track your assignment and course performance in one place.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {teacherView && gradebook && (
-            <Button onClick={handleDownloadCSV} variant="outline" size="sm">
-              ↓ Download CSV
-            </Button>
-          )}
-        </div>
+      <div className="flex items-center border-b bg-background px-6 py-4">
+        <h2 className="text-xl font-semibold">{className}</h2>
       </div>
 
       <TabNavigation
@@ -344,8 +336,8 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
             ? [
                 { label: 'Home', path: `/classes/${id}/home` },
                 { label: 'Members', path: `/classes/${id}/members` },
-                { label: 'Groups', path: `/classes/${id}/groups` },
                 { label: 'Grades', path: `/classes/${id}/grades` },
+                { label: 'Settings', path: `/classes/${id}/settings` },
               ]
             : [
                 { label: 'Home', path: `/classes/${id}/home` },
@@ -355,7 +347,46 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
         }
       />
 
-      <div className="space-y-5 p-6">
+      <div className="flex-1 space-y-6 p-6">
+        {/* ── Sub-header row ── */}
+        <div className="mb-4 flex items-center gap-2">
+          <BookOpen className="h-5 w-5" />
+          <h3 className="text-lg font-medium">{teacherView ? 'Gradebook' : 'My Grades'}</h3>
+          {teacherView && (
+            <div className="ml-auto flex gap-2">
+              {gradebook && (
+                <Button onClick={handleDownloadCSV} variant="outline" size="sm">
+                  ↓ Download CSV
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant={showPolicy ? 'default' : 'outline'}
+                onClick={() => { setShowPolicy((v) => !v); if (!showPolicy) setLastOpenedPanel('policy') }}
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Grade Policy
+              </Button>
+              <Button
+                size="sm"
+                variant={showAggregates ? 'default' : 'outline'}
+                onClick={() => { setShowAggregates((v) => !v); if (!showAggregates) setLastOpenedPanel('aggregates') }}
+              >
+                <BarChart2 className="mr-2 h-4 w-4" />
+                Assignment Averages
+              </Button>
+              <Button
+                size="sm"
+                variant={showSubmissions ? 'default' : 'outline'}
+                onClick={() => { setShowSubmissions((v) => !v); if (!showSubmissions) setLastOpenedPanel('submissions') }}
+              >
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Submissions
+              </Button>
+            </div>
+          )}
+        </div>
+
         {error && <p className="text-destructive text-sm">{error}</p>}
         {loading && <p className="text-muted-foreground">Loading grades...</p>}
 
@@ -392,35 +423,11 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
               </Card>
             </div>
 
-            {/* ── Section toggle toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Toggle:</span>
-              <Button
-                size="sm"
-                variant={showPolicy ? 'default' : 'outline'}
-                onClick={() => setShowPolicy((v) => !v)}
-              >
-                Grade Policy
-              </Button>
-              <Button
-                size="sm"
-                variant={showAggregates ? 'default' : 'outline'}
-                onClick={() => setShowAggregates((v) => !v)}
-              >
-                Assignment Averages
-              </Button>
-              <Button
-                size="sm"
-                variant={showSubmissions ? 'default' : 'outline'}
-                onClick={() => setShowSubmissions((v) => !v)}
-              >
-                Submissions
-              </Button>
-            </div>
-
+            {/* ── Toggle panels (last-opened floats to top) ── */}
+            <div className="flex flex-col gap-6">
             {/* ── Grade Policy ── */}
             {showPolicy && (
-              <Card className="border-slate-200/80 shadow-sm">
+              <Card className="border-slate-200/80 shadow-sm" style={{ order: lastOpenedPanel === 'policy' ? 1 : 2 }}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle>Grading Policy</CardTitle>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => setShowPolicy(false)}>
@@ -462,7 +469,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
 
             {/* ── Assignment Averages ── */}
             {showAggregates && (
-              <Card className="border-slate-200/80 shadow-sm">
+              <Card className="border-slate-200/80 shadow-sm" style={{ order: lastOpenedPanel === 'aggregates' ? 1 : 2 }}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle>Assignment Averages</CardTitle>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => setShowAggregates(false)}>
@@ -521,7 +528,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
 
             {/* ── Submissions panel ── */}
             {showSubmissions && (
-              <Card className="border-slate-200/80 shadow-sm">
+              <Card className="border-slate-200/80 shadow-sm" style={{ order: lastOpenedPanel === 'submissions' ? 1 : 2 }}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle>Student Submissions</CardTitle>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => setShowSubmissions(false)}>
@@ -636,6 +643,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                 </CardContent>
               </Card>
             )}
+            </div>{/* end flex-col panels wrapper */}
 
             {/* ── Gradebook Matrix ── */}
             <Card className="border-slate-200/80 shadow-sm">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
+import { ArrowLeft, Settings, FileStack, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
@@ -209,16 +210,17 @@ export default function Assignment() {
   return (
     <div className="flex flex-1 flex-col">
       {courseId && (
-        <div className="px-3 py-2">
+        <div className="border-b px-6 py-2">
           <Link
             to={`/classes/${courseId}/home`}
-            className="text-sm text-muted-foreground no-underline hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            ← {courseName || "Back to class"}
+            <ArrowLeft className="h-4 w-4" />
+            {courseName || "Back to class"}
           </Link>
         </div>
       )}
-      <div className="flex flex-row items-center justify-between px-3 pb-3">
+      <div className="border-b bg-background px-6 py-4">
         <h2 className="text-xl font-semibold">{assignmentName || "Loading..."}</h2>
       </div>
 
@@ -235,20 +237,12 @@ export default function Assignment() {
                   path: `/assignments/${id}/members`,
                 },
                 {
-                  label: "Groups",
-                  path: `/assignments/${id}/groups`,
-                },
-                {
                   label: "Rubric",
                   path: `/assignments/${id}/rubric`,
                 },
                 {
-                  label: "Student Submissions",
+                  label: "Submissions",
                   path: `/assignments/${id}/student-submissions`,
-                },
-                {
-                  label: "Grades",
-                  path: `/assignments/${id}/grades`,
                 },
                 {
                   label: "Manage",
@@ -277,13 +271,29 @@ export default function Assignment() {
       />
 
       {isManageTab && isTeacher() ? (
-        <AssignmentSettings assignmentId={Number(id)} />
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Assignment Management</h3>
+          </div>
+          <AssignmentSettings assignmentId={Number(id)} />
+        </div>
       ) : isSubmissionTab && !isTeacher() ? (
-        /* Student submission upload tab */
-        <StudentSubmissionUpload assignmentId={Number(id)} />
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Submission</h3>
+          </div>
+          <StudentSubmissionUpload assignmentId={Number(id)} />
+        </div>
       ) : isStudentSubmissionsTab && isTeacher() ? (
-        /* Teacher view of all student submissions */
-        <TeacherSubmissionView assignmentId={Number(id)} />
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <FileStack className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Assignment Submissions</h3>
+          </div>
+          <TeacherSubmissionView assignmentId={Number(id)} />
+        </div>
       ) : isGradebookTab && isTeacher() ? (
         <AssignmentGradebookView assignmentId={Number(id)} />
       ) : isPeerReviewsTab && !isTeacher() ? (

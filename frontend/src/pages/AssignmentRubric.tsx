@@ -60,9 +60,8 @@ export default function AssignmentRubric() {
             ? [
                 { label: 'Home', path: `/assignments/${id}` },
                 { label: 'Members', path: `/assignments/${id}/members` },
-                { label: 'Groups', path: `/assignments/${id}/groups` },
                 { label: 'Rubric', path: `/assignments/${id}/rubric` },
-                { label: 'Student Submissions', path: `/assignments/${id}/student-submissions` },
+                { label: 'Submissions', path: `/assignments/${id}/student-submissions` },
                 { label: 'Manage', path: `/assignments/${id}/manage` },
               ]
             : [
@@ -77,7 +76,7 @@ export default function AssignmentRubric() {
       <div className="flex-1 space-y-6 p-6">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5" />
-          <h3 className="text-lg font-medium">Rubric</h3>
+          <h3 className="text-lg font-medium">Assignment Rubric</h3>
         </div>
 
         <Card className="p-6">

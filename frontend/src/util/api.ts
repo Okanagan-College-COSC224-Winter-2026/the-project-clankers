@@ -1648,3 +1648,74 @@ export const markNotificationAsRead = async (notificationId: number) => {
 
   return await response.json();
 }
+
+// Get all registered students NOT enrolled in a specific course (for direct-add)
+export const getRegisteredStudentsForCourse = async (courseId: string | number, search?: string) => {
+  const params = search ? `?search=${encodeURIComponent(search)}` : ''
+  const response = await fetch(`${BASE_URL}/class/${courseId}/registered_students${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Directly enroll one or more registered students into a course by user ID
+export const enrollDirectStudents = async (courseId: string | number, studentIds: number[]) => {
+  const response = await fetch(`${BASE_URL}/class/${courseId}/enroll_direct`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_ids: studentIds }),
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Remove (unenroll) a student from a course
+export const unenrollStudent = async (courseId: string | number, studentId: number) => {
+  const response = await fetch(`${BASE_URL}/class/${courseId}/members/${studentId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Get pending enrollment requests for a specific course
+export const getCourseEnrollmentRequests = async (courseId: string | number) => {
+  const response = await fetch(`${BASE_URL}/enrollments/course/${courseId}/requests`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
