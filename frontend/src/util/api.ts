@@ -128,10 +128,10 @@ export const getProfilePictureUrl = (filename: string | null | undefined) => {
 
 export const maybeHandleExpire = (response: Response) => {
   if (didExpire(response)) {
-    // Remove the token
     removeToken();
-    // Don't force navigation here - let the app handle redirection naturally
-    // through protected route checks
+    // Redirect to login so the user doesn't see a broken teacher UI
+    // (isTeacher() reads from localStorage, which is now cleared)
+    window.location.href = '/';
   }
 }
 

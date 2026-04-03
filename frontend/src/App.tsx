@@ -18,6 +18,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ChangePassword from "./pages/ChangePassword";
 import CreateTeacher from "./pages/CreateTeacher";
 import Browse from "./pages/Browse";
+import StudentGrades from "./pages/StudentGrades";
 
 function AppContent() {
   const location = useLocation();
@@ -41,6 +42,12 @@ function AppContent() {
           <Route path="/browse" element={
             <ProtectedRoute>
               <Browse />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/grades" element={
+            <ProtectedRoute>
+              <StudentGrades />
             </ProtectedRoute>
           } />
 
