@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
-import { BookOpen, BarChart2, ClipboardList, ShieldCheck } from 'lucide-react'
+import { BookOpen, BarChart2, ClipboardList, Search, ShieldCheck } from 'lucide-react'
 
 import TabNavigation from '../components/TabNavigation'
 import { Badge } from '../components/ui/badge'
@@ -75,6 +75,27 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
   const [expandedSubmissionId, setExpandedSubmissionId] = useState<number | null>(null)
 
   const teacherView = isTeacher() || isAdmin()
+
+  // ─── Student search ────────────────────────────────────────────────────────
+  const [studentSearch, setStudentSearch] = useState('')
+
+  const filteredStudents = useMemo(() => {
+    if (!gradebook) return []
+    const q = studentSearch.trim().toLowerCase()
+    if (!q) return gradebook.students
+    return [...gradebook.students]
+      .filter((s) =>
+        s.student_name.toLowerCase().includes(q) ||
+        (s.student_number || '').toLowerCase().includes(q) ||
+        (s.email || '').toLowerCase().includes(q)
+      )
+      .sort((a, b) => {
+        const aStarts = a.student_name.toLowerCase().startsWith(q) ? 0 : 1
+        const bStarts = b.student_name.toLowerCase().startsWith(q) ? 0 : 1
+        if (aStarts !== bStarts) return aStarts - bStarts
+        return a.student_name.localeCompare(b.student_name)
+      })
+  }, [gradebook, studentSearch])
 
   // ─── Data loading ─────────────────────────────────────────────────────────
 
@@ -703,6 +724,17 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                   </Button>
                 </div>
               </CardHeader>
+              <div className="px-6 pb-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Search students by name, email, or ID…"
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                  />
+                </div>
+              </div>
               <CardContent className="overflow-x-auto">
                 <table className="w-full min-w-[960px] border-collapse text-sm">
                   <thead className="sticky top-0 z-10 bg-white">
@@ -732,7 +764,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                     </tr>
                   </thead>
                   <tbody>
-                    {gradebook.students.map((student) => (
+                    {filteredStudents.map((student) => (
                       <tr key={student.student_id} className="border-b align-middle last:border-b-0 hover:bg-slate-50/50">
                         {/* Student name — opens detail dialog */}
                         <td className="p-3">
@@ -811,6 +843,9 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
 
                 {gradebook.students.length === 0 && (
                   <p className="py-8 text-center text-sm text-muted-foreground">No students enrolled yet.</p>
+                )}
+                {gradebook.students.length > 0 && filteredStudents.length === 0 && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">No students match your search.</p>
                 )}
               </CardContent>
             </Card>

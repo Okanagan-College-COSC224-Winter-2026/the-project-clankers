@@ -6,11 +6,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, Users, LayoutList, UserPlus, Upload, ClipboardList, Search, Check, X, Trash2 } from 'lucide-react'
+import { ChevronRight, Users, UserPlus, Upload, ClipboardList, Check, X, LayoutList, Search, Trash2 } from 'lucide-react'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import ConfirmDialog from '../components/ConfirmDialog'
 import RosterUploadResult from '../components/RosterUploadResult'
+import MembersListPanel from '../components/MembersListPanel'
 import { importCSV } from '../util/csv'
 import { listCourseMembers, getAssignmentDetails, listClasses, getProfilePictureUrl, getCourseEnrollmentRequests, approveEnrollmentRequest, rejectEnrollmentRequest, getRegisteredStudentsForCourse, enrollDirectStudents, unenrollStudent } from '../util/api'
 import { isTeacher } from '../util/login'
@@ -826,58 +827,11 @@ export default function AssignmentMembers() {
         </div>{/* end flex-col panels wrapper */}
 
         {/* ── Members list ── */}
-        {members.length === 0 ? (
-          <p className="text-muted-foreground">No members found.</p>
-        ) : (
-          <div className="space-y-2">
-            {members.map((member) => {
-              const groupName = userGroups.get(member.id)
-
-              return (
-                <Card key={member.id} className="p-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar>
-                      <AvatarImage
-                        src={getProfilePictureUrl(member.profile_picture_url)}
-                        alt={member.name}
-                      />
-                      <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{member.name}</span>
-                        <Badge
-                          className={
-                            roleColors[member.role as keyof typeof roleColors] ||
-                            'bg-gray-100 text-gray-700'
-                          }
-                        >
-                          {member.role}
-                        </Badge>
-                        {groupName && <Badge variant="outline">Group: {groupName}</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {member.email}
-                        {member.student_id && <span> | ID: {member.student_id}</span>}
-                      </p>
-                    </div>
-                    {isTeacher() && member.role === 'student' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemoveStudent(member)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        )}
+        <MembersListPanel
+          members={members}
+          userGroups={userGroups}
+          onRemove={(member) => handleRemoveStudent(member)}
+        />
       </div>
 
       {confirmDialog && (
