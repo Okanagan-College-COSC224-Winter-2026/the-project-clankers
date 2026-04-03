@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers, getAssignmentGradebook } from "../util/api";
 import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
 import ViewSubmissionModal from "./ViewSubmissionModal";
+import StudentReviewSummaryModal from "./StudentReviewSummaryModal";
 
 interface StudentSubmission {
   id: number;
@@ -63,6 +65,7 @@ export default function TeacherSubmissionView({
   const [viewModalEntityName, setViewModalEntityName] = useState("");
   // Map of student_id -> { completed, expected } peer evaluation counts
   const [evalMap, setEvalMap] = useState<Map<number, { completed: number; expected: number }>>(new Map());
+  const [reviewModalStudent, setReviewModalStudent] = useState<{ id: number; name: string } | null>(null);
   const navigate = useNavigate();
 
   // Load all student submissions and class roster
@@ -440,16 +443,12 @@ export default function TeacherSubmissionView({
                                   <tr key={member.id} className={`border-b border-gray-100 ${isSubmitter ? "bg-blue-50" : "bg-white"}`}>
                                     <td className="px-4 py-3 text-sm text-gray-600 align-middle">
                                       <div className="flex items-center gap-2">
-                                        <a
-                                          href="#"
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            handleViewProfile(member.id);
-                                          }}
-                                          className="text-blue-600 font-medium cursor-pointer hover:underline"
+                                        <button
+                                          onClick={() => setReviewModalStudent({ id: member.id, name: member.name })}
+                                          className="text-blue-600 font-medium cursor-pointer hover:underline text-left"
                                         >
                                           {member.name}
-                                        </a>
+                                        </button>
                                         {isSubmitter && (
                                           <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded font-semibold">
                                             Submitter
@@ -519,16 +518,12 @@ export default function TeacherSubmissionView({
                   {studentsWithSubmissions.map((item) => (
                     <tr key={item.student.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleViewProfile(item.student.id);
-                          }}
-                          className="text-blue-600 font-medium cursor-pointer hover:underline"
+                        <button
+                          onClick={() => setReviewModalStudent({ id: item.student.id, name: item.student.name })}
+                          className="text-blue-600 font-medium cursor-pointer hover:underline text-left"
                         >
                           {item.student.name}
-                        </a>
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 align-middle">
                         {item.student.student_id || 'N/A'}
@@ -580,7 +575,15 @@ export default function TeacherSubmissionView({
             <p className="text-center text-muted-foreground italic p-4 rounded border border-dashed border-gray-300">No students enrolled in this class</p>
           )
         )}
-    </div>
+
+      {reviewModalStudent && (
+        <StudentReviewSummaryModal
+          assignmentId={assignmentId}
+          studentId={reviewModalStudent.id}
+          studentName={reviewModalStudent.name}
+          onClose={() => setReviewModalStudent(null)}
+        />
+      )}
       {selectedSubmission && (
         <ViewSubmissionModal
           isOpen={isViewModalOpen}

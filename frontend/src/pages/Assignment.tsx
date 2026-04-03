@@ -11,6 +11,7 @@ import TeacherSubmissionView from "../components/TeacherSubmissionView";
 import ViewSubmissionModal from "../components/ViewSubmissionModal";
 import AssignmentGradebookView from "../components/AssignmentGradebookView";
 import RubricDisplay from "../components/RubricDisplay";
+import RubricCreator from "../components/RubricCreator";
 import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
 import ReactMarkdown from "react-markdown";
@@ -53,6 +54,7 @@ export default function Assignment() {
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
+  const isRubricTab = location.pathname.includes('/rubric');
   const isSubmissionTab = location.pathname.includes('/submission');
   const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
   const isGradebookTab =
@@ -230,10 +232,6 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Members",
-                  path: `/assignments/${id}/members`,
-                },
-                {
                   label: "Rubric",
                   path: `/assignments/${id}/rubric`,
                 },
@@ -252,10 +250,6 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Members",
-                  path: `/assignments/${id}/members`,
-                },
-                {
                   label: "Submission",
                   path: `/assignments/${id}/submission`,
                 },
@@ -267,7 +261,16 @@ export default function Assignment() {
         }
       />
 
-      {isManageTab && isTeacher() ? (
+      {isRubricTab ? (
+        <div className="flex-1 space-y-6 p-6">
+          <Card>
+            <CardContent className="p-4">
+              <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+            </CardContent>
+          </Card>
+          {isTeacher() && <RubricCreator id={Number(id)} />}
+        </div>
+      ) : isManageTab && isTeacher() ? (
         <div className="flex-1 space-y-6 p-6">
           <div className="mb-4 flex items-center gap-2">
             <Settings className="h-5 w-5" />

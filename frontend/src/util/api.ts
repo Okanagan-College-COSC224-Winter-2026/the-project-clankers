@@ -1211,6 +1211,29 @@ export const getReceivedReviews = async (assignmentID: number): Promise<Received
   return await resp.json()
 }
 
+export interface StudentReviewSummary {
+  student: { id: number; name: string };
+  reviews_given: Array<{ reviewee_name: string; grade: number | null; type: string }>;
+  reviews_received: Array<{ reviewer_name: string; grade: number | null; type: string }>;
+  avg_given: number | null;
+  avg_received: number | null;
+}
+
+export const getStudentReviewSummary = async (
+  assignmentId: number,
+  studentId: number
+): Promise<StudentReviewSummary> => {
+  const resp = await fetch(
+    `${BASE_URL}/assignment/${assignmentId}/student/${studentId}/review-summary`,
+    { method: 'GET', credentials: 'include' }
+  );
+  maybeHandleExpire(resp);
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+  return await resp.json();
+};
+
 export const getNextGroupID = async(assignmentID: number)=> {
   const response = await fetch(`${BASE_URL}/next_groupid?assignmentID=${assignmentID}`, {
     method: 'GET',

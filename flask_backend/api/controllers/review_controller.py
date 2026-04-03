@@ -14,7 +14,7 @@ from ..models import (
     ReviewSchema,
     CriterionSchema,
     Group_Members,
-    CourseGroup
+    CourseGroup,
 )
 from ..models.db import db
 

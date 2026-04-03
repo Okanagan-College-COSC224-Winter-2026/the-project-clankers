@@ -12,9 +12,7 @@ import ClassStudentSubmissions from "./pages/ClassStudentSubmissions";
 import ClassGrades from "./pages/ClassGrades";
 import ClassSettings from "./pages/ClassSettings";
 import Assignment from "./pages/Assignment";
-import AssignmentMembers from "./pages/AssignmentMembers";
 
-import AssignmentRubric from "./pages/AssignmentRubric";
 import Group from "./pages/Group";
 import RegisterPage from "./pages/RegisterPage";
 import ChangePassword from "./pages/ChangePassword";
@@ -114,13 +112,13 @@ function AppContent() {
 
           <Route path="/assignments/:id/members" element={
             <ProtectedRoute>
-              <AssignmentMembers />
+              <Assignment />
             </ProtectedRoute>
           } />
 
           <Route path="/assignments/:id/rubric" element={
             <ProtectedRoute>
-              <AssignmentRubric />
+              <Assignment />
             </ProtectedRoute>
           } />
 
