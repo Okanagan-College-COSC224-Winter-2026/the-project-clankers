@@ -217,17 +217,7 @@ export default function Assignment() {
             <span className="text-muted-foreground">...</span>
           )}
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-          {isManageTab || isSubmissionTab || isStudentSubmissionsTab || isGradebookTab || isPeerReviewsTab ? (
-            <>
-              <Link to={`/assignments/${id}`} className="text-muted-foreground hover:text-foreground transition-colors">{assignmentName || '...'}</Link>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-              <span className="font-semibold text-foreground">
-                {isManageTab ? 'Manage' : isSubmissionTab ? 'Submission' : isStudentSubmissionsTab ? 'Submissions' : isGradebookTab ? 'Gradebook' : 'Peer Reviews'}
-              </span>
-            </>
-          ) : (
-            <span className="font-semibold text-foreground">{assignmentName || '...'}</span>
-          )}
+          <span className="font-semibold text-foreground">{assignmentName || '...'}</span>
         </nav>
       </div>
 

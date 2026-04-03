@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
-import { BookOpen, BarChart2, ClipboardList, ShieldCheck, ChevronRight } from 'lucide-react'
+import { BookOpen, BarChart2, ClipboardList, ShieldCheck } from 'lucide-react'
 
 import TabNavigation from '../components/TabNavigation'
 import { Badge } from '../components/ui/badge'
@@ -363,11 +363,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
     <div className="flex flex-1 flex-col">
       {/* ── Page header ── */}
       <div className="flex h-16 items-center border-b bg-background px-6">
-        <nav className="flex items-center gap-1 text-sm">
-          <Link to={`/classes/${id}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{className}</Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-          <span className="font-semibold text-foreground">Grades</span>
-        </nav>
+        <h2 className="text-xl font-semibold">{className}</h2>
       </div>
 
       <TabNavigation

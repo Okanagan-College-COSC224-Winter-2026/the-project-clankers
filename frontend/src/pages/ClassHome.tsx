@@ -93,9 +93,7 @@ export default function ClassHome() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex h-16 items-center border-b bg-background px-6">
-        <nav className="flex items-center gap-1 text-sm">
-          <span className="font-semibold text-foreground">{className}</span>
-        </nav>
+        <h2 className="text-xl font-semibold">{className}</h2>
       </div>
 
       <TabNavigation
