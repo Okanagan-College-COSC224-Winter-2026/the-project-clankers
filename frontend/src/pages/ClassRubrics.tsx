@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback } from "react";
 import { listAssignments, listClasses } from "../util/api";
@@ -9,6 +9,7 @@ import { importCSV } from "../util/csv";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
 import { Card } from "@/components/ui/card";
+import { ChevronRight } from "lucide-react";
 
 interface Assignment {
   id: number;
@@ -97,8 +98,14 @@ export default function ClassRubrics() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b bg-background px-6 py-4">
-        <h2 className="text-xl font-semibold">{className}</h2>
+      <div className="flex h-16 items-center justify-between border-b bg-background px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <Link to={`/classes/${id}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{className}</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">Rubrics</span>
+        </nav>
         <div>
           {isTeacher() ? (
             <Button onClick={handleRosterUpload} disabled={isUploadingRoster}>

@@ -11,12 +11,14 @@ import {
   saveGroups,
   deleteGroup,
   getAssignmentDetails,
+  listClasses,
 } from "../util/api";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import StatusMessage from "../components/StatusMessage";
 import { isTeacher } from "../util/login";
 import Textbox from "../components/Textbox";
+import { ChevronRight } from "lucide-react";
 
 function fisherYates<T>(array: T[]): T[] {
   let m = array.length, t, i;
@@ -44,6 +46,8 @@ export default function Group() {
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
   const [assignmentName, setAssignmentName] = useState<string>("");
+  const [courseId, setCourseId] = useState<number | null>(null);
+  const [courseName, setCourseName] = useState<string>("");
 
   const nameFromId = (id: number) => {
     return classMembers.find((mem) => mem.id === id)?.name || 'N/A';
@@ -108,6 +112,12 @@ export default function Group() {
         if (assignmentData && assignmentData.name) {
           setAssignmentName(assignmentData.name);
         }
+        if (assignmentData && assignmentData.courseID) {
+          setCourseId(assignmentData.courseID);
+          const classes = await listClasses();
+          const cls = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+          if (cls) setCourseName(cls.name);
+        }
       } catch (error) {
         console.error('Error fetching assignment details:', error);
       }
@@ -153,8 +163,20 @@ export default function Group() {
 
   return (
     <>
-      <div className="py-4 px-6 border-b border-border">
-        <h2 className="text-xl font-semibold text-foreground">{assignmentName || "Loading..."}</h2>
+      <div className="flex h-16 items-center border-b border-border px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          {courseId ? (
+            <Link to={`/classes/${courseId}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{courseName || '...'}</Link>
+          ) : (
+            <span className="text-muted-foreground">...</span>
+          )}
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <Link to={`/assignments/${id}`} className="text-muted-foreground hover:text-foreground transition-colors">{assignmentName || '...'}</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">Groups</span>
+        </nav>
       </div>
 
       <TabNavigation

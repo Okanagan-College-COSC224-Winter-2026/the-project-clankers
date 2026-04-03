@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import { listAssignments, listClasses, updateClass, deleteClass, archiveClass, getClassDetails } from '../util/api'
 import { isTeacher, isAdmin } from '../util/login'
-import { Settings, Users, Trash2, Archive, BookOpen } from 'lucide-react'
+import { Settings, Users, Trash2, Archive, BookOpen, ChevronRight } from 'lucide-react'
 
 export default function ClassSettings() {
   const { id } = useParams()
@@ -99,8 +99,14 @@ export default function ClassSettings() {
   return (
     <div className="flex flex-1 flex-col">
       {/* ── Page header ── */}
-      <div className="flex items-center border-b bg-background px-6 py-4">
-        <h2 className="text-xl font-semibold">{className}</h2>
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <Link to={`/classes/${id}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{className}</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">Settings</span>
+        </nav>
       </div>
 
       <TabNavigation

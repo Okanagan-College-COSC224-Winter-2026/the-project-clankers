@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { Upload, Users, UserPlus, ClipboardList, Search, Trash2, Check, X, LayoutList } from 'lucide-react'
+import { Upload, Users, UserPlus, ClipboardList, Search, Trash2, Check, X, LayoutList, ChevronRight } from 'lucide-react'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -526,8 +526,14 @@ export default function ClassMembers() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center border-b bg-background px-6 py-4">
-        <h2 className="text-xl font-semibold">{className}</h2>
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <Link to={`/classes/${id}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{className}</Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">Members</span>
+        </nav>
       </div>
 
       <TabNavigation
