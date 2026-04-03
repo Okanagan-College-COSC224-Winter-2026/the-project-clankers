@@ -12,7 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { Upload, Users, UserPlus, ClipboardList, Trash2, Check, X, LayoutList } from 'lucide-react'
+import { Upload, Users, UserPlus, ClipboardList, Trash2, Check, X, LayoutList, Search } from 'lucide-react'
 import MembersListPanel from '../components/MembersListPanel'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
