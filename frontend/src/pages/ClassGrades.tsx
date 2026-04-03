@@ -18,9 +18,14 @@ import { Label } from '../components/ui/label'
 import {
   downloadStudentSubmission,
   getAssignmentGradebook,
+  getAssignmentsByClass,
   getClassGradebook,
+  getCourseGroups,
+  getGroupMembers,
   getMyCourseGrade,
   getStudentGradebookDetail,
+  getStudentSubmissions,
+  listCourseMembers,
   updateClassGradePolicy,
   updateGradeOverride,
   type AssignmentGradebookData,
@@ -57,6 +62,13 @@ export default function ClassGrades() {
   const [editMode, setEditMode] = useState(false)
   // Tracks local input values for cells being edited: key = `${studentId}-${assignmentId}`
 const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
+
+  // Submissions panel state (lazy loaded on first toggle)
+  const [showSubmissions, setShowSubmissions] = useState(false)
+  const [submissionsByAssignment, setSubmissionsByAssignment] = useState<any[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
+  const [submissionsLoaded, setSubmissionsLoaded] = useState(false)
+  const [expandedSubmissionId, setExpandedSubmissionId] = useState<number | null>(null)
 
   const teacherView = isTeacher() || isAdmin()
 
@@ -96,6 +108,73 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
     if (!id) return
     loadAll(false)
   }, [id])
+
+  const loadSubmissionsData = async () => {
+    if (!id) return
+    setSubmissionsLoading(true)
+    try {
+      const [classMembersData, courseGroups, assignments] = await Promise.all([
+        listCourseMembers(id),
+        getCourseGroups(classId),
+        getAssignmentsByClass(classId),
+      ])
+      const students = (classMembersData || [])
+        .filter((m: any) => m.role === 'student')
+        .map((m: any) => ({ id: m.id, name: m.name, email: m.email, student_id: m.student_id || 'N/A' }))
+      const groupsWithMembers = await Promise.all(
+        courseGroups.map(async (group: any) => {
+          try {
+            const members = await getGroupMembers(classId, group.id)
+            return { ...group, members }
+          } catch {
+            return { ...group, members: [] }
+          }
+        })
+      )
+      const getSubmStatus = (sub: any, dueDate?: string) => {
+        if (!sub) return 'Not Submitted'
+        if (!dueDate) return 'Submitted'
+        return new Date(sub.submitted_at) <= new Date(dueDate) ? 'Submitted' : 'Submitted Late'
+      }
+      const data = await Promise.all(
+        assignments.map(async (assignment: any) => {
+          try {
+            const submissions = await getStudentSubmissions(assignment.id)
+            const isGroup = assignment.submission_type === 'group'
+            if (isGroup) {
+              const rows = groupsWithMembers.map((group: any) => {
+                const memberIds = (group.members || []).map((m: any) => m.id)
+                const sub = submissions.find((s: any) => memberIds.includes(s.student_id))
+                return { groupId: group.id, groupName: group.name, status: getSubmStatus(sub, assignment.due_date), submission: sub }
+              })
+              return { assignment, rows, isGroupAssignment: true }
+            } else {
+              const subMap = new Map(submissions.map((s: any) => [s.student_id, s]))
+              const rows = students.map((student: any) => {
+                const sub = subMap.get(student.id) as any
+                return { studentId: student.id, studentName: student.name, studentIdNumber: student.student_id, email: student.email, status: getSubmStatus(sub, assignment.due_date), submission: sub }
+              })
+              return { assignment, rows, isGroupAssignment: false }
+            }
+          } catch {
+            return { assignment, rows: [], isGroupAssignment: assignment.submission_type === 'group' }
+          }
+        })
+      )
+      setSubmissionsByAssignment(data)
+      setSubmissionsLoaded(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load submissions')
+    } finally {
+      setSubmissionsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (showSubmissions && !submissionsLoaded && teacherView && id) {
+      loadSubmissionsData()
+    }
+  }, [showSubmissions])
 
   // Load student detail when dialog opens
   useEffect(() => {
@@ -228,6 +307,12 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
     return 'bg-slate-50 text-slate-600 ring-slate-200'
   }
 
+  const submStatusClass = (status: string) => {
+    if (status === 'Submitted') return 'bg-green-100 text-green-800'
+    if (status === 'Submitted Late') return 'bg-orange-100 text-orange-800'
+    return 'bg-gray-100 text-gray-500'
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -260,7 +345,6 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                 { label: 'Home', path: `/classes/${id}/home` },
                 { label: 'Members', path: `/classes/${id}/members` },
                 { label: 'Groups', path: `/classes/${id}/groups` },
-                { label: 'Student Submissions', path: `/classes/${id}/student-submissions` },
                 { label: 'Grades', path: `/classes/${id}/grades` },
               ]
             : [
@@ -325,13 +409,23 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
               >
                 Assignment Averages
               </Button>
+              <Button
+                size="sm"
+                variant={showSubmissions ? 'default' : 'outline'}
+                onClick={() => setShowSubmissions((v) => !v)}
+              >
+                Submissions
+              </Button>
             </div>
 
             {/* ── Grade Policy ── */}
             {showPolicy && (
               <Card className="border-slate-200/80 shadow-sm">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle>Grading Policy</CardTitle>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => setShowPolicy(false)}>
+                    × Close
+                  </Button>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -369,8 +463,11 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
             {/* ── Assignment Averages ── */}
             {showAggregates && (
               <Card className="border-slate-200/80 shadow-sm">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle>Assignment Averages</CardTitle>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => setShowAggregates(false)}>
+                    × Close
+                  </Button>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
@@ -418,6 +515,124 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                       ))}
                     </tbody>
                   </table>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Submissions panel ── */}
+            {showSubmissions && (
+              <Card className="border-slate-200/80 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle>Student Submissions</CardTitle>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => setShowSubmissions(false)}>
+                    × Close
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {submissionsLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading submissions...</p>
+                  ) : submissionsByAssignment.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No assignments found.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {submissionsByAssignment.map(({ assignment, rows, isGroupAssignment }) => {
+                        const submittedCount = rows.filter((row: any) => row.status !== 'Not Submitted').length
+                        const total = rows.length
+                        const entityType = isGroupAssignment ? 'groups' : 'students'
+                        const isExpanded = expandedSubmissionId === assignment.id
+                        return (
+                          <Card key={assignment.id} className="border-slate-200/80">
+                            <CardHeader
+                              onClick={() => setExpandedSubmissionId(isExpanded ? null : assignment.id)}
+                              className="cursor-pointer hover:bg-muted/50 transition-colors flex-row justify-between items-center py-3"
+                            >
+                              <div>
+                                <CardTitle className="text-base">{assignment.name}</CardTitle>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {submittedCount} of {total} {entityType} submitted
+                                  {assignment.due_date && ` · Due: ${new Date(assignment.due_date).toLocaleDateString()}`}
+                                </p>
+                              </div>
+                              <span className="text-sm text-muted-foreground">{isExpanded ? '\u25BC' : '\u25B6'}</span>
+                            </CardHeader>
+                            {isExpanded && (
+                              <CardContent>
+                                {rows.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">No {entityType} found.</p>
+                                ) : isGroupAssignment ? (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse text-sm">
+                                      <thead>
+                                        <tr className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                                          <th className="p-2 text-left">Group Name</th>
+                                          <th className="p-2 text-left">Status</th>
+                                          <th className="p-2 text-left">File</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(rows as any[]).map((row) => (
+                                          <tr key={row.groupId} className="border-b last:border-b-0 hover:bg-slate-50/50">
+                                            <td className="p-2">{row.groupName}</td>
+                                            <td className="p-2">
+                                              <span className={`inline-flex px-2 py-0.5 rounded text-xs ${submStatusClass(row.status)}`}>
+                                                {row.status}
+                                              </span>
+                                            </td>
+                                            <td className="p-2">
+                                              {row.submission ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleDownloadSubmission(row.submission.id, row.submission.filename)}>
+                                                  Download
+                                                </Button>
+                                              ) : <span className="text-muted-foreground text-xs">\u2014</span>}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse text-sm">
+                                      <thead>
+                                        <tr className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                                          <th className="p-2 text-left">Name</th>
+                                          <th className="p-2 text-left">Student ID</th>
+                                          <th className="p-2 text-left">Email</th>
+                                          <th className="p-2 text-left">Status</th>
+                                          <th className="p-2 text-left">File</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(rows as any[]).map((row) => (
+                                          <tr key={row.studentId} className="border-b last:border-b-0 hover:bg-slate-50/50">
+                                            <td className="p-2 font-medium">{row.studentName}</td>
+                                            <td className="p-2 text-xs text-muted-foreground">{row.studentIdNumber}</td>
+                                            <td className="p-2 text-xs text-muted-foreground">{row.email}</td>
+                                            <td className="p-2">
+                                              <span className={`inline-flex px-2 py-0.5 rounded text-xs ${submStatusClass(row.status)}`}>
+                                                {row.status}
+                                              </span>
+                                            </td>
+                                            <td className="p-2">
+                                              {row.submission ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleDownloadSubmission(row.submission.id, row.submission.filename)}>
+                                                  Download
+                                                </Button>
+                                              ) : <span className="text-muted-foreground text-xs">\u2014</span>}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </CardContent>
+                            )}
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

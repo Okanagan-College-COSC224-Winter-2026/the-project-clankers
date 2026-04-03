@@ -355,10 +355,6 @@ export default function ClassStudentSubmissions() {
                   path: `/classes/${id}/groups`,
                 },
                 {
-                  label: "Student Submissions",
-                  path: `/classes/${id}/student-submissions`,
-                },
-                {
                   label: "Grades",
                   path: `/classes/${id}/grades`,
                 },

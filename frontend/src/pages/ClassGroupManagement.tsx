@@ -450,10 +450,6 @@ export default function ClassGroupManagement() {
                   path: `/classes/${id}/groups`,
                 },
                 {
-                  label: "Student Submissions",
-                  path: `/classes/${id}/student-submissions`,
-                },
-                {
                   label: "Grades",
                   path: `/classes/${id}/grades`,
                 },

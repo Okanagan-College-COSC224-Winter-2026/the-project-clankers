@@ -146,7 +146,6 @@ export default function ClassMembers() {
                 { label: 'Home', path: `/classes/${id}/home` },
                 { label: 'Members', path: `/classes/${id}/members` },
                 { label: 'Groups', path: `/classes/${id}/groups` },
-                { label: 'Student Submissions', path: `/classes/${id}/student-submissions` },
                 { label: 'Grades', path: `/classes/${id}/grades` },
               ]
             : [
