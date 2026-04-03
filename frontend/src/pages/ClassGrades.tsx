@@ -411,11 +411,6 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
           <h3 className="text-lg font-medium">{teacherView ? 'Gradebook' : 'My Grades'}</h3>
           {teacherView && (
             <div className="ml-auto flex gap-2">
-              {gradebook && (
-                <Button onClick={handleDownloadCSV} variant="outline" size="sm">
-                  ↓ Download CSV
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant={showPolicy ? 'default' : 'outline'}
@@ -712,6 +707,9 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                       Edit mode — click a grade to override. Leave blank to clear override.
                     </p>
                   )}
+                  <Button onClick={handleDownloadCSV} variant="outline" size="sm">
+                    ↓ Download CSV
+                  </Button>
                   <Button
                     size="sm"
                     variant={editMode ? 'default' : 'outline'}
