@@ -168,16 +168,17 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Peer Review Dashboard</h1>
+    <div className="flex flex-1 flex-col">
+      <div className="flex h-16 items-center justify-between border-b bg-background px-6">
+        <h2 className="text-xl font-semibold">Dashboard</h2>
         {(isTeacher() || isAdmin()) && (
-          <Button onClick={handleOpenArchived} variant="outline">
+          <Button onClick={handleOpenArchived} variant="outline" size="sm">
             <Archive className="mr-2 h-4 w-4" />
             Archived Classes
           </Button>
         )}
       </div>
+      <div className="flex-1 p-6">
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {courses.length === 0 && !isTeacher() ? (
@@ -314,6 +315,7 @@ export default function Home() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
