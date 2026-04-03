@@ -25,7 +25,7 @@ const variantConfig = {
   danger: {
     icon: AlertTriangle,
     iconClass: 'text-destructive',
-    buttonClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+    buttonClass: 'border border-destructive/40 bg-transparent text-destructive hover:bg-destructive/10 hover:text-destructive shadow-none',
   },
   warning: {
     icon: RefreshCw,
@@ -58,21 +58,23 @@ export default function ConfirmDialog({
 
   return (
     <AlertDialog open onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <div className="flex items-center gap-3">
-            <div className={cn('rounded-full bg-muted p-2', config.iconClass)}>
-              <Icon className="h-5 w-5" />
+      <AlertDialogContent className="p-0 overflow-hidden rounded-lg border bg-card shadow-sm max-w-md">
+        <AlertDialogHeader className="border-b px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className={cn('rounded-full bg-muted p-1.5', config.iconClass)}>
+              <Icon className="h-4 w-4" />
             </div>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold">{title}</AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="pl-12">
+        </AlertDialogHeader>
+        <div className="px-5 py-4">
+          <AlertDialogDescription className="text-sm text-muted-foreground">
             {message}
           </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className={config.buttonClass}>
+        </div>
+        <AlertDialogFooter className="border-t px-5 py-3 flex justify-end gap-2">
+          <AlertDialogCancel onClick={onCancel} className="h-8 px-4 text-sm">{cancelLabel}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className={cn('h-8 px-4 text-sm', config.buttonClass)}>
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

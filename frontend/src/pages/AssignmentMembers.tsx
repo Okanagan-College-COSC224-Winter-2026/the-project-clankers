@@ -602,9 +602,10 @@ export default function AssignmentMembers() {
                       type="text"
                       placeholder="New group name"
                       value={newGroupName}
-                      onChange={(e) => setNewGroupName(e.target.value)}
+                      onChange={(e) => setNewGroupName(e.target.value.slice(0, 30))}
                       onKeyDown={(e) => e.key === 'Enter' && createGroup()}
                       className="w-[140px] rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      maxLength={30}
                     />
                     <Button size="sm" variant="default" onClick={createGroup} disabled={isCreatingGroup} className="h-8 px-3 text-xs font-medium">Create</Button>
                   </div>
@@ -625,9 +626,10 @@ export default function AssignmentMembers() {
                                   autoFocus
                                   type="text"
                                   value={editingGroupName}
-                                  onChange={(e) => setEditingGroupName(e.target.value)}
+                                  onChange={(e) => setEditingGroupName(e.target.value.slice(0, 30))}
                                   onKeyDown={(e) => e.key === 'Enter' && renameGroup(group.id, editingGroupName)}
                                   className="flex-1 rounded-md border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  maxLength={30}
                                 />
                                 <Button size="sm" variant="default" className="h-8 px-3 text-xs" onClick={() => renameGroup(group.id, editingGroupName)}>Save</Button>
                                 <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => { setEditingGroupId(null); setEditingGroupName('') }}>Cancel</Button>

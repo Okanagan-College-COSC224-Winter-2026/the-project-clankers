@@ -263,6 +263,42 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
     }
   }
 
+  const handleDownloadStudentCSV = () => {
+    if (!selectedStudentDetail) return
+    const { student, assignments } = selectedStudentDetail
+    const headers = [
+      'Assignment',
+      'Due Date',
+      'Submission Status',
+      'Evaluations (done/expected)',
+      'Computed Grade (%)',
+      'Penalty (%)',
+      'Effective Grade (%)',
+      'Grade Source',
+    ]
+    const rows = assignments.map((a) => [
+      a.assignment_name,
+      a.due_date ? new Date(a.due_date).toLocaleDateString() : '—',
+      a.submission_status,
+      `${a.peer_evaluation.completed}/${a.peer_evaluation.expected}`,
+      a.computed_grade != null ? a.computed_grade.toFixed(1) : 'Pending',
+      a.penalty_applied_percent > 0 ? `-${a.penalty_applied_percent}` : '0',
+      a.effective_grade != null ? a.effective_grade.toFixed(1) : 'Pending',
+      a.grade_source,
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const dateStr = new Date().toISOString().slice(0, 10)
+    a.download = `Grades_${student.name.replace(/[/\\?%*:|"<>]/g, '_')}_${dateStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleDownloadCSV = () => {
     if (!gradebook) return
     const assignmentNames = gradebook.assignment_aggregates.map((a) => a.assignment_name)
@@ -863,6 +899,13 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
+          {selectedStudentDetail && selectedStudentDetail.assignments.length > 0 && (
+            <div className="mb-4 flex justify-end">
+              <Button size="sm" variant="outline" onClick={handleDownloadStudentCSV}>
+                ↓ Download CSV
+              </Button>
+            </div>
+          )}
           {!selectedStudentDetail && (
             <p className="py-6 text-center text-sm text-muted-foreground">Loading student details…</p>
           )}

@@ -609,10 +609,12 @@ export default function ClassMembers() {
                 {/* Left: Unassigned Students */}
                 <Card className="flex flex-col max-h-[60vh]">
                   <CardHeader className="border-b pb-3">
-                    <CardTitle className="text-base">Unassigned Students ({unassignedStudents.length})</CardTitle>
-                    {unassignedStudents.length > 0 && courseGroups.length > 0 && (
-                      <Button onClick={randomizeGroups} className="mt-2" size="sm">Randomize Groups</Button>
-                    )}
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Unassigned Students ({unassignedStudents.length})</CardTitle>
+                      {unassignedStudents.length > 0 && courseGroups.length > 0 && (
+                        <Button onClick={randomizeGroups} size="sm">Randomize Groups</Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto pt-2">
                     {unassignedStudents.length === 0 ? (
@@ -655,9 +657,10 @@ export default function ClassMembers() {
                         <Input
                           placeholder="New group name"
                           value={newGroupName}
-                          onChange={(e) => setNewGroupName(e.target.value)}
+                          onChange={(e) => setNewGroupName(e.target.value.slice(0, 30))}
                           onKeyPress={(e) => e.key === 'Enter' && createGroup()}
                           className="w-36"
+                          maxLength={30}
                         />
                         <Button size="sm" onClick={createGroup}>Create</Button>
                       </div>
@@ -678,10 +681,11 @@ export default function ClassMembers() {
                                   <div className="flex items-center gap-2">
                                     <Input
                                       value={editingGroupName}
-                                      onChange={(e) => setEditingGroupName(e.target.value)}
+                                      onChange={(e) => setEditingGroupName(e.target.value.slice(0, 30))}
                                       onKeyPress={(e) => e.key === 'Enter' && renameGroup(group.id, editingGroupName)}
                                       autoFocus
                                       className="flex-1"
+                                      maxLength={30}
                                     />
                                     <Button size="sm" variant="default" className="h-8 px-3 text-xs" onClick={() => renameGroup(group.id, editingGroupName)}>Save</Button>
                                     <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => { setEditingGroupId(null); setEditingGroupName('') }}>Cancel</Button>
