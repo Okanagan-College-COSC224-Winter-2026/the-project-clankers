@@ -101,8 +101,6 @@ export default function ClassSettings() {
       {/* ── Page header ── */}
       <div className="flex h-16 items-center border-b bg-background px-6">
         <nav className="flex items-center gap-1 text-sm">
-          <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
           <Link to={`/classes/${id}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{className}</Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
           <span className="font-semibold text-foreground">Settings</span>

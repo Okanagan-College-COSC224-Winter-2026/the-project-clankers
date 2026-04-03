@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +11,7 @@ import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import { listAssignments, listClasses, createAssignment } from '../util/api'
 import { isTeacher, isAdmin } from '../util/login'
-import { Plus, FileText, ChevronRight } from 'lucide-react'
+import { Plus, FileText } from 'lucide-react'
 
 interface Assignment {
   id: number
@@ -94,8 +94,6 @@ export default function ClassHome() {
     <div className="flex flex-1 flex-col">
       <div className="flex h-16 items-center border-b bg-background px-6">
         <nav className="flex items-center gap-1 text-sm">
-          <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
           <span className="font-semibold text-foreground">{className}</span>
         </nav>
       </div>
