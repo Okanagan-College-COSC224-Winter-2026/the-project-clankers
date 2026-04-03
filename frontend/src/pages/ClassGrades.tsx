@@ -10,19 +10,22 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import {
+  downloadStudentSubmission,
+  getAssignmentGradebook,
   getClassGradebook,
   getMyCourseGrade,
   getStudentGradebookDetail,
   updateClassGradePolicy,
-  updateCourseTotalOverride,
+  updateGradeOverride,
+  type AssignmentGradebookData,
   type GradebookData,
+  type GradebookStudentRow,
   type StudentGradebookDetail,
 } from '../util/api'
 import { isAdmin, isTeacher } from '../util/login'
@@ -36,17 +39,28 @@ export default function ClassGrades() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null)
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<StudentGradebookDetail | null>(null)
   const [studentDialogOpen, setStudentDialogOpen] = useState(false)
+  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false)
+  const [selectedAssignmentDetail, setSelectedAssignmentDetail] = useState<AssignmentGradebookData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Grade Policy state
   const [latePenalty, setLatePenalty] = useState('0')
   const [incompletePenalty, setIncompletePenalty] = useState('0')
 
-  const [courseOverrideGrade, setCourseOverrideGrade] = useState('')
-  const [courseOverrideReason, setCourseOverrideReason] = useState('')
+  // UI toggle state — which sections are visible
+  const [showPolicy, setShowPolicy] = useState(false)
+  const [showAggregates, setShowAggregates] = useState(false)
+
+  // Inline edit mode — allows editing grade cells directly in the matrix
+  const [editMode, setEditMode] = useState(false)
+  // Tracks local input values for cells being edited: key = `${studentId}-${assignmentId}`
+const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
 
   const teacherView = isTeacher() || isAdmin()
+
+  // ─── Data loading ─────────────────────────────────────────────────────────
 
   const loadTeacherData = async () => {
     const data = await getClassGradebook(classId)
@@ -74,27 +88,21 @@ export default function ClassGrades() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load grades')
     } finally {
-      if (!silent) {
-        setLoading(false)
-      }
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     if (!id) return
     loadAll(false)
-    const interval = setInterval(() => {
-      loadAll(true)
-    }, 15000)
-    return () => clearInterval(interval)
   }, [id])
 
+  // Load student detail when dialog opens
   useEffect(() => {
     if (!selectedStudentId || !teacherView || !studentDialogOpen) {
       setSelectedStudentDetail(null)
       return
     }
-
     ;(async () => {
       try {
         const detail = await getStudentGradebookDetail(classId, selectedStudentId)
@@ -105,134 +113,108 @@ export default function ClassGrades() {
     })()
   }, [selectedStudentId, classId, teacherView, studentDialogOpen])
 
-  const handleSavePolicy = async () => {
-    setSaving(true)
-    setError(null)
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleSavePolicy = async (late: string, incomplete: string) => {
+    const lateVal = Number(late)
+    const incompleteVal = Number(incomplete)
+    if (isNaN(lateVal) || isNaN(incompleteVal)) return
     try {
       await updateClassGradePolicy(classId, {
-        late_penalty_percent: Number(latePenalty),
-        incomplete_evaluation_penalty_percent: Number(incompletePenalty),
+        late_penalty_percent: lateVal,
+        incomplete_evaluation_penalty_percent: incompleteVal,
       })
       await loadTeacherData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update policy')
-    } finally {
-      setSaving(false)
     }
   }
 
-  useEffect(() => {
-    if (!selectedStudentDetail) {
-      setCourseOverrideGrade('')
-      setCourseOverrideReason('')
+  const cellKey = (studentId: number, assignmentId: number) => `${studentId}-${assignmentId}`
+
+  const handleCellBlur = async (student: GradebookStudentRow, assignmentId: number, rawValue: string) => {
+    const key = cellKey(student.student_id, assignmentId)
+    const trimmed = rawValue.trim()
+
+    if (trimmed === '') {
+      // Clear override
+      try {
+        await updateGradeOverride(classId, { assignment_id: assignmentId, student_id: student.student_id, override_grade: null })
+        await loadAll(true)
+      } catch {
+        setError('Failed to clear grade override')
+      } finally {
+        setPendingEdits((prev) => { const n = { ...prev }; delete n[key]; return n })
+      }
       return
     }
 
-    setCourseOverrideGrade(
-      selectedStudentDetail.course_total?.override !== null && selectedStudentDetail.course_total?.override !== undefined
-        ? String(selectedStudentDetail.course_total.override)
-        : ''
-    )
-    setCourseOverrideReason(selectedStudentDetail.course_total?.reason || '')
-  }, [selectedStudentDetail])
+    const num = parseFloat(trimmed)
+    if (isNaN(num) || num < 0) return
 
-  const handleSaveCourseTotalOverride = async () => {
-    if (!selectedStudentDetail) return
-
-    setSaving(true)
-    setError(null)
     try {
-      const parsedOverride = courseOverrideGrade === '' ? null : Number(courseOverrideGrade)
-      if (parsedOverride !== null && Number.isNaN(parsedOverride)) {
-        throw new Error('Override total must be a valid number')
-      }
-
-      await updateCourseTotalOverride(classId, {
-        student_id: selectedStudentDetail.student.id,
-        override_total: parsedOverride,
-        reason: courseOverrideReason,
-      })
-
-      // Apply optimistic UI update so grade changes are visible immediately.
-      const computed = selectedStudentDetail.course_total?.computed ?? null
-      const effective = parsedOverride ?? computed
-      const source = parsedOverride !== null ? 'override' : computed !== null ? 'computed' : 'pending'
-
-      setSelectedStudentDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              course_total: {
-                computed,
-                effective,
-                override: parsedOverride,
-                reason: parsedOverride !== null ? courseOverrideReason : null,
-                source,
-              },
-              course_total_grade: effective,
-            }
-          : prev
-      )
-
-      setGradebook((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          students: prev.students.map((student) =>
-            student.student_id === selectedStudentDetail.student.id
-              ? {
-                  ...student,
-                  course_total: {
-                    computed,
-                    effective,
-                    override: parsedOverride,
-                    reason: parsedOverride !== null ? courseOverrideReason : null,
-                    source,
-                  },
-                  course_total_grade: effective,
-                }
-              : student
-          ),
-        }
-      })
-
-      // Re-sync in background; keep optimistic values if a refresh call fails.
-      const [gradebookResult, detailResult] = await Promise.allSettled([
-        getClassGradebook(classId),
-        getStudentGradebookDetail(classId, selectedStudentDetail.student.id),
-      ])
-
-      if (gradebookResult.status === 'fulfilled') {
-        setGradebook(gradebookResult.value)
-      }
-      if (detailResult.status === 'fulfilled') {
-        setSelectedStudentDetail(detailResult.value)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update course total override')
+      await updateGradeOverride(classId, { assignment_id: assignmentId, student_id: student.student_id, override_grade: num })
+      await loadAll(true)
+    } catch {
+      setError('Failed to save grade override')
     } finally {
-      setSaving(false)
+      setPendingEdits((prev) => { const n = { ...prev }; delete n[key]; return n })
     }
   }
 
-  const teacherStats = useMemo(() => {
-    if (!gradebook) {
-      return { students: 0, assignments: 0, classAverage: null as number | null }
+  const handleDownloadSubmission = async (submissionId: number, filename: string) => {
+    try {
+      const blob = await downloadStudentSubmission(submissionId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Failed to download submission')
     }
+  }
 
-    const allGrades = gradebook.students.flatMap((student) =>
-      student.assignments
-        .map((assignment) => assignment.effective_grade)
-        .filter((grade): grade is number => grade !== null)
+  const handleDownloadCSV = () => {
+    if (!gradebook) return
+    const assignmentNames = gradebook.assignment_aggregates.map((a) => a.assignment_name)
+    const headerRow = ['Student', 'Email', 'Student #', 'Course Total (%)', ...assignmentNames]
+    const dataRows = gradebook.students.map((s) => [
+      s.student_name,
+      s.email,
+      s.student_number ?? '',
+      s.course_total_grade != null ? s.course_total_grade.toFixed(1) : 'Pending',
+      ...s.assignments.map((a) => (a.effective_grade != null ? a.effective_grade.toFixed(1) : 'Pending')),
+    ])
+    const csv = [headerRow, ...dataRows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const dateStr = new Date().toISOString().slice(0, 10)
+    a.download = `GradeBook_${gradebook.class.name.replace(/[/\\?%*:|"<>]/g, '_')}_${dateStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ─── Derived stats ────────────────────────────────────────────────────────
+
+  const teacherStats = useMemo(() => {
+    if (!gradebook) return { students: 0, assignments: 0, classAverage: null as number | null }
+    const allGrades = gradebook.students.flatMap((s) =>
+      s.assignments.map((a) => a.effective_grade).filter((g): g is number => g !== null)
     )
-
     return {
       students: gradebook.students.length,
       assignments: gradebook.assignment_aggregates.length,
-      classAverage:
-        allGrades.length > 0 ? Number((allGrades.reduce((a, b) => a + b, 0) / allGrades.length).toFixed(1)) : null,
+      classAverage: allGrades.length > 0 ? Number((allGrades.reduce((a, b) => a + b, 0) / allGrades.length).toFixed(1)) : null,
     }
   }, [gradebook])
+
+  // ─── Badge helpers ────────────────────────────────────────────────────────
 
   const submissionBadgeClass = (status: string) => {
     if (status === 'submitted') return 'bg-emerald-50 text-emerald-700 ring-emerald-200'
@@ -246,8 +228,11 @@ export default function ClassGrades() {
     return 'bg-slate-50 text-slate-600 ring-slate-200'
   }
 
+  // ─── Render ───────────────────────────────────────────────────────────────
+
   return (
     <div className="flex flex-1 flex-col bg-slate-50/40">
+      {/* ── Page header ── */}
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">
@@ -259,9 +244,13 @@ export default function ClassGrades() {
               : 'Track your assignment and course performance in one place.'}
           </p>
         </div>
-        <Button onClick={() => loadAll(false)} variant="outline" size="sm">
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {teacherView && gradebook && (
+            <Button onClick={handleDownloadCSV} variant="outline" size="sm">
+              ↓ Download CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       <TabNavigation
@@ -283,11 +272,13 @@ export default function ClassGrades() {
       />
 
       <div className="space-y-5 p-6">
-        {error && <p className="text-destructive">{error}</p>}
+        {error && <p className="text-destructive text-sm">{error}</p>}
         {loading && <p className="text-muted-foreground">Loading grades...</p>}
 
+        {/* ═══════════════ TEACHER VIEW ════════════════ */}
         {!loading && teacherView && gradebook && (
           <>
+            {/* ── Stats row ── */}
             <div className="grid gap-4 md:grid-cols-3">
               <Card className="border-slate-200/80 shadow-sm">
                 <CardHeader className="pb-2">
@@ -317,83 +308,141 @@ export default function ClassGrades() {
               </Card>
             </div>
 
+            {/* ── Section toggle toolbar ── */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Toggle:</span>
+              <Button
+                size="sm"
+                variant={showPolicy ? 'default' : 'outline'}
+                onClick={() => setShowPolicy((v) => !v)}
+              >
+                Grade Policy
+              </Button>
+              <Button
+                size="sm"
+                variant={showAggregates ? 'default' : 'outline'}
+                onClick={() => setShowAggregates((v) => !v)}
+              >
+                Assignment Averages
+              </Button>
+            </div>
+
+            {/* ── Grade Policy ── */}
+            {showPolicy && (
+              <Card className="border-slate-200/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Grading Policy</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="late-penalty">Late Penalty (%)</Label>
+                    <Input
+                      id="late-penalty"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={latePenalty}
+                      onChange={(e) => setLatePenalty(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onBlur={(e) => handleSavePolicy(e.target.value, incompletePenalty)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="incomplete-penalty">Incomplete Evaluation Penalty (%)</Label>
+                    <Input
+                      id="incomplete-penalty"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={incompletePenalty}
+                      onChange={(e) => setIncompletePenalty(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onBlur={(e) => handleSavePolicy(latePenalty, e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Assignment Averages ── */}
+            {showAggregates && (
+              <Card className="border-slate-200/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Assignment Averages</CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <th className="p-3 text-left">Assignment</th>
+                        <th className="p-3 text-left">Due</th>
+                        <th className="p-3 text-left">Submitted</th>
+                        <th className="p-3 text-left">Late</th>
+                        <th className="p-3 text-left">Missing</th>
+                        <th className="p-3 text-left">Average Grade</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gradebook.assignment_aggregates.map((a) => (
+                        <tr key={a.assignment_id} className="border-b last:border-b-0">
+                          <td className="p-3 font-medium text-slate-900">
+                            <button
+                              className="text-blue-700 hover:underline text-left"
+                              onClick={async () => {
+                                setSelectedAssignmentDetail(null)
+                                setAssignmentDialogOpen(true)
+                                try {
+                                  const detail = await getAssignmentGradebook(a.assignment_id)
+                                  setSelectedAssignmentDetail(detail)
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : 'Failed to load assignment detail')
+                                  setAssignmentDialogOpen(false)
+                                }
+                              }}
+                            >
+                              {a.assignment_name}
+                            </button>
+                          </td>
+                          <td className="p-3 text-slate-500 text-xs">
+                            {a.due_date ? new Date(a.due_date).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="p-3 text-slate-700">{a.submitted_count}</td>
+                          <td className="p-3 text-slate-700">{a.late_count}</td>
+                          <td className="p-3 text-slate-700">{a.missing_count}</td>
+                          <td className="p-3 font-medium text-slate-900">
+                            {a.average_grade !== null ? `${a.average_grade.toFixed(1)}%` : 'Pending'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Gradebook Matrix ── */}
             <Card className="border-slate-200/80 shadow-sm">
-              <CardHeader>
-                <CardTitle>Grading Policy</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="late-penalty">Late Penalty (%)</Label>
-                  <Input
-                    id="late-penalty"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={latePenalty}
-                    onChange={(e) => setLatePenalty(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="incomplete-penalty">Incomplete Evaluation Penalty (%)</Label>
-                  <Input
-                    id="incomplete-penalty"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={incompletePenalty}
-                    onChange={(e) => setIncompletePenalty(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button onClick={handleSavePolicy} disabled={saving}>
-                    Save Penalties
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Gradebook</CardTitle>
+                <div className="flex items-center gap-2">
+                  {editMode && (
+                    <p className="text-xs text-amber-600">
+                      Edit mode — click a grade to override. Leave blank to clear override.
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    variant={editMode ? 'default' : 'outline'}
+                    onClick={() => {
+                      setEditMode((v) => !v)
+                      setPendingEdits({})
+                    }}
+                  >
+                    {editMode ? '✓ Done Editing' : '✏ Edit Grades'}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200/80 shadow-sm">
-              <CardHeader>
-                <CardTitle>Assignment Averages</CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                      <th className="p-3 text-left">Assignment</th>
-                      <th className="p-3 text-left">Submitted</th>
-                      <th className="p-3 text-left">Late</th>
-                      <th className="p-3 text-left">Missing</th>
-                      <th className="p-3 text-left">Average Grade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gradebook.assignment_aggregates.map((assignment) => (
-                      <tr key={assignment.assignment_id} className="border-b last:border-b-0">
-                        <td className="p-3 font-medium text-slate-900">
-                          <Link
-                            to={`/assignments/${assignment.assignment_id}`}
-                            className="text-blue-700 hover:underline"
-                          >
-                            {assignment.assignment_name}
-                          </Link>
-                        </td>
-                        <td className="p-3 text-slate-700">{assignment.submitted_count}</td>
-                        <td className="p-3 text-slate-700">{assignment.late_count}</td>
-                        <td className="p-3 text-slate-700">{assignment.missing_count}</td>
-                        <td className="p-3 font-medium text-slate-900">
-                          {assignment.average_grade !== null ? assignment.average_grade.toFixed(1) : 'Pending'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200/80 shadow-sm">
-              <CardHeader>
-                <CardTitle>Gradebook Matrix</CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <table className="w-full min-w-[960px] border-collapse text-sm">
@@ -401,24 +450,35 @@ export default function ClassGrades() {
                     <tr className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                       <th className="p-3 text-left">Student</th>
                       <th className="p-3 text-left">Course Total</th>
-                      {gradebook.assignment_aggregates.map((assignment) => (
-                        <th key={assignment.assignment_id} className="p-3 text-left">
-                          <Link
-                            to={`/assignments/${assignment.assignment_id}`}
-                            className="text-blue-700 hover:underline"
+                      {gradebook.assignment_aggregates.map((a) => (
+                        <th key={a.assignment_id} className="p-3 text-left">
+                          <button
+                            className="text-blue-700 hover:underline text-left"
+                            onClick={async () => {
+                              setSelectedAssignmentDetail(null)
+                              setAssignmentDialogOpen(true)
+                              try {
+                                const detail = await getAssignmentGradebook(a.assignment_id)
+                                setSelectedAssignmentDetail(detail)
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : 'Failed to load assignment detail')
+                                setAssignmentDialogOpen(false)
+                              }
+                            }}
                           >
-                            {assignment.assignment_name}
-                          </Link>
+                            {a.assignment_name}
+                          </button>
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {gradebook.students.map((student) => (
-                      <tr key={student.student_id} className="border-b align-top last:border-b-0">
+                      <tr key={student.student_id} className="border-b align-middle last:border-b-0 hover:bg-slate-50/50">
+                        {/* Student name — opens detail dialog */}
                         <td className="p-3">
                           <button
-                            className="font-medium text-blue-700 hover:underline"
+                            className="font-medium text-blue-700 hover:underline text-left"
                             onClick={() => {
                               setSelectedStudentId(student.student_id)
                               setStudentDialogOpen(true)
@@ -426,50 +486,91 @@ export default function ClassGrades() {
                           >
                             {student.student_name}
                           </button>
+                          {student.student_number && (
+                            <p className="text-xs text-muted-foreground">{student.student_number}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">{student.email}</p>
                         </td>
+
+                        {/* Course total */}
                         <td className="p-3 font-semibold text-slate-900">
-                          {student.course_total_grade !== null ? student.course_total_grade.toFixed(1) : 'Pending'}
+                          {student.course_total?.source === 'override' ? (
+                            <span className="text-amber-700">
+                              {student.course_total_grade != null ? `${student.course_total_grade.toFixed(1)}%` : '—'}
+                              <span className="ml-1 text-xs font-normal">(override)</span>
+                            </span>
+                          ) : student.course_total_grade != null ? (
+                            `${student.course_total_grade.toFixed(1)}%`
+                          ) : (
+                            <span className="text-muted-foreground">Pending</span>
+                          )}
                         </td>
-                        {student.assignments.map((assignment) => (
-                          <td key={`${student.student_id}-${assignment.assignment_id}`} className="p-3 align-top">
-                            <div className="font-medium leading-tight">
-                              {assignment.effective_grade !== null ? assignment.effective_grade.toFixed(1) : 'Pending'}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              <Badge className={`ring-1 ${submissionBadgeClass(assignment.submission_status)}`}>
-                                {assignment.submission_status}
-                              </Badge>
-                              <Badge className={`ring-1 ${evalBadgeClass(assignment.peer_evaluation.status)}`}>
-                                Eval {assignment.peer_evaluation.completed}/{assignment.peer_evaluation.expected}
-                              </Badge>
-                            </div>
-                            {assignment.override_grade !== null && (
-                              <div className="mt-1 text-xs font-medium text-amber-700">Override applied</div>
-                            )}
-                          </td>
-                        ))}
+
+                        {/* Per-assignment grade cells */}
+                        {student.assignments.map((assignment) => {
+                          const key = cellKey(student.student_id, assignment.assignment_id)
+                          const pendingVal = pendingEdits[key]
+                          const displayGrade = assignment.effective_grade
+
+                          return (
+                            <td key={key} className="p-3">
+                              {editMode ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    className="h-7 w-20 text-xs"
+                                    placeholder={displayGrade != null ? displayGrade.toFixed(1) : '—'}
+                                    value={pendingVal ?? (assignment.override_grade != null ? String(assignment.override_grade) : '')}
+                                    onChange={(e) =>
+                                      setPendingEdits((prev) => ({ ...prev, [key]: e.target.value }))
+                                    }
+                                    onBlur={(e) => handleCellBlur(student, assignment.assignment_id, e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className={`font-medium ${assignment.grade_source === 'override' ? 'text-amber-700' : 'text-slate-900'}`}>
+                                    {displayGrade != null ? `${displayGrade.toFixed(1)}%` : <span className="text-muted-foreground text-xs">Pending</span>}
+                                  </span>
+                                  {assignment.grade_source === 'override' && (
+                                    <p className="text-xs text-amber-600 mt-0.5">override</p>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>
                 </table>
+
+                {gradebook.students.length === 0 && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">No students enrolled yet.</p>
+                )}
               </CardContent>
             </Card>
           </>
         )}
 
+        {/* ═══════════════ STUDENT VIEW ════════════════ */}
         {!loading && !teacherView && myGrade && (
           <>
             <Card>
               <CardHeader>
                 <CardTitle>
                   Course Total:{' '}
-                  {myGrade.course_total_grade !== null ? myGrade.course_total_grade.toFixed(1) : 'Pending'}
+                  {myGrade.course_total_grade !== null ? `${myGrade.course_total_grade.toFixed(1)}%` : 'Pending'}
+                  {myGrade.course_total?.source === 'override' && (
+                    <span className="ml-2 text-sm font-normal text-amber-600">(instructor adjusted)</span>
+                  )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Status: {myGrade.status}</p>
-              </CardContent>
             </Card>
 
             <Card>
@@ -479,10 +580,11 @@ export default function ClassGrades() {
               <CardContent className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b">
+                    <tr className="border-b text-xs uppercase tracking-wide text-slate-500">
                       <th className="p-2 text-left">Assignment</th>
+                      <th className="p-2 text-left">Due</th>
                       <th className="p-2 text-left">Submission</th>
-                      <th className="p-2 text-left">Peer Eval Completion</th>
+                      <th className="p-2 text-left">Peer Eval</th>
                       <th className="p-2 text-left">Grade</th>
                     </tr>
                   </thead>
@@ -490,19 +592,28 @@ export default function ClassGrades() {
                     {myGrade.assignments.map((assignment: any) => (
                       <tr key={assignment.assignment_id} className="border-b">
                         <td className="p-2">
-                          <Link
-                            to={`/assignments/${assignment.assignment_id}`}
-                            className="text-blue-700 hover:underline"
-                          >
+                          <Link to={`/assignments/${assignment.assignment_id}`} className="text-blue-700 hover:underline">
                             {assignment.assignment_name}
                           </Link>
                         </td>
-                        <td className="p-2">{assignment.submission_status}</td>
-                        <td className="p-2">
-                          {assignment.peer_evaluation.completed}/{assignment.peer_evaluation.expected}
+                        <td className="p-2 text-xs text-slate-500">
+                          {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : '—'}
                         </td>
                         <td className="p-2">
-                          {assignment.effective_grade !== null ? assignment.effective_grade.toFixed(1) : 'Pending'}
+                          <Badge className={`ring-1 ${submissionBadgeClass(assignment.submission_status)}`}>
+                            {assignment.submission_status}
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          <Badge className={`ring-1 ${evalBadgeClass(assignment.peer_evaluation.status)}`}>
+                            {assignment.peer_evaluation.completed}/{assignment.peer_evaluation.expected}
+                          </Badge>
+                        </td>
+                        <td className="p-2 font-medium">
+                          {assignment.effective_grade !== null ? `${assignment.effective_grade.toFixed(1)}%` : 'Pending'}
+                          {assignment.grade_source === 'override' && (
+                            <span className="ml-1 text-xs text-amber-600">(adjusted)</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -514,96 +625,264 @@ export default function ClassGrades() {
         )}
       </div>
 
+      {/* ═══════════════ STUDENT DETAIL DIALOG ════════════════ */}
       <Dialog open={studentDialogOpen} onOpenChange={setStudentDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
+        <DialogContent className="w-full sm:max-w-3xl flex flex-col max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 pt-5 pb-4 shrink-0">
             <DialogTitle>
               {selectedStudentDetail ? selectedStudentDetail.student.name : 'Student Detail'}
             </DialogTitle>
             <DialogDescription>
               {selectedStudentDetail
-                ? `Course total: ${
-                    selectedStudentDetail.course_total_grade !== null
-                      ? selectedStudentDetail.course_total_grade.toFixed(1)
-                      : 'Pending'
-                  }`
-                : 'Loading student details...'}
+                ? `${selectedStudentDetail.student.email}${selectedStudentDetail.student.student_number ? ` · #${selectedStudentDetail.student.student_number}` : ''}`
+                : 'Loading...'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {!selectedStudentDetail && <p className="text-sm text-muted-foreground">Loading student details...</p>}
-            {selectedStudentDetail && (
-              <Card className="border-slate-200/80 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base">Course Total Override</CardTitle>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+          {!selectedStudentDetail && (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading student details…</p>
+          )}
+
+          {selectedStudentDetail && (
+            <div className="space-y-5">
+              {/* ── Per-assignment detail ── */}
+              {selectedStudentDetail.assignments.map((assignment) => (
+                <Card key={assignment.assignment_id} className="border-slate-200/80">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base">
+                          <Link to={`/assignments/${assignment.assignment_id}`} className="text-blue-700 hover:underline">
+                            {assignment.assignment_name}
+                          </Link>
+                        </CardTitle>
+                        {assignment.due_date && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Due: {new Date(assignment.due_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-semibold ${assignment.grade_source === 'override' ? 'text-amber-700' : 'text-slate-900'}`}>
+                          {assignment.effective_grade != null ? `${assignment.effective_grade.toFixed(1)}%` : 'Pending'}
+                        </p>
+                        {assignment.grade_source === 'override' && (
+                          <p className="text-xs text-amber-600">override applied</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    {/* Status badges */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className={`ring-1 ${submissionBadgeClass(assignment.submission_status)}`}>
+                        {assignment.submission_status}
+                      </Badge>
+                      <Badge className={`ring-1 ${evalBadgeClass(assignment.peer_evaluation.status)}`}>
+                        Eval {assignment.peer_evaluation.completed}/{assignment.peer_evaluation.expected}
+                      </Badge>
+                      {assignment.penalty_applied_percent > 0 && (
+                        <Badge className="ring-1 bg-red-50 text-red-700 ring-red-200">
+                          −{assignment.penalty_applied_percent}% penalty
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Submissions */}
+                    {assignment.all_submissions.length > 0 ? (
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Submissions</p>
+                        <ul className="space-y-1">
+                          {assignment.all_submissions.map((sub) => (
+                            <li key={sub.id} className="flex items-center justify-between rounded bg-slate-50 px-3 py-1.5">
+                              <span className="text-xs text-slate-700">{sub.filename}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(sub.submitted_at).toLocaleString()}
+                                </span>
+                                <button
+                                  className="text-xs text-blue-600 hover:underline"
+                                  onClick={() => handleDownloadSubmission(sub.id, sub.filename)}
+                                >
+                                  Download
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No submission uploaded.</p>
+                    )}
+
+                    {/* Reviews received */}
+                    {assignment.received_reviews.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Reviews Received</p>
+                        <ul className="space-y-1">
+                          {assignment.received_reviews.map((review) => (
+                            <li key={review.review_id} className="flex items-center justify-between rounded bg-slate-50 px-3 py-1.5">
+                              <div>
+                                <span className="text-xs text-slate-700">{review.reviewer_name}</span>
+                                <span className="ml-2 text-xs text-muted-foreground capitalize">({review.review_type})</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={`ring-1 text-xs ${review.is_complete ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+                                  {review.is_complete ? 'Complete' : 'Incomplete'}
+                                </Badge>
+                                <span className="text-xs font-medium text-slate-900">
+                                  {review.grade != null ? `${review.grade.toFixed(1)}%` : '—'}
+                                </span>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Computed grade breakdown */}
+                    <div className="grid grid-cols-3 gap-2 text-xs border-t pt-2 text-muted-foreground">
+                      <div>Computed: <span className="font-medium text-slate-800">{assignment.computed_grade != null ? `${assignment.computed_grade.toFixed(1)}%` : '—'}</span></div>
+                      <div>Penalty: <span className="font-medium text-slate-800">{assignment.penalty_applied_percent > 0 ? `−${assignment.penalty_applied_percent}%` : 'None'}</span></div>
+                      <div>Source: <span className="font-medium text-slate-800 capitalize">{assignment.grade_source}</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {selectedStudentDetail.assignments.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-4">No assignments in this course yet.</p>
+              )}
+            </div>
+          )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════ ASSIGNMENT DETAIL DIALOG ════════════════ */}
+      <Dialog open={assignmentDialogOpen} onOpenChange={setAssignmentDialogOpen}>
+        <DialogContent className="w-full sm:max-w-3xl flex flex-col max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 pt-5 pb-4 shrink-0">
+            <DialogTitle>
+              {selectedAssignmentDetail ? selectedAssignmentDetail.assignment.name : 'Assignment Detail'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedAssignmentDetail
+                ? `Due: ${selectedAssignmentDetail.assignment.due_date ? new Date(selectedAssignmentDetail.assignment.due_date).toLocaleDateString() : 'No due date'}`
+                : 'Loading...'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+          {!selectedAssignmentDetail && (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading assignment details…</p>
+          )}
+
+          {selectedAssignmentDetail && (
+            <div className="space-y-4">
+              {/* ── Aggregate summary ── */}
+              <div className="grid grid-cols-4 gap-3">
+                <Card className="border-slate-200/80">
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Average</p>
+                    <p className="text-xl font-semibold text-slate-900">
+                      {selectedAssignmentDetail.aggregate.average_grade != null
+                        ? `${selectedAssignmentDetail.aggregate.average_grade.toFixed(1)}%`
+                        : 'Pending'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/80">
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Submitted</p>
+                    <p className="text-xl font-semibold text-slate-900">{selectedAssignmentDetail.aggregate.submitted_count}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/80">
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Late</p>
+                    <p className="text-xl font-semibold text-amber-700">{selectedAssignmentDetail.aggregate.late_count}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/80">
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Missing</p>
+                    <p className="text-xl font-semibold text-red-700">{selectedAssignmentDetail.aggregate.missing_count}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ── Per-student breakdown ── */}
+              <Card className="border-slate-200/80">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Student Breakdown</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                  <div className="grid grid-cols-2 gap-3">
-                    <p className="text-muted-foreground">
-                      Computed Total:{' '}
-                      <span className="font-medium text-slate-900">
-                        {selectedStudentDetail.course_total?.computed !== null &&
-                        selectedStudentDetail.course_total?.computed !== undefined
-                          ? selectedStudentDetail.course_total.computed.toFixed(1)
-                          : 'Pending'}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      Effective Total:{' '}
-                      <span className="font-medium text-slate-900">
-                        {selectedStudentDetail.course_total?.effective !== null &&
-                        selectedStudentDetail.course_total?.effective !== undefined
-                          ? selectedStudentDetail.course_total.effective.toFixed(1)
-                          : 'Pending'}
-                      </span>
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Source: {selectedStudentDetail.course_total?.source || 'pending'}
-                  </p>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="course-override-grade">Override Course Total (0-100)</Label>
-                    <Input
-                      id="course-override-grade"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={courseOverrideGrade}
-                      onChange={(e) => setCourseOverrideGrade(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Leave empty to clear the course total override.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="course-override-reason">Reason</Label>
-                    <Input
-                      id="course-override-reason"
-                      value={courseOverrideReason}
-                      onChange={(e) => setCourseOverrideReason(e.target.value)}
-                      placeholder="Explain why this override is needed"
-                    />
-                  </div>
-
-                  <DialogFooter className="pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setCourseOverrideGrade('')
-                        setCourseOverrideReason('')
-                      }}
-                      disabled={saving}
-                    >
-                      Clear Form
-                    </Button>
-                    <Button onClick={handleSaveCourseTotalOverride} disabled={saving}>
-                      Save Course Override
-                    </Button>
-                  </DialogFooter>
+                <CardContent className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <th className="p-3 text-left">Student</th>
+                        <th className="p-3 text-left">Submission</th>
+                        <th className="p-3 text-left">Peer Eval</th>
+                        <th className="p-3 text-left">Computed</th>
+                        <th className="p-3 text-left">Penalty</th>
+                        <th className="p-3 text-left">Grade</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedAssignmentDetail.students.map((s) => (
+                        <tr key={s.student_id} className="border-b last:border-b-0 hover:bg-slate-50/50">
+                          <td className="p-3">
+                            <button
+                              className="font-medium text-blue-700 hover:underline text-left"
+                              onClick={() => {
+                                setAssignmentDialogOpen(false)
+                                setSelectedStudentId(s.student_id)
+                                setStudentDialogOpen(true)
+                              }}
+                            >
+                              {s.student_name}
+                            </button>
+                            {s.student_number && (
+                              <p className="text-xs text-muted-foreground">{s.student_number}</p>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <Badge className={`ring-1 ${submissionBadgeClass(s.entry.submission_status)}`}>
+                              {s.entry.submission_status}
+                            </Badge>
+                          </td>
+                          <td className="p-3">
+                            <Badge className={`ring-1 ${evalBadgeClass(s.entry.peer_evaluation.status)}`}>
+                              {s.entry.peer_evaluation.completed}/{s.entry.peer_evaluation.expected}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-slate-700">
+                            {s.entry.computed_grade != null ? `${s.entry.computed_grade.toFixed(1)}%` : '—'}
+                          </td>
+                          <td className="p-3 text-slate-700">
+                            {s.entry.penalty_applied_percent > 0 ? `−${s.entry.penalty_applied_percent}%` : '—'}
+                          </td>
+                          <td className="p-3">
+                            <span className={`font-semibold ${s.entry.grade_source === 'override' ? 'text-amber-700' : 'text-slate-900'}`}>
+                              {s.entry.effective_grade != null ? `${s.entry.effective_grade.toFixed(1)}%` : <span className="text-muted-foreground">Pending</span>}
+                            </span>
+                            {s.entry.grade_source === 'override' && (
+                              <p className="text-xs text-amber-600">override</p>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {selectedAssignmentDetail.students.length === 0 && (
+                    <p className="py-6 text-center text-sm text-muted-foreground">No students enrolled yet.</p>
+                  )}
                 </CardContent>
               </Card>
-            )}
+            </div>
+          )}
           </div>
         </DialogContent>
       </Dialog>

@@ -38,3 +38,8 @@
 - Should there be different types of assignemnts? (If so what are the types)
 
 - Error handling should be more responsive? Ex, if im a teacher with a long list of assignments and i have an error creating a new assignment i cant see it. 
+
+
+
+- Show assignments in each assignment per student for grade book 
+0-  

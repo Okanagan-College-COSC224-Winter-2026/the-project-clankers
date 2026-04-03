@@ -548,8 +548,8 @@ def upsert_grade_override(class_id):
         return jsonify({"msg": "Grade override cleared"}), 200
 
     grade_value = float(override_grade)
-    if grade_value < 0 or grade_value > 100:
-        return jsonify({"msg": "override_grade must be between 0 and 100"}), 400
+    if grade_value < 0:
+        return jsonify({"msg": "override_grade must be 0 or greater"}), 400
 
     if existing:
         existing.override_grade = grade_value
