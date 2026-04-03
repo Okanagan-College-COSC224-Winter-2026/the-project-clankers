@@ -419,7 +419,7 @@ export default function ClassStudentSubmissions() {
                         </p>
                       ) : isGroupAssignment ? (
                         // Group assignment table
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto rounded-lg border border-border">
                           <table className="w-full border-collapse">
                             <thead>
                               <tr className="border-b border-border">
@@ -460,7 +460,7 @@ export default function ClassStudentSubmissions() {
                         </div>
                       ) : (
                         // Individual assignment table
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto rounded-lg border border-border">
                           <table className="w-full border-collapse">
                             <thead>
                               <tr className="border-b border-border">

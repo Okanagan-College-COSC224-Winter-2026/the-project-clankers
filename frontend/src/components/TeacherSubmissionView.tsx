@@ -420,7 +420,7 @@ export default function TeacherSubmissionView({
 
                     {/* Expanded Member Details */}
                     {isExpanded && (
-                      <div>
+                      <div className="rounded-lg border border-gray-200 overflow-hidden">
                         <table className="w-full border-collapse">
                           <thead>
                             <tr className="bg-gray-100">
@@ -501,8 +501,8 @@ export default function TeacherSubmissionView({
         ) : (
           // Render individual submissions table
           studentsWithSubmissions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden ring-1 ring-foreground/10">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full border-collapse bg-white">
                 <thead>
                   <tr className="bg-gray-100 border-b-2 border-gray-200">
                     <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Name</th>
