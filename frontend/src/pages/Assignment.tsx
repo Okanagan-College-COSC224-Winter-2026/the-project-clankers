@@ -143,11 +143,8 @@ export default function Assignment() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
-    // Parse as local time (backend stores times without timezone indicator)
-    const [date, time] = dateString.split('T');
-    const [year, month, day] = date.split('-');
-    const [hour, minute] = time.split(':');
-    const localDate = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+    // Backend sends ISO 8601 format with timezone (e.g., 2026-04-04T00:25:42.609771+00:00)
+    const localDate = new Date(dateString);
 
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
@@ -157,16 +154,13 @@ export default function Assignment() {
       hour: '2-digit',
       minute: '2-digit'
     };
-    return localDate.toLocaleDateString('en-US', options);
+    return localDate.toLocaleString('en-US', options);
   };
 
   const calculateTimeRemaining = (dueDate: string | null) => {
     if (!dueDate) return "N/A";
-    // Parse as local time (backend stores times without timezone indicator)
-    const [date, time] = dueDate.split('T');
-    const [year, month, day] = date.split('-');
-    const [hour, minute] = time.split(':');
-    const due = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+    // Backend sends ISO 8601 format with timezone
+    const due = new Date(dueDate);
     const now = new Date();
     const diff = due.getTime() - now.getTime();
 

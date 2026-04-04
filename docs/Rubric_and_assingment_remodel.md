@@ -163,10 +163,15 @@ This installs:
 - Resolved error when opening "Create Assignment" dialog
 
 ### Timezone Handling
-- Fixed date display issue where times showed UTC-adjusted values instead of local time
-- Backend stores times without timezone indicator (e.g., `"2026-04-19T23:59:00"`)
-- Frontend now manually parses as local time instead of treating as UTC
-- Resolves 5+ hour time differences for PST users and others
+- Fixed date display issue where times showed incorrect timezone shifts
+- **Problem**: Backend sends ISO 8601 format with UTC timezone indicator (e.g., `"2026-04-04T00:25:42.609771+00:00"`)
+- **Initial attempt**: Manually parsed date/time parts as local time - caused 7+ hour shifts
+- **Solution**: Use native Date parsing with `new Date(dateString)` - correctly handles ISO 8601 with timezone info
+- **Affected components**:
+  - `formatDate()` in `Assignment.tsx` - Used for "Last modified" and file submission timestamps
+  - `calculateTimeRemaining()` in `Assignment.tsx` - Used for "Time remaining" display
+- **Result**: Times now display correctly in user's local timezone (e.g., "Friday, April 3, 2026 at 5:25 PM" instead of "Saturday, April 4, 2026 at 12:25 AM")
+- **Location**: `frontend/src/pages/Assignment.tsx` lines 144-161 and 163-191
 
 ### TypeScript Configuration
 - Removed `"ignoreDeprecations": "6.0"` from `frontend/tsconfig.app.json` (was causing compilation errors)
@@ -507,3 +512,65 @@ Enhanced the rubric import feature on the RubricCreator component with better UX
 - ✅ One-click import - no extra "Save" step needed
 - ✅ Automatic page reload shows updated criteria immediately
 - ✅ Better error handling keeps UI clean and responsive
+
+## Timezone Display Fix (Fixed 2026-04-03)
+
+### What Was Fixed
+Submission timestamps in the "Submission Details" section (Last modified, File submission, Text submission) were showing incorrect times shifted by 7+ hours. For example, a submission at 5:25 PM on April 3 was displaying as 12:25 AM on April 4.
+
+### Root Cause
+- Backend sends datetime strings in ISO 8601 format with UTC timezone indicator: `"2026-04-04T00:25:42.609771+00:00"`
+- Previous implementation attempted to manually parse the date/time parts and treat them as local time
+- This bypassed the timezone indicator and caused a 7-hour shift (UTC-7 for Pacific Daylight Time)
+
+### Solution Implemented
+- Reverted to native JavaScript `Date` parsing: `new Date(dateString)`
+- JavaScript's Date constructor properly handles ISO 8601 strings with timezone indicators
+- Automatically converts UTC time to user's local timezone for display
+
+### Code Changes
+**File**: `frontend/src/pages/Assignment.tsx`
+
+**1. formatDate() function (lines 144-161)**
+```typescript
+const formatDate = (dateString: string) => {
+  if (!dateString) return "N/A";
+  // Backend sends ISO 8601 format with timezone (e.g., 2026-04-04T00:25:42.609771+00:00)
+  const localDate = new Date(dateString);
+
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  };
+  return localDate.toLocaleString('en-US', options);
+};
+```
+
+**2. calculateTimeRemaining() function (lines 163-191)**
+```typescript
+const calculateTimeRemaining = (dueDate: string | null) => {
+  if (!dueDate) return "N/A";
+  // Backend sends ISO 8601 format with timezone
+  const due = new Date(dueDate);
+  const now = new Date();
+  const diff = due.getTime() - now.getTime();
+  // ... rest of calculation remains the same
+};
+```
+
+### Impact
+- ✅ Submission timestamps now display correctly in user's local timezone
+- ✅ "Last modified" shows accurate date/time
+- ✅ "File submission" timestamps are accurate
+- ✅ "Text submission" timestamps are accurate
+- ✅ "Time remaining" calculations are accurate
+- ✅ Works correctly for all timezones (PST, EST, UTC, etc.)
+
+### Testing
+- Submitted assignment at 5:25 PM Pacific on April 3, 2026
+- Backend recorded as UTC: 2026-04-04T00:25:42Z (12:25 AM UTC on April 4)
+- Frontend now correctly displays: "Friday, April 3, 2026 at 5:25 PM"
