@@ -74,6 +74,13 @@ def create_assignment():
     if not assignment_name:
         return jsonify({"msg": "Assignment name is required"}), 400
 
+    if due_date and peer_review_start_date and peer_review_start_date < due_date:
+        return jsonify({"msg": "Peer review start date cannot be before the due date"}), 400
+    if due_date and peer_review_due_date and peer_review_due_date < due_date:
+        return jsonify({"msg": "Peer review due date cannot be before the due date"}), 400
+    if peer_review_start_date and peer_review_due_date and peer_review_due_date < peer_review_start_date:
+        return jsonify({"msg": "Peer review due date cannot be before the peer review start date"}), 400
+
     email = get_jwt_identity()
     user = User.get_by_email(email)
     if not user:
@@ -131,10 +138,6 @@ def edit_assignment(assignment_id):
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
-    # Check if assignment can still be modified (before due date)
-    if not assignment.can_modify():
-        return jsonify({"msg": "Assignment cannot be modified after its due date"}), 400
-
     assignment.name = data.get("name", assignment.name)
     assignment.rubric_text = data.get("rubric", assignment.rubric_text)
 
@@ -176,6 +179,16 @@ def edit_assignment(assignment_id):
     elif "peer_review_due_date" in data and peer_review_due_date is None:
         assignment.peer_review_due_date = None
 
+    effective_due = assignment.due_date
+    effective_pr_start = assignment.peer_review_start_date
+    effective_pr_due = assignment.peer_review_due_date
+    if effective_due and effective_pr_start and effective_pr_start < effective_due:
+        return jsonify({"msg": "Peer review start date cannot be before the due date"}), 400
+    if effective_due and effective_pr_due and effective_pr_due < effective_due:
+        return jsonify({"msg": "Peer review due date cannot be before the due date"}), 400
+    if effective_pr_start and effective_pr_due and effective_pr_due < effective_pr_start:
+        return jsonify({"msg": "Peer review due date cannot be before the peer review start date"}), 400
+
     assignment.update()
     return (
         jsonify(
@@ -205,9 +218,6 @@ def delete_assignment(assignment_id):
     
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
-
-    if not assignment.can_modify():
-        return jsonify({"msg": "Assignment cannot be deleted after its due date"}), 400
 
     assignment.delete()
     return jsonify({"msg": "Assignment deleted"}), 200

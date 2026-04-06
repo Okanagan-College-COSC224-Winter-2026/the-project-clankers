@@ -1040,9 +1040,12 @@ export const getAssignmentDetails = async (assignmentId: number) => {
 
 export const editAssignment = async (assignmentId: number, data: {
   name?: string,
+  description?: string,
   rubric?: string,
   start_date?: string,
   due_date?: string,
+  peer_review_start_date?: string,
+  peer_review_due_date?: string,
   submission_type?: string,
   internal_review?: boolean,
   external_review?: boolean,
@@ -1404,13 +1407,17 @@ export const deleteAssignmentFile = async (fileId: number) => {
 // ================================
 
 // Upload a student submission file or text
-export const uploadStudentSubmission = async (assignmentId: number, fileOrText?: File | string) => {
+export const uploadStudentSubmission = async (
+  assignmentId: number,
+  options: { file?: File; text?: string }
+) => {
   const formData = new FormData();
 
-  if (fileOrText instanceof File) {
-    formData.append('file', fileOrText);
-  } else if (typeof fileOrText === 'string') {
-    formData.append('submissionText', fileOrText);
+  if (options.file) {
+    formData.append('file', options.file);
+  }
+  if (options.text) {
+    formData.append('submissionText', options.text);
   }
 
   const response = await fetch(`${BASE_URL}/submissions/upload/${assignmentId}`, {
@@ -1465,6 +1472,35 @@ export const getPeerReviewSubmissions = async (assignmentId: number, targetId: n
   return data.submissions || [];
 };
 
+export interface ReviewTarget {
+  id: number;
+  name: string;
+  has_submitted: boolean;
+  is_late: boolean;
+}
+
+export interface ReviewTargetsResponse {
+  reviewer_eligible: boolean;
+  internal_targets: ReviewTarget[];
+  external_targets: ReviewTarget[];
+}
+
+export const getReviewTargets = async (assignmentId: number): Promise<ReviewTargetsResponse> => {
+  const response = await fetch(`${BASE_URL}/review-targets/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 // Download a student submission file
 export const downloadStudentSubmission = async (submissionId: number) => {
   const response = await fetch(`${BASE_URL}/submissions/download/${submissionId}`, {
@@ -1481,6 +1517,39 @@ export const downloadStudentSubmission = async (submissionId: number) => {
 
   // Return the blob for download
   return response.blob();
+};
+
+// Edit a student submission (update text and/or replace file)
+export const editStudentSubmission = async (
+  submissionId: number,
+  options: { text?: string; file?: File; removeFile?: boolean }
+) => {
+  const formData = new FormData();
+
+  if (options.text !== undefined) {
+    formData.append('submissionText', options.text);
+  }
+  if (options.file) {
+    formData.append('file', options.file);
+  }
+  if (options.removeFile) {
+    formData.append('removeFile', 'true');
+  }
+
+  const response = await fetch(`${BASE_URL}/submissions/${submissionId}`, {
+    method: 'PUT',
+    body: formData,
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
 };
 
 // Delete a student submission

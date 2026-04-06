@@ -15,8 +15,60 @@ from ..models import (
     CriterionSchema,
     Group_Members,
     CourseGroup,
+    StudentSubmission,
+    User_Course,
 )
 from ..models.db import db
+
+
+def _has_submission(assignment_id, student_id):
+    """Check if a student has at least one submission for the assignment."""
+    return (
+        StudentSubmission.query.filter_by(
+            assignment_id=assignment_id, student_id=student_id
+        ).first()
+        is not None
+    )
+
+
+def _has_group_submission(assignment_id, group_id):
+    """Check if any member of a group has submitted for the assignment."""
+    member_ids = [
+        m.userID for m in Group_Members.query.filter_by(groupID=group_id).all()
+    ]
+    if not member_ids:
+        return False
+    return (
+        StudentSubmission.query.filter(
+            StudentSubmission.assignment_id == assignment_id,
+            StudentSubmission.student_id.in_(member_ids),
+        ).first()
+        is not None
+    )
+
+
+def _is_late_submission(assignment_id, student_id, due_date):
+    """Check if ALL of a student's submissions were after the due date."""
+    if due_date is None:
+        return False
+    submissions = StudentSubmission.query.filter_by(
+        assignment_id=assignment_id, student_id=student_id
+    ).all()
+    if not submissions:
+        return False
+    # If at least one submission was on time, it's not considered late
+    from datetime import timezone as tz
+    for sub in submissions:
+        sub_time = sub.submitted_at
+        if sub_time.tzinfo is None:
+            from datetime import timezone as tz2
+            sub_time = sub_time.replace(tzinfo=tz2.utc)
+        due_aware = due_date
+        if due_aware.tzinfo is None:
+            due_aware = due_aware.replace(tzinfo=tz2.utc)
+        if sub_time <= due_aware:
+            return False
+    return True
 
 bp = Blueprint("review", __name__, url_prefix="")
 
@@ -61,7 +113,11 @@ def create_review():
     # Check if peer review period is available
     if not assignment.is_peer_review_available():
         if not assignment.is_peer_review_started():
-            return jsonify({"msg": "Peer reviews are not yet available for this assignment"}), 403
+            msg = "Peer reviews are not yet available for this assignment"
+            resp = {"msg": msg}
+            if assignment.peer_review_start_date:
+                resp["peer_review_start_date"] = assignment.peer_review_start_date.isoformat()
+            return jsonify(resp), 403
         else:
             return jsonify({"msg": "Peer review deadline has passed"}), 403
 
@@ -80,6 +136,25 @@ def create_review():
         # For user reviews, verify authenticated user matches reviewer
         if user.id != reviewer_id:
             return jsonify({"msg": "Unauthorized"}), 403
+
+    # ── Submission-based guards ──────────────────────────────────
+    # 1. Reviewer must have submitted (individual) or their group
+    #    must have a submission (group) to be allowed to review.
+    if reviewer_type == 'group':
+        if not _has_group_submission(assignment_id, reviewer_id):
+            return jsonify({"msg": "Your group has not submitted this assignment. You must submit before reviewing others."}), 403
+    else:
+        if not _has_submission(assignment_id, user.id):
+            return jsonify({"msg": "You have not submitted this assignment. You must submit before reviewing others."}), 403
+
+    # 2. Reviewee must have submitted — you cannot review someone
+    #    who has not submitted.
+    if reviewee_type == 'group':
+        if not _has_group_submission(assignment_id, reviewee_id):
+            return jsonify({"msg": "This group has not submitted the assignment and cannot be reviewed."}), 403
+    else:
+        if not _has_submission(assignment_id, reviewee_id):
+            return jsonify({"msg": "This student has not submitted the assignment and cannot be reviewed."}), 403
 
     # Check if a review already exists for this combination
     existing_review = Review.query.filter_by(
@@ -543,3 +618,94 @@ def _calculate_review_grade(review, assignment):
         return None
 
     return total_percentage / count
+
+
+@bp.route("/review-targets/<int:assignment_id>", methods=["GET"])
+@jwt_required()
+def get_review_targets(assignment_id):
+    """Return filtered review targets that have submitted, plus reviewer eligibility."""
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course_id = assignment.courseID
+    is_group = assignment.submission_type == "group"
+
+    # Check if the current user/group has submitted
+    reviewer_eligible = True
+    user_group_id = None
+
+    if is_group:
+        membership = Group_Members.query.filter_by(userID=user.id).join(
+            CourseGroup, CourseGroup.id == Group_Members.groupID
+        ).filter(CourseGroup.courseID == course_id).first()
+        if membership:
+            user_group_id = membership.groupID
+            if not _has_group_submission(assignment_id, user_group_id):
+                reviewer_eligible = False
+        else:
+            reviewer_eligible = False
+    else:
+        if not _has_submission(assignment_id, user.id):
+            reviewer_eligible = False
+
+    due_date = assignment.due_date
+
+    # Build internal targets (group members, excluding self)
+    internal_targets = []
+    if is_group and user_group_id:
+        members = Group_Members.query.filter_by(groupID=user_group_id).all()
+        for m in members:
+            if m.userID == user.id:
+                continue
+            member_user = User.get_by_id(m.userID)
+            has_sub = _has_submission(assignment_id, m.userID)
+            internal_targets.append({
+                "id": m.userID,
+                "name": member_user.name if member_user else f"User {m.userID}",
+                "has_submitted": has_sub,
+                "is_late": _is_late_submission(assignment_id, m.userID, due_date) if has_sub else False,
+            })
+
+    # Build external targets
+    external_targets = []
+    if is_group:
+        # External targets are other groups in the course
+        groups = CourseGroup.query.filter_by(courseID=course_id).all()
+        for g in groups:
+            if g.id == user_group_id:
+                continue
+            has_sub = _has_group_submission(assignment_id, g.id)
+            external_targets.append({
+                "id": g.id,
+                "name": g.name or f"Group {g.id}",
+                "has_submitted": has_sub,
+                "is_late": False,  # Group-level late check is complex; omit for now
+            })
+    else:
+        # External targets are other students enrolled in the course
+        enrollments = User_Course.query.filter_by(courseID=course_id).all()
+        for uc in enrollments:
+            if uc.userID == user.id:
+                continue
+            target_user = User.get_by_id(uc.userID)
+            if not target_user or target_user.role != "student":
+                continue
+            has_sub = _has_submission(assignment_id, uc.userID)
+            external_targets.append({
+                "id": uc.userID,
+                "name": target_user.name or target_user.email,
+                "has_submitted": has_sub,
+                "is_late": _is_late_submission(assignment_id, uc.userID, due_date) if has_sub else False,
+            })
+
+    return jsonify({
+        "reviewer_eligible": reviewer_eligible,
+        "internal_targets": internal_targets,
+        "external_targets": external_targets,
+    }), 200

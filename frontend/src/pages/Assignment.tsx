@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
-import { Settings, FileStack, Upload, ChevronRight } from "lucide-react";
+import { Settings, FileStack, Upload, ChevronRight, ClipboardList } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
@@ -263,6 +263,10 @@ export default function Assignment() {
 
       {isRubricTab ? (
         <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <ClipboardList className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Rubric</h3>
+          </div>
           <Card>
             <CardContent className="p-4">
               <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
@@ -298,7 +302,9 @@ export default function Assignment() {
         <AssignmentGradebookView assignmentId={Number(id)} />
       ) : isPeerReviewsTab && !isTeacher() ? (
         /* Student peer reviews tab */
-        <PeerReviews />
+        <div className="flex-1 space-y-6 p-6">
+          <PeerReviews />
+        </div>
       ) : (
         /* Home tab - default view */
         <div className="flex-1 space-y-6 p-6">

@@ -10,6 +10,12 @@ import AssignmentCard from '../components/AssignmentCard'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import { listAssignments, listClasses, createAssignment } from '../util/api'
+
+const toDatetimeLocal = (iso: string): string => {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 import { isTeacher, isAdmin } from '../util/login'
 import { Plus, FileText } from 'lucide-react'
 
@@ -32,6 +38,7 @@ export default function ClassHome() {
   const [statusMessage, setStatusMessage] = useState('')
   const [statusType, setStatusType] = useState<'error' | 'success'>('error')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [createError, setCreateError] = useState('')
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
@@ -50,6 +57,28 @@ export default function ClassHome() {
   const tryCreateAssignment = async () => {
     try {
       setStatusMessage('')
+      setCreateError('')
+
+      if ((peerReviewStartDate || peerReviewDueDate) && !dueDate) {
+        setCreateError('A due date must be set before setting peer review dates')
+        return
+      }
+
+      if (dueDate && peerReviewStartDate && new Date(peerReviewStartDate) < new Date(dueDate)) {
+        setCreateError('Peer review start date cannot be before the due date')
+        return
+      }
+
+      if (dueDate && peerReviewDueDate && new Date(peerReviewDueDate) < new Date(dueDate)) {
+        setCreateError('Peer review due date cannot be before the due date')
+        return
+      }
+
+      if (peerReviewStartDate && peerReviewDueDate && new Date(peerReviewDueDate) < new Date(peerReviewStartDate)) {
+        setCreateError('Peer review due date cannot be before the peer review start date')
+        return
+      }
+
       const response = await createAssignment(
         idNew,
         newAssignmentName,
@@ -85,8 +114,7 @@ export default function ClassHome() {
       setStatusMessage('Assignment created successfully!')
     } catch (error) {
       console.error('Error creating assignment:', error)
-      setStatusType('error')
-      setStatusMessage('Error creating assignment.')
+      setCreateError('Error creating assignment.')
     }
   }
 
@@ -124,7 +152,7 @@ export default function ClassHome() {
             </h3>
             {isTeacher() && (
               <Button
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={() => { setCreateError(''); setIsCreateDialogOpen(true) }}
                 size="sm"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -157,6 +185,8 @@ export default function ClassHome() {
             <DialogTitle>Create New Assignment</DialogTitle>
           </DialogHeader>
 
+          {createError && <StatusMessage message={createError} type="error" />}
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="assignmentName">Assignment Name</Label>
@@ -181,42 +211,88 @@ export default function ClassHome() {
 
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date (Optional)</Label>
-              <Input
-                id="startDate"
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              {startDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="startDate"
+                    type="datetime-local"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setStartDate('')} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setStartDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="dueDate">Due Date (Optional)</Label>
-              <Input
-                id="dueDate"
-                type="datetime-local"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+              {dueDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="dueDate"
+                    type="datetime-local"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setDueDate(''); setPeerReviewStartDate(''); setPeerReviewDueDate(''); }} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setDueDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="peerReviewStartDate">Peer Review Start Date (Optional)</Label>
-              <Input
-                id="peerReviewStartDate"
-                type="datetime-local"
-                value={peerReviewStartDate}
-                onChange={(e) => setPeerReviewStartDate(e.target.value)}
-              />
+              {peerReviewStartDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="peerReviewStartDate"
+                    type="datetime-local"
+                    value={peerReviewStartDate}
+                    onChange={(e) => setPeerReviewStartDate(e.target.value)}
+                    min={dueDate || undefined}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setPeerReviewStartDate(''); setPeerReviewDueDate(''); }} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{dueDate ? 'Not set' : 'Set due date first'}</span>
+                  <Button type="button" variant="outline" size="sm" disabled={!dueDate} onClick={() => setPeerReviewStartDate(dueDate)}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="peerReviewDueDate">Peer Review Due Date (Optional)</Label>
-              <Input
-                id="peerReviewDueDate"
-                type="datetime-local"
-                value={peerReviewDueDate}
-                onChange={(e) => setPeerReviewDueDate(e.target.value)}
-              />
+              {peerReviewDueDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="peerReviewDueDate"
+                    type="datetime-local"
+                    value={peerReviewDueDate}
+                    onChange={(e) => setPeerReviewDueDate(e.target.value)}
+                    min={peerReviewStartDate || dueDate || undefined}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPeerReviewDueDate('')} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{dueDate ? 'Not set' : 'Set due date first'}</span>
+                  <Button type="button" variant="outline" size="sm" disabled={!dueDate} onClick={() => setPeerReviewDueDate(peerReviewStartDate || dueDate)}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -291,6 +367,7 @@ export default function ClassHome() {
             <Button
               onClick={() => {
                 setIsCreateDialogOpen(false)
+                setCreateError('')
                 setNewAssignmentName('')
                 setSubmissionType('individual')
                 setInternalReview(false)

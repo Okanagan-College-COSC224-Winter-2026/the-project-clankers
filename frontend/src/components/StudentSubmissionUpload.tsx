@@ -1,5 +1,5 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
-import { uploadStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile } from "../util/api";
+import { uploadStudentSubmission, editStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile } from "../util/api";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
@@ -35,9 +35,15 @@ export default function StudentSubmissionUpload({
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [submissionMode, setSubmissionMode] = useState<'file' | 'text'>('file');
   const [textInput, setTextInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [editingSubmission, setEditingSubmission] = useState<StudentSubmission | null>(null);
+  const [editTextInput, setEditTextInput] = useState('');
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editRemoveFile, setEditRemoveFile] = useState(false);
+  const [isEditDragging, setIsEditDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const allowedExtensions = ["pdf", "docx", "txt", "zip"];
   const maxFileSize = 50 * 1024 * 1024; // 50MB
@@ -93,29 +99,12 @@ export default function StudentSubmissionUpload({
       setUploadError(error);
       return;
     }
-
-    setIsUploading(true);
-    setUploadError(null);
-    setUploadSuccess(false);
-
-    try {
-      await uploadStudentSubmission(assignmentId, file);
-      setUploadSuccess(true);
-      setUploadError(null);
-      await loadSubmissions(); // Reload the submission list
-      // Clear success message after 3 seconds
-      setTimeout(() => setUploadSuccess(false), 3000);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed");
-      setUploadSuccess(false);
-    } finally {
-      setIsUploading(false);
-    }
+    setSelectedFile(file);
   };
 
-  const handleTextSubmit = async () => {
-    if (!textInput.trim()) {
-      setUploadError("Please enter some text");
+  const handleSubmit = async () => {
+    if (!selectedFile && !textInput.trim()) {
+      setUploadError("Please provide a file and/or text");
       return;
     }
 
@@ -124,15 +113,18 @@ export default function StudentSubmissionUpload({
     setUploadSuccess(false);
 
     try {
-      await uploadStudentSubmission(assignmentId, textInput);
+      await uploadStudentSubmission(assignmentId, {
+        file: selectedFile || undefined,
+        text: textInput.trim() || undefined,
+      });
       setUploadSuccess(true);
       setUploadError(null);
       setTextInput('');
-      await loadSubmissions(); // Reload the submission list
-      // Clear success message after 3 seconds
+      setSelectedFile(null);
+      await loadSubmissions();
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Submission failed");
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
       setUploadSuccess(false);
     } finally {
       setIsUploading(false);
@@ -180,6 +172,64 @@ export default function StudentSubmissionUpload({
 
   const handleBrowseClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleEditSave = async () => {
+    if (!editingSubmission) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      await editStudentSubmission(editingSubmission.id, {
+        text: editTextInput,
+        file: editFile || undefined,
+        removeFile: editRemoveFile && !editFile,
+      });
+      setEditingSubmission(null);
+      setEditTextInput('');
+      setEditFile(null);
+      setEditRemoveFile(false);
+      setUploadSuccess(true);
+      await loadSubmissions();
+      setTimeout(() => setUploadSuccess(false), 3000);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Edit failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleEditFileInput = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      const error = validateFile(selectedFiles[0]);
+      if (error) {
+        setUploadError(error);
+        return;
+      }
+      setEditFile(selectedFiles[0]);
+      setEditRemoveFile(false);
+    }
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = '';
+    }
+  };
+
+  const startEditing = (submission: StudentSubmission) => {
+    setEditingSubmission(submission);
+    setEditTextInput(submission.submission_text || '');
+    setEditFile(null);
+    setEditRemoveFile(false);
+    setIsEditDragging(false);
+    setUploadError(null);
+  };
+
+  const cancelEditing = () => {
+    setEditingSubmission(null);
+    setEditTextInput('');
+    setEditFile(null);
+    setEditRemoveFile(false);
+    setIsEditDragging(false);
   };
 
   const handleDelete = async (submissionId: number) => {
@@ -259,7 +309,8 @@ export default function StudentSubmissionUpload({
             {submissions.map((submission) => {
               const isOwnSubmission = currentUserId === submission.student_id;
               const isGroupAssignment = assignment?.submission_type === 'group';
-              const isTextSubmission = !submission.filename;
+              const hasFile = !!submission.filename;
+              const hasText = !!submission.submission_text;
               const status = getSubmissionStatus(submission.submitted_at);
 
               return (
@@ -267,11 +318,14 @@ export default function StudentSubmissionUpload({
                   <div className="flex flex-col gap-3 w-full">
                     {/* File name and icon */}
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{isTextSubmission ? '📝' : '📄'}</span>
+                      <span className="text-2xl">{hasFile ? '📄' : '📝'}</span>
                       <div className="flex-1">
                         <div className="text-base font-semibold mb-1">
-                          {isTextSubmission ? 'Text Submission' : submission.filename}
+                          {hasFile ? submission.filename : 'Text Submission'}
                         </div>
+                        {hasFile && hasText && (
+                          <div className="text-xs text-muted-foreground">Includes text submission</div>
+                        )}
                       </div>
                     </div>
 
@@ -296,21 +350,120 @@ export default function StudentSubmissionUpload({
                     </div>
 
                     {/* Text submission display */}
-                    {isTextSubmission && (
+                    {hasText && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md max-h-40 overflow-y-auto">
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.submission_text || 'No text content'}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.submission_text}</p>
+                      </div>
+                    )}
+
+                    {/* Edit form (inline) */}
+                    {editingSubmission?.id === submission.id && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md space-y-3">
+                        {/* Text editor */}
+                        <div>
+                          <label className="text-sm font-medium">Text (optional):</label>
+                          <textarea
+                            value={editTextInput}
+                            onChange={(e) => setEditTextInput(e.target.value)}
+                            placeholder="Add or edit your text submission..."
+                            className="w-full min-h-[120px] p-2 border border-gray-300 rounded resize-vertical focus:border-green-500 focus:outline-none text-sm mt-1"
+                          />
+                        </div>
+
+                        {/* File section */}
+                        <div>
+                          <label className="text-sm font-medium">File (optional):</label>
+                          {submission.filename && !editRemoveFile && !editFile && (
+                            <div className="flex items-center gap-2 mt-1 p-2 bg-white rounded border text-sm">
+                              <span>📄 {submission.filename}</span>
+                              <Button size="sm" variant="destructive" className="h-6 text-xs"
+                                onClick={() => setEditRemoveFile(true)}>Remove</Button>
+                            </div>
+                          )}
+                          {(editRemoveFile || !submission.filename) && !editFile && (
+                            <div
+                              className={`mt-1 min-h-[100px] border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-all ${
+                                isEditDragging
+                                  ? "border-green-500 bg-green-50 border-solid"
+                                  : "border-gray-300 hover:border-green-500 hover:bg-blue-50"
+                              }`}
+                              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditDragging(true); }}
+                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditDragging(false); }}
+                              onDrop={(e) => {
+                                e.preventDefault(); e.stopPropagation(); setIsEditDragging(false);
+                                const files = e.dataTransfer.files;
+                                if (files && files.length > 0) {
+                                  const error = validateFile(files[0]);
+                                  if (error) { setUploadError(error); return; }
+                                  setEditFile(files[0]);
+                                  setEditRemoveFile(false);
+                                }
+                              }}
+                            >
+                              <input
+                                type="file"
+                                ref={editFileInputRef}
+                                onChange={handleEditFileInput}
+                                accept=".pdf,.docx,.txt,.zip"
+                                className="hidden"
+                              />
+                              <div className="text-center p-3">
+                                <div className="text-3xl mb-1">📁</div>
+                                <p className="text-sm text-muted-foreground">
+                                  {isEditDragging ? "Drop file here..." : "Drag and drop or"}
+                                </p>
+                                {!isEditDragging && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="mt-1 bg-green-500 hover:bg-green-600 text-white"
+                                    onClick={() => editFileInputRef.current?.click()}
+                                  >
+                                    Browse Files
+                                  </Button>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, TXT, ZIP (Max 50MB)</p>
+                              </div>
+                            </div>
+                          )}
+                          {editFile && (
+                            <div className="flex items-center gap-2 mt-1 p-2 bg-green-50 rounded border border-green-200 text-sm">
+                              <span>📄 {editFile.name} (new)</span>
+                              <Button size="sm" variant="outline" className="h-6 text-xs"
+                                onClick={() => { setEditFile(null); if (editFileInputRef.current) editFileInputRef.current.value = ''; }}>Remove</Button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleEditSave} disabled={isUploading || (!editTextInput.trim() && !editFile && !(submission.filename && !editRemoveFile))}
+                            className="bg-green-500 hover:bg-green-600 text-white">
+                            {isUploading ? 'Saving...' : 'Save Changes'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={cancelEditing}>Cancel</Button>
+                        </div>
                       </div>
                     )}
 
                     {/* Action buttons */}
                     <div className="flex gap-2 items-center">
-                      {!isTextSubmission && (
+                      {hasFile && (
                         <Button
                           variant="default"
                           size="sm"
                           onClick={() => handleDownload(submission.id, submission.filename)}
                         >
                           Download
+                        </Button>
+                      )}
+                      {isOwnSubmission && editingSubmission?.id !== submission.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startEditing(submission)}
+                        >
+                          Edit
                         </Button>
                       )}
                       {isOwnSubmission && (
@@ -341,91 +494,79 @@ export default function StudentSubmissionUpload({
         <div className="mt-5 pt-5 border-t-2 border-gray-300">
           <h4 className="text-lg font-semibold mb-4">Submit New</h4>
 
-          {/* Submission mode tabs */}
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setSubmissionMode('file')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                submissionMode === 'file'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Upload File
-            </button>
-            <button
-              onClick={() => setSubmissionMode('text')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                submissionMode === 'text'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Submit Text
-            </button>
+          {/* Text submission */}
+          <div className="mb-4">
+            <label className="text-sm font-medium mb-1 block">Text (optional)</label>
+            <textarea
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              placeholder="Enter your text submission here..."
+              className="w-full min-h-[120px] p-3 border-2 border-gray-300 rounded-lg resize-vertical focus:border-green-500 focus:outline-none"
+            />
           </div>
 
-          {/* File upload section */}
-          {submissionMode === 'file' ? (
-            <div
-              className={`w-full min-h-[200px] border-3 border-dashed rounded-lg flex items-center justify-center bg-white cursor-pointer transition-all ${
-                isDragging
-                  ? "border-green-500 bg-green-50 border-solid"
-                  : "border-gray-300 hover:border-green-500 hover:bg-blue-50"
-              }`}
-              onDragEnter={handleDragEnter}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileInputChange}
-                accept=".pdf,.docx,.txt,.zip"
-                className="hidden"
-              />
-
-              <div className="text-center p-5">
-                <div className="text-5xl mb-4">📁</div>
-                <p className="text-lg text-muted-foreground my-2.5">
-                  {isDragging ? "Drop file here..." : "Drag and drop a file here"}
-                </p>
-                <p className="text-sm text-muted-foreground my-4">or</p>
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={handleBrowseClick}
-                  disabled={isUploading}
-                  className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white"
-                >
-                  {isUploading ? "Uploading..." : "Browse Files"}
+          {/* File upload */}
+          <div className="mb-4">
+            <label className="text-sm font-medium mb-1 block">File (optional)</label>
+            {selectedFile ? (
+              <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                <span className="text-2xl">📄</span>
+                <span className="flex-1 text-sm font-medium">{selectedFile.name}</span>
+                <Button size="sm" variant="outline" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
+                  Remove
                 </Button>
-                <p className="text-sm text-muted-foreground mt-4">
-                  Allowed types: PDF, DOCX, TXT, ZIP (Max 50MB)
-                </p>
               </div>
-            </div>
-          ) : (
-            /* Text submission section */
-            <div className="space-y-3">
-              <textarea
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Enter your text submission here..."
-                className="w-full min-h-[200px] p-3 border-2 border-gray-300 rounded-lg resize-vertical focus:border-green-500 focus:outline-none"
-              />
-              <Button
-                variant="default"
-                size="lg"
-                onClick={handleTextSubmit}
-                disabled={isUploading || !textInput.trim()}
-                className="w-full bg-green-500 hover:bg-green-600 text-white"
+            ) : (
+              <div
+                className={`w-full min-h-[150px] border-3 border-dashed rounded-lg flex items-center justify-center bg-white cursor-pointer transition-all ${
+                  isDragging
+                    ? "border-green-500 bg-green-50 border-solid"
+                    : "border-gray-300 hover:border-green-500 hover:bg-blue-50"
+                }`}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
               >
-                {isUploading ? "Submitting..." : "Submit Text"}
-              </Button>
-            </div>
-          )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileInputChange}
+                  accept=".pdf,.docx,.txt,.zip"
+                  className="hidden"
+                />
+                <div className="text-center p-5">
+                  <div className="text-4xl mb-2">📁</div>
+                  <p className="text-base text-muted-foreground my-1">
+                    {isDragging ? "Drop file here..." : "Drag and drop a file here"}
+                  </p>
+                  <p className="text-sm text-muted-foreground my-2">or</p>
+                  <Button
+                    variant="default"
+                    size="default"
+                    onClick={handleBrowseClick}
+                    disabled={isUploading}
+                    className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    Browse Files
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Allowed: PDF, DOCX, TXT, ZIP (Max 50MB)
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Button
+            variant="default"
+            size="lg"
+            onClick={handleSubmit}
+            disabled={isUploading || (!textInput.trim() && !selectedFile)}
+            className="w-full bg-green-500 hover:bg-green-600 text-white"
+          >
+            {isUploading ? "Submitting..." : "Submit"}
+          </Button>
         </div>
 
         {uploadError && (
@@ -436,7 +577,7 @@ export default function StudentSubmissionUpload({
 
         {uploadSuccess && (
           <div className="mt-4 p-3 rounded bg-green-50 text-green-800 border border-green-400">
-            {submissionMode === 'text' ? 'Text submitted successfully!' : 'File submitted successfully!'}
+            Submission saved successfully!
           </div>
         )}
       </CardContent>

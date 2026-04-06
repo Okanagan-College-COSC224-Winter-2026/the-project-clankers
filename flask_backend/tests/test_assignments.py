@@ -211,11 +211,11 @@ def test_teacher_can_edit_assignment_before_due_date(test_client, make_admin):
     assert edit_response.json["assignment"]["rubric_text"] == "Thoroughness"
     assert edit_response.json["assignment"]["due_date"] == "2027-11-30T23:59:59"
 
-def test_teacher_cannot_edit_assignment_after_due_date(test_client, make_admin):
+def test_teacher_can_edit_assignment_after_due_date(test_client, make_admin):
     """
     GIVEN a teacher user
     WHEN they try to edit an assignment after its due date
-    THEN the API should return a 400 error
+    THEN the API should allow the edit
     """
     # Use make_admin fixture to create a teacher user
     make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
@@ -257,8 +257,8 @@ def test_teacher_cannot_edit_assignment_after_due_date(test_client, make_admin):
         ),
         headers={"Content-Type": "application/json"},
     )
-    assert edit_response.status_code == 400
-    assert edit_response.json["msg"] == "Assignment cannot be modified after its due date"
+    assert edit_response.status_code == 200
+    assert edit_response.json["assignment"]["name"] == "Updated Painting 1"
 
 def test_non_assigned_teacher_cannot_edit_assignment(test_client, make_admin):
     """
@@ -410,7 +410,7 @@ def test_delete_assignment_after_due_date(test_client, make_admin):
     """
     GIVEN a teacher user
     WHEN they try to delete an assignment after its due date
-    THEN the API should return a 400 error
+    THEN the API should allow the deletion
     """
     # Use make_admin fixture to create a teacher user
     make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
@@ -446,8 +446,8 @@ def test_delete_assignment_after_due_date(test_client, make_admin):
         f"/assignment/delete_assignment/{assignment_id}",
         headers={"Content-Type": "application/json"},
     )
-    assert delete_response.status_code == 400
-    assert delete_response.json["msg"] == "Assignment cannot be deleted after its due date"
+    assert delete_response.status_code == 200
+    assert delete_response.json["msg"] == "Assignment deleted"
 
 def test_non_assigned_teacher_cannot_delete_assignment(test_client, make_admin):
     """

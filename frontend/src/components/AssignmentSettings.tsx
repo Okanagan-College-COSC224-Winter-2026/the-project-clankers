@@ -11,6 +11,12 @@ import StatusMessage from "./StatusMessage";
 import ConfirmDialog from "./ConfirmDialog";
 import { MessageSquare, BarChart2, Trash2 } from "lucide-react";
 
+const toDatetimeLocal = (iso: string): string => {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 interface AssignmentSettingsProps {
   assignmentId: number;
 }
@@ -62,10 +68,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setAssignment(data);
       setEditedName(data.name || "");
       setEditedDescription(data.description || "");
-      setEditedStartDate(data.start_date ? data.start_date.slice(0, 16) : "");
-      setEditedDueDate(data.due_date ? data.due_date.slice(0, 16) : "");
-      setEditedPeerReviewStartDate(data.peer_review_start_date ? data.peer_review_start_date.slice(0, 16) : "");
-      setEditedPeerReviewDueDate(data.peer_review_due_date ? data.peer_review_due_date.slice(0, 16) : "");
+      setEditedStartDate(data.start_date ? toDatetimeLocal(data.start_date) : "");
+      setEditedDueDate(data.due_date ? toDatetimeLocal(data.due_date) : "");
+      setEditedPeerReviewStartDate(data.peer_review_start_date ? toDatetimeLocal(data.peer_review_start_date) : "");
+      setEditedPeerReviewDueDate(data.peer_review_due_date ? toDatetimeLocal(data.peer_review_due_date) : "");
       setEditedSubmissionType((data.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(data.internal_review || false);
       setEditedExternalReview(data.external_review || false);
@@ -90,6 +96,30 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     if (!editedName.trim()) {
       setStatusType('error');
       setStatusMessage("Assignment name is required");
+      return;
+    }
+
+    if ((editedPeerReviewStartDate || editedPeerReviewDueDate) && !editedDueDate) {
+      setStatusType('error');
+      setStatusMessage("A due date must be set before setting peer review dates");
+      return;
+    }
+
+    if (editedDueDate && editedPeerReviewStartDate && new Date(editedPeerReviewStartDate) < new Date(editedDueDate)) {
+      setStatusType('error');
+      setStatusMessage("Peer review start date cannot be before the due date");
+      return;
+    }
+
+    if (editedDueDate && editedPeerReviewDueDate && new Date(editedPeerReviewDueDate) < new Date(editedDueDate)) {
+      setStatusType('error');
+      setStatusMessage("Peer review due date cannot be before the due date");
+      return;
+    }
+
+    if (editedPeerReviewStartDate && editedPeerReviewDueDate && new Date(editedPeerReviewDueDate) < new Date(editedPeerReviewStartDate)) {
+      setStatusType('error');
+      setStatusMessage("Peer review due date cannot be before the peer review start date");
       return;
     }
 
@@ -154,10 +184,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     if (assignment) {
       setEditedName(assignment.name || "");
       setEditedDescription(assignment.description || "");
-      setEditedStartDate(assignment.start_date ? assignment.start_date.slice(0, 16) : "");
-      setEditedDueDate(assignment.due_date ? assignment.due_date.slice(0, 16) : "");
-      setEditedPeerReviewStartDate(assignment.peer_review_start_date ? assignment.peer_review_start_date.slice(0, 16) : "");
-      setEditedPeerReviewDueDate(assignment.peer_review_due_date ? assignment.peer_review_due_date.slice(0, 16) : "");
+      setEditedStartDate(assignment.start_date ? toDatetimeLocal(assignment.start_date) : "");
+      setEditedDueDate(assignment.due_date ? toDatetimeLocal(assignment.due_date) : "");
+      setEditedPeerReviewStartDate(assignment.peer_review_start_date ? toDatetimeLocal(assignment.peer_review_start_date) : "");
+      setEditedPeerReviewDueDate(assignment.peer_review_due_date ? toDatetimeLocal(assignment.peer_review_due_date) : "");
       setEditedSubmissionType((assignment.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(assignment.internal_review || false);
       setEditedExternalReview(assignment.external_review || false);
@@ -260,38 +290,84 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <Label className="text-sm font-medium">Start Date</Label>
-                    <Input
-                      type="date"
-                      value={editedStartDate}
-                      onChange={(e) => setEditedStartDate(e.target.value)}
-                    />
+                    {editedStartDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedStartDate}
+                          onChange={(e) => setEditedStartDate(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditedStartDate("")} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedStartDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label className="text-sm font-medium">Due Date</Label>
-                    <Input
-                      type="date"
-                      value={editedDueDate}
-                      onChange={(e) => setEditedDueDate(e.target.value)}
-                    />
+                    {editedDueDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedDueDate}
+                          onChange={(e) => setEditedDueDate(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => { setEditedDueDate(""); setEditedPeerReviewStartDate(""); setEditedPeerReviewDueDate(""); }} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedDueDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <Label className="text-sm font-medium">Peer Review Start Date</Label>
-                    <Input
-                      type="date"
-                      value={editedPeerReviewStartDate}
-                      onChange={(e) => setEditedPeerReviewStartDate(e.target.value)}
-                    />
+                    {editedPeerReviewStartDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedPeerReviewStartDate}
+                          onChange={(e) => setEditedPeerReviewStartDate(e.target.value)}
+                          min={editedDueDate || undefined}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditedPeerReviewStartDate("")} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewStartDate(editedDueDate || toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label className="text-sm font-medium">Peer Review Due Date</Label>
-                    <Input
-                      type="date"
-                      value={editedPeerReviewDueDate}
-                      onChange={(e) => setEditedPeerReviewDueDate(e.target.value)}
-                    />
+                    {editedPeerReviewDueDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedPeerReviewDueDate}
+                          onChange={(e) => setEditedPeerReviewDueDate(e.target.value)}
+                          min={editedPeerReviewStartDate || editedDueDate || undefined}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditedPeerReviewDueDate("")} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewDueDate(editedPeerReviewStartDate || editedDueDate || toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -347,7 +423,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                   <span className="text-sm font-medium text-muted-foreground">Start Date</span>
                   <span className="text-sm">
                     {assignment.start_date
-                      ? new Date(assignment.start_date).toLocaleDateString()
+                      ? new Date(assignment.start_date).toLocaleString()
                       : "Not set"}
                   </span>
                 </div>
@@ -355,7 +431,23 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                   <span className="text-sm font-medium text-muted-foreground">Due Date</span>
                   <span className="text-sm">
                     {assignment.due_date
-                      ? new Date(assignment.due_date).toLocaleDateString()
+                      ? new Date(assignment.due_date).toLocaleString()
+                      : "Not set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Peer Review Start</span>
+                  <span className="text-sm">
+                    {assignment.peer_review_start_date
+                      ? new Date(assignment.peer_review_start_date).toLocaleString()
+                      : "Not set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Peer Review Due</span>
+                  <span className="text-sm">
+                    {assignment.peer_review_due_date
+                      ? new Date(assignment.peer_review_due_date).toLocaleString()
                       : "Not set"}
                   </span>
                 </div>

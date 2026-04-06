@@ -57,7 +57,7 @@ def create_app(test_config=None):
             "DATABASE_URL", "sqlite:///" + os.path.join(app.instance_path, "app.sqlite")
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret"),
+        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret-key-that-is-at-least-32-bytes"),
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(minutes=jwt_access_expires_minutes),
         # JWT Cookie settings - secure defaults for production, permissive for development
         JWT_TOKEN_LOCATION=["cookies"],
