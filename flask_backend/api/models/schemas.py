@@ -114,7 +114,21 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True  # Include courseID for assignment → course navigation
         sqla_session = db.session
 
-    course = fields.Nested(CourseListSchema, dump_only=True)
+    course = fields.Nested(CourseListSchema, dump_only=True, allow_none=True)
+    description = fields.Str(allow_none=True)
+
+    @pre_dump
+    def ensure_course_loaded(self, obj, **kwargs):
+        """Ensure course is properly loaded before serialization"""
+        if obj and hasattr(obj, 'course'):
+            # Force load the course relationship if it hasn't been loaded yet
+            try:
+                # Access the course to trigger lazy loading
+                _ = obj.course
+            except Exception:
+                # If course can't be loaded, set it to None so serialization doesn't fail
+                obj.course = None
+        return obj
 
 
 class AssignmentFileSchema(ma.SQLAlchemyAutoSchema):

@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import AssignmentCard from '../components/AssignmentCard'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
@@ -63,6 +64,12 @@ export default function ClassHome() {
   const [editedClassName, setEditedClassName] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [studentCount, setStudentCount] = useState(0)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [description, setDescription] = useState('')
+  const [peerReviewStartDate, setPeerReviewStartDate] = useState('')
+  const [peerReviewDueDate, setPeerReviewDueDate] = useState('')
 
   useEffect(() => {
     ;(async () => {
@@ -89,7 +96,12 @@ export default function ClassHome() {
         submissionType,
         internalReview,
         externalReview,
-        anonymousReview
+        anonymousReview,
+        startDate || undefined,
+        dueDate || undefined,
+        description || undefined,
+        peerReviewStartDate || undefined,
+        peerReviewDueDate || undefined
       )
       const createdAssignment = response?.assignment
 
@@ -103,6 +115,12 @@ export default function ClassHome() {
       setInternalReview(false)
       setExternalReview(false)
       setAnonymousReview(false)
+      setStartDate('')
+      setDueDate('')
+      setDescription('')
+      setPeerReviewStartDate('')
+      setPeerReviewDueDate('')
+      setIsCreateDialogOpen(false)
       setStatusType('success')
       setStatusMessage('Assignment created successfully!')
     } catch (error) {
@@ -295,10 +313,21 @@ export default function ClassHome() {
         )}
 
         <div className="space-y-3">
-          <h3 className="flex items-center gap-2 text-lg font-medium">
-            <FileText className="h-5 w-5" />
-            Assignments
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-lg font-medium">
+              <FileText className="h-5 w-5" />
+              Assignments
+            </h3>
+            {isTeacher() && (
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                size="sm"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Assignment
+              </Button>
+            )}
+          </div>
           {assignments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No assignments yet.</p>
           ) : (
@@ -316,100 +345,6 @@ export default function ClassHome() {
             </div>
           )}
         </div>
-
-        {isTeacher() && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Plus className="h-4 w-4" />
-                Create New Assignment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="assignmentName">Assignment Name</Label>
-                <Input
-                  id="assignmentName"
-                  placeholder="Enter assignment name"
-                  value={newAssignmentName}
-                  onChange={(e) => setNewAssignmentName(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Submission Type</Label>
-                <div className="flex gap-4">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="radio"
-                      value="individual"
-                      checked={submissionType === 'individual'}
-                      onChange={(e) => {
-                        setSubmissionType(e.target.value as 'individual')
-                        setInternalReview(false)
-                      }}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm">Individual</span>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="radio"
-                      value="group"
-                      checked={submissionType === 'group'}
-                      onChange={(e) => setSubmissionType(e.target.value as 'group')}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm">Group</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Peer Review Options</Label>
-                <div className="flex flex-wrap gap-4">
-                  {submissionType === 'group' && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="internalReview"
-                        checked={internalReview}
-                        onCheckedChange={(checked) => setInternalReview(!!checked)}
-                      />
-                      <Label htmlFor="internalReview" className="cursor-pointer text-sm font-normal">
-                        Internal Review
-                      </Label>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="externalReview"
-                      checked={externalReview}
-                      onCheckedChange={(checked) => setExternalReview(!!checked)}
-                    />
-                    <Label htmlFor="externalReview" className="cursor-pointer text-sm font-normal">
-                      External Review
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="anonymousReview"
-                      checked={anonymousReview}
-                      onCheckedChange={(checked) => setAnonymousReview(!!checked)}
-                    />
-                    <Label htmlFor="anonymousReview" className="cursor-pointer text-sm font-normal">
-                      Anonymous Reviews
-                    </Label>
-                  </div>
-                </div>
-              </div>
-
-              <Button onClick={tryCreateAssignment}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Assignment
-              </Button>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {uploadError && (
@@ -419,6 +354,169 @@ export default function ClassHome() {
           onClose={() => setUploadError(null)}
         />
       )}
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent showCloseButton={true} className="!max-w-6xl !max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Assignment</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="assignmentName">Assignment Name</Label>
+              <Input
+                id="assignmentName"
+                placeholder="Enter assignment name"
+                value={newAssignmentName}
+                onChange={(e) => setNewAssignmentName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Assignment Details (Optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Enter assignment description (supports markdown formatting)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="resize-none min-h-40 max-h-96 overflow-y-auto"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Start Date (Optional)</Label>
+              <Input
+                id="startDate"
+                type="datetime-local"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dueDate">Due Date (Optional)</Label>
+              <Input
+                id="dueDate"
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="peerReviewStartDate">Peer Review Start Date (Optional)</Label>
+              <Input
+                id="peerReviewStartDate"
+                type="datetime-local"
+                value={peerReviewStartDate}
+                onChange={(e) => setPeerReviewStartDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="peerReviewDueDate">Peer Review Due Date (Optional)</Label>
+              <Input
+                id="peerReviewDueDate"
+                type="datetime-local"
+                value={peerReviewDueDate}
+                onChange={(e) => setPeerReviewDueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Submission Type</Label>
+              <div className="flex gap-4">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    value="individual"
+                    checked={submissionType === 'individual'}
+                    onChange={(e) => {
+                      setSubmissionType(e.target.value as 'individual')
+                      setInternalReview(false)
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">Individual</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    value="group"
+                    checked={submissionType === 'group'}
+                    onChange={(e) => setSubmissionType(e.target.value as 'group')}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">Group</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Peer Review Options</Label>
+              <div className="flex flex-col gap-3">
+                {submissionType === 'group' && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="internalReview"
+                      checked={internalReview}
+                      onCheckedChange={(checked) => setInternalReview(!!checked)}
+                    />
+                    <Label htmlFor="internalReview" className="cursor-pointer text-sm font-normal">
+                      Internal Review
+                    </Label>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="externalReview"
+                    checked={externalReview}
+                    onCheckedChange={(checked) => setExternalReview(!!checked)}
+                  />
+                  <Label htmlFor="externalReview" className="cursor-pointer text-sm font-normal">
+                    External Review
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="anonymousReview"
+                    checked={anonymousReview}
+                    onCheckedChange={(checked) => setAnonymousReview(!!checked)}
+                  />
+                  <Label htmlFor="anonymousReview" className="cursor-pointer text-sm font-normal">
+                    Anonymous Reviews
+                  </Label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsCreateDialogOpen(false)
+                setNewAssignmentName('')
+                setSubmissionType('individual')
+                setInternalReview(false)
+                setExternalReview(false)
+                setAnonymousReview(false)
+                setStartDate('')
+                setDueDate('')
+                setDescription('')
+                setPeerReviewStartDate('')
+                setPeerReviewDueDate('')
+              }}
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button onClick={tryCreateAssignment}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
+import RubricViewModal from "../components/RubricViewModal";
+import ViewSubmissionModal from "../components/ViewSubmissionModal";
 import {
   getAssignmentDetails,
   getUserId,
@@ -16,7 +18,9 @@ import {
   getSubmittedReviews,
   getReceivedReviews,
   SubmittedReviewData,
-  ReceivedReviewData
+  ReceivedReviewData,
+  getPeerReviewSubmissions,
+  downloadStudentSubmission
 } from "../util/api";
 
 interface PeerReviewModalProps {
@@ -49,6 +53,10 @@ function PeerReviewModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [userGroupId, setUserGroupId] = useState<number | null>(null);
+  const [targetSubmissions, setTargetSubmissions] = useState<any[]>([]);
+  const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
+  const [selectedSubmissionForView, setSelectedSubmissionForView] = useState<any>(null);
+  const [isViewSubmissionModalOpen, setIsViewSubmissionModalOpen] = useState(false);
 
   // Rubric and criteria state
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -145,7 +153,10 @@ function PeerReviewModal({
     const member = groupMembers.find(m => m.id === memberId);
     if (member) {
       setSelectedTarget({ ...member, type: 'internal' });
+      setSubmissionsExpanded(false);
       loadExistingReview(currentUserId, memberId, 'user', 'internal');
+      // Load submissions for this member
+      loadTargetSubmissions(memberId, 'user');
     }
   };
 
@@ -153,7 +164,10 @@ function PeerReviewModal({
     const target = externalTargets.find(t => t.id === targetId);
     if (target) {
       setSelectedTarget({ ...target, type: 'external' });
+      setSubmissionsExpanded(false);
       loadExistingReview(currentUserId, targetId, submissionType === 'group' ? 'group' : 'user', 'external');
+      // Load submissions for this target
+      loadTargetSubmissions(targetId, submissionType === 'group' ? 'group' : 'user');
     }
   };
 
@@ -198,6 +212,16 @@ function PeerReviewModal({
       console.warn('No existing review found or error loading:', error);
       setGrades(new Array(criteria.length).fill(0));
       setComments(new Array(criteria.length).fill(''));
+    }
+  };
+
+  const loadTargetSubmissions = async (targetId: number, targetType: 'user' | 'group') => {
+    try {
+      const submissions = await getPeerReviewSubmissions(assignmentId, targetId, targetType);
+      setTargetSubmissions(submissions);
+    } catch (error) {
+      console.warn('Error loading target submissions:', error);
+      setTargetSubmissions([]);
     }
   };
 
@@ -366,13 +390,74 @@ function PeerReviewModal({
           </div>
 
           {/* Right side - Rubric scoring */}
-          <div className="flex-1 p-5 flex items-center justify-center overflow-y-auto">
+          <div className="flex-1 p-5 overflow-y-auto flex justify-center">
             {selectedTarget ? (
               <div className="w-full max-w-md flex flex-col gap-8">
                 <h3 className="m-0 text-2xl text-gray-800">Review for: {selectedTarget.name}</h3>
                 <p className="text-gray-500 m-0 text-base">
                   {selectedTarget.type === 'internal' ? 'Internal Review' : 'External Review'}
                 </p>
+
+                {/* Submissions Section */}
+                {targetSubmissions.length > 0 && (
+                  <div className="w-full border rounded-md bg-blue-50 border-blue-200 overflow-hidden">
+                    <button
+                      onClick={() => setSubmissionsExpanded(!submissionsExpanded)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-blue-700">📎 Submissions</span>
+                        <span className="inline-block px-2 py-0.5 bg-blue-200 text-blue-700 rounded text-xs font-medium">
+                          {targetSubmissions.length}
+                        </span>
+                      </div>
+                      <span className={`text-blue-600 transition-transform ${submissionsExpanded ? 'rotate-180' : ''}`}>
+                        ▼
+                      </span>
+                    </button>
+                    {submissionsExpanded && (
+                      <div className="border-t border-blue-200 p-3 flex flex-col gap-2 bg-white">
+                        {targetSubmissions.map((submission) => {
+                          const isTextSubmission = submission.submission_text;
+                          const isFileSubmission = submission.filename;
+
+                          return (
+                            <button
+                              key={submission.id}
+                              onClick={async () => {
+                                if (isTextSubmission) {
+                                  setSelectedSubmissionForView(submission);
+                                  setIsViewSubmissionModalOpen(true);
+                                } else {
+                                  try {
+                                    const blob = await downloadStudentSubmission(submission.id);
+                                    const url = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = submission.filename;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                  } catch (error) {
+                                    console.error('Error downloading submission:', error);
+                                    alert('Failed to download submission');
+                                  }
+                                }
+                              }}
+                              className="flex items-center justify-between p-2 rounded border border-blue-100 hover:bg-blue-50 transition-colors text-sm cursor-pointer text-left"
+                            >
+                              <span className="text-blue-600 font-medium truncate flex-1">
+                                {isTextSubmission ? '📝 Text Submission' : submission.filename}
+                              </span>
+                              <span className="text-blue-500 ml-2">{isTextSubmission ? '👁️' : '↓'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {criteria.length > 0 ? (
                   <>
@@ -384,7 +469,7 @@ function PeerReviewModal({
                       return (
                         <>
                           {/* Rubric Scoring Section */}
-                          <div className="w-full max-h-[350px] overflow-y-auto border rounded-md p-4 bg-gray-50 mb-5 flex flex-col gap-5">
+                          <div className="w-full border rounded-md p-4 bg-gray-50 flex flex-col gap-5">
                             {filteredCriteria.map((criterion, displayIndex) => {
                               // Find the actual index in the full criteria array
                               const actualIndex = criteria.findIndex(c => c.id === criterion.id);
@@ -419,7 +504,7 @@ function PeerReviewModal({
                           {commentableCriteria.length > 0 && (
                             <div className="w-full flex flex-col gap-4">
                               <h4 className="m-0 font-semibold text-gray-800 text-base pb-2 border-b border-gray-300">Feedback</h4>
-                              <div className="w-full max-h-[250px] overflow-y-auto flex flex-col gap-4 pr-2">
+                              <div className="w-full flex flex-col gap-4">
                                 {commentableCriteria.map((criterion) => {
                                   const actualIndex = criteria.findIndex(c => c.id === criterion.id);
                                   return (
@@ -464,6 +549,19 @@ function PeerReviewModal({
           </div>
         </div>
       </div>
+      {selectedSubmissionForView && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ViewSubmissionModal
+            isOpen={isViewSubmissionModalOpen}
+            onClose={() => {
+              setIsViewSubmissionModalOpen(false);
+              setSelectedSubmissionForView(null);
+            }}
+            submission={selectedSubmissionForView}
+            entityName={selectedTarget?.name || "Target"}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -477,6 +575,8 @@ interface AssignmentDetails {
   external_review?: boolean;
   anonymous_review?: boolean;
   due_date?: string;
+  peer_review_start_date?: string;
+  peer_review_due_date?: string;
 }
 
 export default function PeerReviews() {
@@ -487,6 +587,8 @@ export default function PeerReviews() {
   const [submittedReviews, setSubmittedReviews] = useState<SubmittedReviewData[]>([]);
   const [receivedReviews, setReceivedReviews] = useState<ReceivedReviewData[]>([]);
   const [selectedReviewComments, setSelectedReviewComments] = useState<{ reviewId: number; comments: string[] } | null>(null);
+  const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
+  const [rubricId, setRubricId] = useState<number | null>(null);
 
   // Helper function to get color classes based on grade percentage
   const getGradeColorClasses = (grade: number | null | undefined) => {
@@ -505,12 +607,61 @@ export default function PeerReviews() {
     }
   };
 
+  // Helper function to format date/time with user's timezone
+  const formatDateWithTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Helper function to check if peer review is available
+  const isPeerReviewAvailable = (): { available: boolean; message?: string } => {
+    if (!assignment) return { available: true };
+
+    const now = new Date();
+    const startDate = assignment.peer_review_start_date ? new Date(assignment.peer_review_start_date) : null;
+    const dueDate = assignment.peer_review_due_date ? new Date(assignment.peer_review_due_date) : null;
+
+    // If no start date, check if past due date
+    if (!startDate && dueDate && now > dueDate) {
+      return { available: false, message: `Peer review deadline has passed (was due ${formatDateWithTime(dueDate.toISOString())})` };
+    }
+
+    // If start date hasn't arrived yet
+    if (startDate && now < startDate) {
+      return { available: false, message: `Peer reviews are not yet available. They will start on ${formatDateWithTime(startDate.toISOString())}` };
+    }
+
+    // If past due date
+    if (dueDate && now > dueDate) {
+      return { available: false, message: `Peer review deadline has passed (was due ${formatDateWithTime(dueDate.toISOString())})` };
+    }
+
+    return { available: true };
+  };
+
   useEffect(() => {
     (async () => {
       try {
         setIsLoading(true);
         const assignmentData = await getAssignmentDetails(Number(id));
         setAssignment(assignmentData);
+
+        // Fetch rubric ID for the "View Rubrics" button
+        try {
+          const rubricData = await getRubric(Number(id), true);
+          if (rubricData && rubricData.id) {
+            setRubricId(rubricData.id);
+          }
+        } catch (error) {
+          console.warn('No rubric found for assignment:', error);
+        }
 
         // Fetch submitted and received reviews using batch endpoints (2 API calls instead of N)
         const [submitted, received] = await Promise.all([
@@ -656,11 +807,40 @@ export default function PeerReviews() {
     );
   }
 
+  const reviewAvailability = isPeerReviewAvailable();
+
   return (
     <div className="p-5 max-w-6xl mx-auto">
       <div className="mb-8">
         <h2 className="mb-1">Peer Reviews Dashboard</h2>
         <p className="text-gray-500 m-0">Submit reviews for this assignment</p>
+      </div>
+
+      {!reviewAvailability.available && (
+        <div className={`mb-8 p-4 border rounded-lg ${
+          reviewAvailability.message?.includes('deadline') ?
+            'border-red-300 bg-red-50' :
+            'border-yellow-300 bg-yellow-50'
+        }`}>
+          <p className={`m-0 font-medium ${
+            reviewAvailability.message?.includes('deadline') ?
+              'text-red-800' :
+              'text-yellow-800'
+          }`}>{reviewAvailability.message}</p>
+        </div>
+      )}
+
+      {/* View Rubrics Section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center p-5 border rounded-lg bg-white hover:shadow-md transition-shadow">
+          <div className="flex-1">
+            <h3 className="m-0 mb-2.5 text-xl">View Rubric</h3>
+            <p className="text-gray-500 m-0 text-sm">Click the button below to view the scoring rubric for this assignment. The rubric is split into Internal and External review sections.</p>
+          </div>
+          <Button onClick={() => setIsRubricModalOpen(true)} disabled={!rubricId}>
+            {rubricId ? 'View Rubrics' : 'No Rubric Available'}
+          </Button>
+        </div>
       </div>
 
       <div className="mb-8">
@@ -680,8 +860,21 @@ export default function PeerReviews() {
                 Due: {new Date(assignment.due_date).toLocaleDateString()}
               </p>
             )}
+            {assignment.peer_review_start_date && (
+              <p className="text-gray-500 text-sm m-0">
+                Review starts: {formatDateWithTime(assignment.peer_review_start_date)}
+              </p>
+            )}
+            {assignment.peer_review_due_date && (
+              <p className="text-gray-500 text-sm m-0">
+                Review due: {formatDateWithTime(assignment.peer_review_due_date)}
+              </p>
+            )}
           </div>
-          <Button onClick={() => setIsModalOpen(true)}>
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            disabled={!reviewAvailability.available}
+          >
             Start Review
           </Button>
         </div>
@@ -810,6 +1003,14 @@ export default function PeerReviews() {
           }}
         />
       )}
+
+      <RubricViewModal
+        isOpen={isRubricModalOpen}
+        onClose={() => setIsRubricModalOpen(false)}
+        rubricId={rubricId}
+        internalReviewEnabled={assignment?.internal_review || false}
+        externalReviewEnabled={assignment?.external_review || false}
+      />
     </div>
   );
 }

@@ -667,7 +667,12 @@ export const createAssignment = async (
   submissionType: 'individual' | 'group' = 'individual',
   internalReview: boolean = false,
   externalReview: boolean = false,
-  anonymousReview: boolean = false
+  anonymousReview: boolean = false,
+  startDate?: string,
+  dueDate?: string,
+  description?: string,
+  peerReviewStartDate?: string,
+  peerReviewDueDate?: string
 )=> {
   const response = await fetch(`${BASE_URL}/assignment/create_assignment`, {
     method: 'POST',
@@ -677,7 +682,12 @@ export const createAssignment = async (
       submission_type: submissionType,
       internal_review: internalReview,
       external_review: externalReview,
-      anonymous_review: anonymousReview
+      anonymous_review: anonymousReview,
+      ...(startDate && { start_date: startDate }),
+      ...(dueDate && { due_date: dueDate }),
+      ...(description && { description: description }),
+      ...(peerReviewStartDate && { peer_review_start_date: peerReviewStartDate }),
+      ...(peerReviewDueDate && { peer_review_due_date: peerReviewDueDate })
     }),
     headers: {
       'Content-Type': 'application/json',
@@ -1057,10 +1067,15 @@ export const deleteAssignmentFile = async (fileId: number) => {
 // STUDENT SUBMISSION API FUNCTIONS
 // ================================
 
-// Upload a student submission file
-export const uploadStudentSubmission = async (assignmentId: number, file: File) => {
+// Upload a student submission file or text
+export const uploadStudentSubmission = async (assignmentId: number, fileOrText?: File | string) => {
   const formData = new FormData();
-  formData.append('file', file);
+
+  if (fileOrText instanceof File) {
+    formData.append('file', fileOrText);
+  } else if (typeof fileOrText === 'string') {
+    formData.append('submissionText', fileOrText);
+  }
 
   const response = await fetch(`${BASE_URL}/submissions/upload/${assignmentId}`, {
     method: 'POST',
@@ -1078,9 +1093,27 @@ export const uploadStudentSubmission = async (assignmentId: number, file: File) 
   return await response.json();
 };
 
-// Get student submissions for an assignment (students get their own, teachers get all)
+// Get student submissions for an assignment
 export const getStudentSubmissions = async (assignmentId: number) => {
   const response = await fetch(`${BASE_URL}/submissions/assignment/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.submissions || [];
+};
+
+// Get submissions for a specific target (student or group) within an assignment for peer review
+export const getPeerReviewSubmissions = async (assignmentId: number, targetId: number, targetType: 'user' | 'group' = 'user') => {
+  const response = await fetch(`${BASE_URL}/submissions/peer-review/${assignmentId}/${targetId}?type=${targetType}`, {
     method: 'GET',
     credentials: 'include'
   });

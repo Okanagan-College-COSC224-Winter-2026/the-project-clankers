@@ -156,3 +156,75 @@ body {
     @apply font-sans;
   }
 }
+
+/* Markdown styling */
+.prose {
+  @apply text-foreground;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  @apply font-semibold text-foreground mt-4 mb-2;
+}
+
+.prose h1 {
+  @apply text-2xl;
+}
+
+.prose h2 {
+  @apply text-xl;
+}
+
+.prose h3 {
+  @apply text-lg;
+}
+
+.prose p,
+.prose li {
+  @apply text-muted-foreground;
+}
+
+.prose strong {
+  @apply font-semibold text-foreground;
+}
+
+.prose code {
+  @apply bg-muted px-1.5 rounded text-sm font-mono;
+}
+
+.prose pre {
+  @apply bg-muted p-3 rounded overflow-auto;
+}
+
+.prose ul,
+.prose ol {
+  @apply my-2 ml-6;
+}
+
+.prose ul li {
+  @apply list-disc;
+}
+
+.prose ol li {
+  @apply list-decimal;
+}
+
+.prose li {
+  @apply my-1;
+}
+
+/* Nested lists */
+.prose ul ul,
+.prose ul ol,
+.prose ol ul,
+.prose ol ol {
+  @apply ml-6 my-1;
+}
+
+.prose a {
+  @apply text-primary hover:underline;
+}

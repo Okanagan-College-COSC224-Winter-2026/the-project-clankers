@@ -14,6 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface RubricCreatorProps {
     onRubricCreated?: (rubricId: number) => void;
@@ -325,29 +331,35 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         return 'both';
     };
 
-    const handleConfirmImport = (strategy: 'convert' | 'skip' | 'perfect') => {
+    const handleConfirmImport = async (strategy: 'convert' | 'skip' | 'perfect') => {
         if (!importPreview) return;
 
         let importedCriteria: Criterion[] = [];
         const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
 
+        // Get existing question strings to check for duplicates
+        const existingQuestions = new Set(existingCriteria.map(c => c.question.toLowerCase().trim()));
+
         if (strategy === 'convert') {
             // Convert all criteria to compatible types
-            importedCriteria = importPreview.rubric.map(c => ({
-                rubricID: 0,
-                question: c.question,
-                scoreMax: c.scoreMax,
-                hasScore: c.hasScore,
-                description: c.description,
-                criteriaType: getConvertedCriteriaType(c.criteriaType) as 'internal' | 'external' | 'both',
-                canComment: c.canComment || false
-            }));
+            importedCriteria = importPreview.rubric
+                .filter(c => !existingQuestions.has(c.question.toLowerCase().trim()))
+                .map(c => ({
+                    rubricID: 0,
+                    question: c.question,
+                    scoreMax: c.scoreMax,
+                    hasScore: c.hasScore,
+                    description: c.description,
+                    criteriaType: getConvertedCriteriaType(c.criteriaType) as 'internal' | 'external' | 'both',
+                    canComment: c.canComment || false
+                }));
         } else if (strategy === 'skip') {
             // Skip incompatible, but include 'both' and convert it to what's needed
             importedCriteria = importPreview.rubric
                 .filter(c => {
                     // Include exact matches or 'both'
-                    return availableTypes.includes(c.criteriaType as any) || c.criteriaType === 'both';
+                    return (availableTypes.includes(c.criteriaType as any) || c.criteriaType === 'both') &&
+                           !existingQuestions.has(c.question.toLowerCase().trim());
                 })
                 .map(c => ({
                     rubricID: 0,
@@ -361,7 +373,8 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         } else {
             // Perfect match only - only import exact matches (exclude 'both')
             importedCriteria = importPreview.rubric
-                .filter(c => availableTypes.includes(c.criteriaType as any))
+                .filter(c => availableTypes.includes(c.criteriaType as any) &&
+                            !existingQuestions.has(c.question.toLowerCase().trim()))
                 .map(c => ({
                     rubricID: 0,
                     question: c.question,
@@ -375,17 +388,50 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
 
         if (importedCriteria.length === 0) {
             setStatusType('error');
-            setStatusMessage('No compatible criteria found to import with selected strategy.');
+            const duplicatesExcluded = importPreview.rubric.length;
+            let message = 'All criteria are duplicates of existing criteria and were excluded.';
+            if (duplicatesExcluded === 1) {
+                message = 'This criterion is a duplicate of an existing criterion.';
+            }
+            setStatusMessage(message);
             setImportPreview(null);
+            setShowImportModal(false);
             return;
         }
 
-        setNewCriteria(importedCriteria);
-        setImportPreview(null);
-        setShowImportModal(false);
-        setStatusType('success');
-        setStatusMessage(`Rubric imported successfully! (${importedCriteria.length} criteria imported)`);
-        setTimeout(() => setStatusMessage(''), 3000);
+        try {
+            // Create or get existing rubric
+            let targetRubricId = rubricId;
+            if (!targetRubricId) {
+                const rubricResponse = await createRubric(id, id, false);
+                targetRubricId = rubricResponse.id;
+                setRubricId(targetRubricId);
+            }
+
+            // Create all imported criteria in the database
+            await Promise.all(importedCriteria.map(({ question, scoreMax, hasScore, description, criteriaType, canComment }) => {
+                // For individual assignments, force 'external'
+                const finalCriteriaType = assignmentType === 'individual' ? 'external' : (criteriaType || 'both');
+                return createCriteria(targetRubricId, question, scoreMax, canComment || false, hasScore, description || '', finalCriteriaType);
+            }));
+
+            setImportPreview(null);
+            setShowImportModal(false);
+            setStatusType('success');
+            const duplicatesExcluded = importPreview.rubric.length - importedCriteria.length;
+            let message = `Rubric imported successfully! (${importedCriteria.length} criteria imported)`;
+            if (duplicatesExcluded > 0) {
+                message += ` - ${duplicatesExcluded} duplicate ${duplicatesExcluded === 1 ? 'criterion was' : 'criteria were'} excluded`;
+            }
+            setStatusMessage(message);
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+            console.error("Error importing rubric:", error);
+            setStatusType('error');
+            setStatusMessage(`Error importing rubric: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setImportPreview(null);
+            setShowImportModal(false);
+        }
     };
 
     return (
@@ -531,11 +577,9 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                             <Button onClick={handleCreate}>
                                 {rubricId ? 'Save Changes' : 'Create Rubric'}
                             </Button>
-                            {!rubricId && (
-                                <Button variant="outline" onClick={handleOpenImportModal}>
-                                    Import Rubric
-                                </Button>
-                            )}
+                            <Button variant="outline" onClick={handleOpenImportModal}>
+                                Import Rubric
+                            </Button>
                         </div>
 
                         <p className="mt-4 p-2.5 bg-amber-50 border border-amber-400 rounded text-amber-800 font-medium">
@@ -646,34 +690,46 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                                 })}
                             </div>
 
-                            <div className="bg-gray-50 p-3 rounded border border-gray-200">
-                                <p className="text-sm font-medium text-gray-700 mb-2">How would you like to proceed?</p>
-                                <div className="space-y-2 text-sm text-gray-600">
-                                    <p>
-                                        <strong>Force Convert:</strong> Import all criteria, automatically converting incompatible types to match this assignment's review settings.
-                                    </p>
-                                    <p>
-                                        <strong>Skip Incompatible:</strong> Only import criteria that already match this assignment's review settings (includes "For Both").
-                                    </p>
-                                    <p>
-                                        <strong>Perfect Match Only:</strong> Only import criteria with exact type matches - no conversions or "For Both" criteria.
-                                    </p>
-                                </div>
-                            </div>
-
                             <div className="flex gap-3 justify-end">
                                 <Button variant="outline" onClick={() => setImportPreview(null)}>
                                     Cancel
                                 </Button>
-                                <Button variant="outline" onClick={() => handleConfirmImport('perfect')}>
-                                    Perfect Match Only
-                                </Button>
-                                <Button variant="outline" onClick={() => handleConfirmImport('skip')}>
-                                    Skip Incompatible
-                                </Button>
-                                <Button onClick={() => handleConfirmImport('convert')}>
-                                    Force Convert
-                                </Button>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="outline" onClick={() => handleConfirmImport('perfect')}>
+                                        Perfect Match Only
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Only import criteria with exact type matches. No conversions or "For Both" criteria will be included.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="outline" onClick={() => handleConfirmImport('skip')}>
+                                        Skip Incompatible
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Import criteria that match this assignment's settings. Incompatible types are skipped, but "For Both" criteria are included and converted as needed.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button onClick={() => handleConfirmImport('convert')}>
+                                        Force Convert
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Import all criteria and automatically convert incompatible types to match this assignment's review settings.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                     )}

@@ -8,6 +8,7 @@ import { importCSV } from "../util/csv";
 import { listClasses, getAssignmentsByClass, getStudentSubmissions, downloadStudentSubmission, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
+import ViewSubmissionModal from "../components/ViewSubmissionModal";
 
 interface RosterUploadResultData {
   message: string;
@@ -33,8 +34,9 @@ interface RosterUploadResultData {
 
 interface StudentSubmission {
   id: number;
-  filename: string;
-  file_path: string;
+  filename?: string;
+  file_path?: string;
+  submission_text?: string;
   submitted_at: string;
   student_id: number;
   student_name: string;
@@ -105,6 +107,9 @@ export default function ClassStudentSubmissions() {
   const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
   const [isUploadingRoster, setIsUploadingRoster] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewModalEntityName, setViewModalEntityName] = useState("");
 
   useEffect(() => {
     loadData();
@@ -180,18 +185,41 @@ export default function ClassStudentSubmissions() {
               const rows: GroupSubmissionRow[] = groupsWithMembers.map(group => {
                 // Check if any member of this group has submitted
                 const groupMemberIds = (group.members || []).map((m: Student) => m.id);
-                const groupSubmission = submissions.find((sub: StudentSubmission) =>
+
+                // Consolidate submissions by group
+                const groupSubmissions = submissions.filter((sub: StudentSubmission) =>
                   groupMemberIds.includes(sub.student_id)
                 );
 
-                const status = getSubmissionStatus(groupSubmission, assignment.due_date);
+                // Merge all submissions from group members into one
+                let consolidatedSubmission: StudentSubmission | undefined = undefined;
+                if (groupSubmissions.length > 0) {
+                  consolidatedSubmission = groupSubmissions[0];
+                  // Merge additional submissions (text + file)
+                  for (let i = 1; i < groupSubmissions.length; i++) {
+                    const sub = groupSubmissions[i];
+                    if (sub.submission_text && !consolidatedSubmission.submission_text) {
+                      consolidatedSubmission.submission_text = sub.submission_text;
+                    }
+                    if (sub.filename && !consolidatedSubmission.filename) {
+                      consolidatedSubmission.filename = sub.filename;
+                      consolidatedSubmission.file_path = sub.file_path;
+                    }
+                    // Use the later timestamp
+                    if (new Date(sub.submitted_at) > new Date(consolidatedSubmission.submitted_at)) {
+                      consolidatedSubmission.submitted_at = sub.submitted_at;
+                    }
+                  }
+                }
+
+                const status = getSubmissionStatus(consolidatedSubmission, assignment.due_date);
 
                 return {
                   groupId: group.id,
                   groupName: group.name,
                   status,
                   grade: undefined, // TODO: Add when grade field is available
-                  submission: groupSubmission
+                  submission: consolidatedSubmission
                 };
               });
 
@@ -202,13 +230,32 @@ export default function ClassStudentSubmissions() {
               };
             } else {
               // Build individual student rows
-              const submissionMap = new Map<number, StudentSubmission>();
+              const consolidatedMap = new Map<number, StudentSubmission>();
+
+              // Consolidate multiple submissions per student (text + file)
               submissions.forEach((sub: StudentSubmission) => {
-                submissionMap.set(sub.student_id, sub);
+                if (consolidatedMap.has(sub.student_id)) {
+                  // Merge with existing submission
+                  const existing = consolidatedMap.get(sub.student_id)!;
+                  // Use the later timestamp
+                  if (new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
+                    existing.submitted_at = sub.submitted_at;
+                  }
+                  // Add text or file if missing
+                  if (sub.submission_text && !existing.submission_text) {
+                    existing.submission_text = sub.submission_text;
+                  }
+                  if (sub.filename && !existing.filename) {
+                    existing.filename = sub.filename;
+                    existing.file_path = sub.file_path;
+                  }
+                } else {
+                  consolidatedMap.set(sub.student_id, { ...sub });
+                }
               });
 
               const rows: IndividualSubmissionRow[] = students.map(student => {
-                const submission = submissionMap.get(student.id);
+                const submission = consolidatedMap.get(student.id);
                 const status = getSubmissionStatus(submission, assignment.due_date);
 
                 return {
@@ -247,21 +294,10 @@ export default function ClassStudentSubmissions() {
     }
   };
 
-  const handleDownload = async (submissionId: number, filename: string) => {
-    try {
-      const blob = await downloadStudentSubmission(submissionId);
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed");
-    }
+  const handleViewSubmission = (submission: StudentSubmission, entityName: string) => {
+    setSelectedSubmission(submission);
+    setViewModalEntityName(entityName);
+    setIsViewModalOpen(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -405,9 +441,9 @@ export default function ClassStudentSubmissions() {
                                     {row.submission ? (
                                       <Button
                                         size="sm"
-                                        onClick={() => handleDownload(row.submission!.id, row.submission!.filename)}
+                                        onClick={() => handleViewSubmission(row.submission!, row.groupName)}
                                       >
-                                        Download
+                                        View
                                       </Button>
                                     ) : (
                                       <span className="text-muted-foreground text-sm">{'\u2014'}</span>
@@ -450,9 +486,9 @@ export default function ClassStudentSubmissions() {
                                     {row.submission ? (
                                       <Button
                                         size="sm"
-                                        onClick={() => handleDownload(row.submission!.id, row.submission!.filename)}
+                                        onClick={() => handleViewSubmission(row.submission!, row.studentName)}
                                       >
-                                        Download
+                                        View
                                       </Button>
                                     ) : (
                                       <span className="text-muted-foreground text-sm">{'\u2014'}</span>
@@ -492,6 +528,13 @@ export default function ClassStudentSubmissions() {
           onClose={() => setUploadError(null)}
         />
       )}
+
+      <ViewSubmissionModal
+        submission={selectedSubmission}
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        entityName={viewModalEntityName}
+      />
     </>
   );
 }
