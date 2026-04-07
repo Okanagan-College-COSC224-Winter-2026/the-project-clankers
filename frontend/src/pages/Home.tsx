@@ -15,8 +15,9 @@ interface Course {
 interface CourseWithAssignments extends Course {
   assignments: unknown[]
   assignmentCount: number
-  courseTotalGrade?: number | null
-  gradeStatus?: string
+  student_count: number
+  next_due_date: string | null
+  pending_reviews_count: number
 }
 
 export default function Home() {
@@ -34,7 +35,7 @@ export default function Home() {
       const coursesResp = await listClasses()
 
       const coursesWithAssignments = await Promise.all(
-        coursesResp.map(async (course: Course) => {
+        coursesResp.map(async (course: CourseWithAssignments) => {
           try {
             const assignments = await listAssignments(String(course.id))
             let courseTotalGrade: number | null = null
@@ -105,7 +106,7 @@ export default function Home() {
       // Reload active courses
       const coursesResp = await listClasses()
       const coursesWithAssignments = await Promise.all(
-        coursesResp.map(async (course: Course) => {
+        coursesResp.map(async (course: CourseWithAssignments) => {
           try {
             const assignments = await listAssignments(String(course.id))
               let courseTotalGrade: number | null = null
@@ -201,22 +202,10 @@ export default function Home() {
                 image="https://crc.losrios.edu//shared/img/social-1200-630/programs/general-science-social.jpg"
                 name={course.name}
                 subtitle={assignmentText}
-                action={
-                  !isTeacher() && !isAdmin() ? (
-                    <details className="w-full rounded-md border px-2 py-1 text-xs">
-                      <summary className="cursor-pointer font-medium">View Course Total</summary>
-                      <p className="mt-1 font-medium">
-                        Course Grade:{' '}
-                        {course.courseTotalGrade !== null && course.courseTotalGrade !== undefined
-                          ? course.courseTotalGrade.toFixed(1)
-                          : 'Pending'}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        {course.gradeStatus || 'pending evaluations'}
-                      </p>
-                    </details>
-                  ) : undefined
-                }
+                studentCount={course.student_count}
+                nextDueDate={course.next_due_date}
+                pendingReviews={course.pending_reviews_count}
+                classId={course.id}
                 onclick={() => {
                   window.location.href = `/classes/${course.id}/home`
                 }}

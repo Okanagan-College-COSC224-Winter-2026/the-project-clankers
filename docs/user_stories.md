@@ -333,25 +333,7 @@ Notes
 - [ ] Each course card shows the number of enrolled students  
 - [ ] Each course card shows upcoming due dates or next deadline  
 - [ ] Each course card shows pending peer evaluation count (reviews not yet completed)  
-- [ ] Course cards have distinct visuals or color coding (not all identical placeholder images)  
-
-**Course Creation & Management**
-- [x] "Create Class" button is visible and navigates to the course creation form  
-- [ ] Teacher can edit course name from the dashboard (inline or via quick action)  
-- [ ] Teacher can delete or archive a course from the dashboard with confirmation  
-
-**Search, Filter & Sort**
-- [ ] Teacher can search courses by name  
-- [ ] Teacher can sort courses (by name, date created, or assignment count)  
-
-**Empty & Edge States**
-- [ ] If the teacher has no courses, a helpful empty state message is shown with a prompt to create one  
-- [ ] Loading spinner or skeleton cards shown while data is fetched  
-
-**Navigation & Permissions**
-- [x] Dashboard is only accessible to authenticated teachers (and admins)  
-- [x] Sidebar provides navigation to Dashboard, Profile, and Logout  
-- [ ] "My Info" link navigates to the current user's profile (not hardcoded `/profile/1`)  
+- [ ] Course cards have distinct visuals or color coding (not all identical placeholder images)
 
 ---
 

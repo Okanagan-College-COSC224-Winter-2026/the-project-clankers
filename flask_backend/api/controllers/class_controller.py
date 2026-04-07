@@ -68,7 +68,19 @@ def get_user_classes():
     else:
         courses = []
 
-    return jsonify([{"id": c.id, "name": c.name} for c in courses]), 200
+    # Return courses with aggregated metrics
+    course_data = []
+    for course in courses:
+        course_info = {
+            "id": course.id,
+            "name": course.name,
+            "student_count": course.get_student_count(),
+            "next_due_date": course.get_next_due_date().isoformat() if course.get_next_due_date() else None,
+            "pending_reviews_count": course.get_pending_reviews_count()
+        }
+        course_data.append(course_info)
+    
+    return jsonify(course_data), 200
 
 
 @bp.route("/members", methods=["POST"])
