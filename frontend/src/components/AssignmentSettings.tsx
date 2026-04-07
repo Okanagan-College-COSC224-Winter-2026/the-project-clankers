@@ -14,7 +14,9 @@ import { MessageSquare, BarChart2, Trash2 } from "lucide-react";
 const toDatetimeLocal = (iso: string): string => {
   const d = new Date(iso);
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}`;
 };
 
 interface AssignmentSettingsProps {
@@ -148,19 +150,40 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       };
 
       if (editedStartDate) {
-        updateData.start_date = new Date(editedStartDate).toISOString();
+        // Parse datetime-local as local time (format: YYYY-MM-DDTHH:mm)
+        const parts = editedStartDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.start_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       if (editedDueDate) {
-        updateData.due_date = new Date(editedDueDate).toISOString();
+        const parts = editedDueDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.due_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       if (editedPeerReviewStartDate) {
-        updateData.peer_review_start_date = new Date(editedPeerReviewStartDate).toISOString();
+        const parts = editedPeerReviewStartDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.peer_review_start_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       if (editedPeerReviewDueDate) {
-        updateData.peer_review_due_date = new Date(editedPeerReviewDueDate).toISOString();
+        const parts = editedPeerReviewDueDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.peer_review_due_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       const response = await editAssignment(assignmentId, updateData);
