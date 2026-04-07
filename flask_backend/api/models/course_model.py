@@ -114,25 +114,33 @@ class Course(db.Model):
     def get_next_due_date(self):
         """Get the earliest upcoming assignment due date for this course"""
         from datetime import datetime, timezone
+        from sqlalchemy import func
         from .assignment_model import Assignment
         
-        # Get all assignments for this course with due dates
-        assignments = self.assignments.filter(
-            Assignment.due_date.isnot(None)
-        ).all()
-        
-        if not assignments:
-            return None
-        
-        # Find the earliest due date that is in the future
+        # Get the earliest future due date, or latest past if no future dates
         now = datetime.now(timezone.utc)
-        future_due_dates = [a.due_date for a in assignments if a.due_date and a.due_date > now]
         
-        if future_due_dates:
-            return min(future_due_dates)
+        # Query for next future due date
+        next_future = db.session.query(
+            func.min(Assignment.due_date)
+        ).filter(
+            Assignment.courseID == self.id,
+            Assignment.due_date.isnot(None),
+            Assignment.due_date > now
+        ).scalar()
         
-        # If no future dates, return the latest past date
-        return max([a.due_date for a in assignments])
+        if next_future:
+            return next_future
+        
+        # If no future dates, get the latest past date
+        latest_past = db.session.query(
+            func.max(Assignment.due_date)
+        ).filter(
+            Assignment.courseID == self.id,
+            Assignment.due_date.isnot(None)
+        ).scalar()
+        
+        return latest_past
 
     def get_pending_reviews_count(self):
         """Get the count of incomplete peer reviews for this course"""
