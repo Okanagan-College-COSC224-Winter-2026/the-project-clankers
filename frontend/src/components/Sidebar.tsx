@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { logout, isStudent, isTeacher } from '../util/login'
 import { cn } from '@/lib/utils'
-import { LogOut, Home, User, Search, Bell } from 'lucide-react'
+import { LogOut, Home, User, Search, Bell, GraduationCap } from 'lucide-react'
 import { getEnrollmentRequests } from '../util/api'
 import NotificationCenter from './NotificationCenter'
 
@@ -60,15 +60,6 @@ export default function Sidebar() {
 
         <nav className="flex flex-1 flex-col gap-1 p-3">
           <SidebarRow
-            onClick={() => logout()}
-            href="#"
-            selected={false}
-            icon={<LogOut className="h-4 w-4" />}
-          >
-            Logout
-          </SidebarRow>
-
-          <SidebarRow
             selected={location === '/home'}
             href="/home"
             icon={<Home className="h-4 w-4" />}
@@ -86,6 +77,16 @@ export default function Sidebar() {
             </SidebarRow>
           )}
 
+          {isStudent() && (
+            <SidebarRow
+              selected={location === '/grades'}
+              href="/grades"
+              icon={<GraduationCap className="h-4 w-4" />}
+            >
+              My Grades
+            </SidebarRow>
+          )}
+
           <SidebarRow
             selected={location.includes('/profile')}
             href="/profile"
@@ -93,6 +94,17 @@ export default function Sidebar() {
           >
             My Info
           </SidebarRow>
+
+          <div className="mt-auto pt-2">
+            <SidebarRow
+              onClick={() => logout()}
+              href="#"
+              selected={false}
+              icon={<LogOut className="h-4 w-4" />}
+            >
+              Logout
+            </SidebarRow>
+          </div>
         </nav>
       </aside>
 

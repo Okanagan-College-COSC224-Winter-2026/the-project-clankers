@@ -1,5 +1,6 @@
 import functools
 import os
+from datetime import timedelta
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -12,6 +13,7 @@ from .controllers import (
     class_controller,
     enrollment_controller,
     fake_api_controller,
+    gradebook_controller,
     user_controller,
     assignment_controller,
     review_controller,
@@ -44,6 +46,9 @@ def create_app(test_config=None):
             )
 
     # Default configuration
+    # Default to a longer access token lifetime for local development.
+    jwt_access_expires_minutes = int(os.environ.get("JWT_ACCESS_EXPIRES_MINUTES", "480"))
+
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev"),
         # A local sqlite database stored in the instance folder for development
@@ -52,7 +57,8 @@ def create_app(test_config=None):
             "DATABASE_URL", "sqlite:///" + os.path.join(app.instance_path, "app.sqlite")
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret"),
+        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret-key-that-is-at-least-32-bytes"),
+        JWT_ACCESS_TOKEN_EXPIRES=timedelta(minutes=jwt_access_expires_minutes),
         # JWT Cookie settings - secure defaults for production, permissive for development
         JWT_TOKEN_LOCATION=["cookies"],
         JWT_COOKIE_SECURE=is_production,  # True in production (HTTPS required)
@@ -149,6 +155,7 @@ def create_app(test_config=None):
     app.register_blueprint(review_controller.bp)
     app.register_blueprint(rubric_controller.bp)
     app.register_blueprint(student_submission_controller.bp)
+    app.register_blueprint(gradebook_controller.bp)
     app.register_blueprint(group_controller.bp)
     app.register_blueprint(legacy_group_controller.bp)  # Legacy endpoints for backward compatibility
     app.register_blueprint(fake_api_controller.fake)

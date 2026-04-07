@@ -5,7 +5,24 @@ from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from werkzeug.utils import secure_filename
 
-from ..models import Course, Assignment, AssignmentFile, User, AssignmentSchema, AssignmentFileSchema, CourseGroup, Group_Members, UserSchema
+from ..models import (
+    Course,
+    Assignment,
+    AssignmentFile,
+    User,
+    AssignmentSchema,
+    AssignmentFileSchema,
+    CourseGroup,
+    Group_Members,
+    UserSchema,
+    CourseGradePolicy,
+    Review,
+    Criterion,
+    CriteriaDescription,
+    Rubric,
+    User_Course,
+)
+from .gradebook_controller import _course_students, _grade_entry
 from .auth_controller import jwt_teacher_required
 
 bp = Blueprint("assignment", __name__, url_prefix="/assignment")
@@ -56,6 +73,13 @@ def create_assignment():
         return jsonify({"msg": "Course ID is required"}), 400
     if not assignment_name:
         return jsonify({"msg": "Assignment name is required"}), 400
+
+    if due_date and peer_review_start_date and peer_review_start_date < due_date:
+        return jsonify({"msg": "Peer review start date cannot be before the due date"}), 400
+    if due_date and peer_review_due_date and peer_review_due_date < due_date:
+        return jsonify({"msg": "Peer review due date cannot be before the due date"}), 400
+    if peer_review_start_date and peer_review_due_date and peer_review_due_date < peer_review_start_date:
+        return jsonify({"msg": "Peer review due date cannot be before the peer review start date"}), 400
 
     email = get_jwt_identity()
     user = User.get_by_email(email)
@@ -114,10 +138,6 @@ def edit_assignment(assignment_id):
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
 
-    # Check if assignment can still be modified (before due date)
-    if not assignment.can_modify():
-        return jsonify({"msg": "Assignment cannot be modified after its due date"}), 400
-
     assignment.name = data.get("name", assignment.name)
     assignment.rubric_text = data.get("rubric", assignment.rubric_text)
 
@@ -159,6 +179,16 @@ def edit_assignment(assignment_id):
     elif "peer_review_due_date" in data and peer_review_due_date is None:
         assignment.peer_review_due_date = None
 
+    effective_due = assignment.due_date
+    effective_pr_start = assignment.peer_review_start_date
+    effective_pr_due = assignment.peer_review_due_date
+    if effective_due and effective_pr_start and effective_pr_start < effective_due:
+        return jsonify({"msg": "Peer review start date cannot be before the due date"}), 400
+    if effective_due and effective_pr_due and effective_pr_due < effective_due:
+        return jsonify({"msg": "Peer review due date cannot be before the due date"}), 400
+    if effective_pr_start and effective_pr_due and effective_pr_due < effective_pr_start:
+        return jsonify({"msg": "Peer review due date cannot be before the peer review start date"}), 400
+
     assignment.update()
     return (
         jsonify(
@@ -188,9 +218,6 @@ def delete_assignment(assignment_id):
     
     if course.teacherID != user.id:
         return jsonify({"msg": "Unauthorized: You are not the teacher of this class"}), 403
-
-    if not assignment.can_modify():
-        return jsonify({"msg": "Assignment cannot be deleted after its due date"}), 400
 
     assignment.delete()
     return jsonify({"msg": "Assignment deleted"}), 200
@@ -266,6 +293,86 @@ def get_assignment_details(assignment_id):
         assignment_data["group_count"] = len(course_groups)
     
     return jsonify(assignment_data), 200
+
+
+@bp.route("/<int:assignment_id>/gradebook", methods=["GET"])
+@jwt_required()
+def get_assignment_gradebook(assignment_id):
+    """Get gradebook/progress data scoped to a single assignment (teacher/admin only)."""
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    is_teacher = course.teacherID == user.id
+    if not (is_teacher or user.is_admin()):
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    policy = CourseGradePolicy.get_or_create(course.id)
+    students = _course_students(course.id)
+
+    student_rows = []
+    grade_values = []
+    submitted = 0
+    late = 0
+    missing = 0
+
+    for student in students:
+        entry = _grade_entry(policy, assignment, student, students)
+        status = entry["submission_status"]
+        if status == "submitted":
+            submitted += 1
+        elif status == "submitted late":
+            late += 1
+        else:
+            missing += 1
+
+        if entry["effective_grade"] is not None:
+            grade_values.append(entry["effective_grade"])
+
+        student_rows.append(
+            {
+                "student_id": student.id,
+                "student_name": student.name,
+                "student_number": student.student_id,
+                "email": student.email,
+                "entry": entry,
+            }
+        )
+
+    return jsonify(
+        {
+            "class": {"id": course.id, "name": course.name},
+            "assignment": {
+                "id": assignment.id,
+                "name": assignment.name,
+                "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+            },
+            "policy": {
+                "late_penalty_percent": float(policy.late_penalty_percent or 0.0),
+                "incomplete_evaluation_penalty_percent": float(
+                    policy.incomplete_evaluation_penalty_percent or 0.0
+                ),
+            },
+            "aggregate": {
+                "submitted_count": submitted,
+                "late_count": late,
+                "missing_count": missing,
+                "average_grade": round(sum(grade_values) / len(grade_values), 2)
+                if grade_values
+                else None,
+            },
+            "students": student_rows,
+        }
+    ), 200
 
 
 def allowed_document_file(filename):
@@ -437,3 +544,104 @@ def delete_assignment_file(file_id):
     assignment_file.delete()
 
     return jsonify({"msg": "File deleted successfully"}), 200
+
+
+@bp.route("/<int:assignment_id>/student/<int:student_id>/review-summary", methods=["GET"])
+@jwt_required()
+def get_student_review_summary(assignment_id, student_id):
+    """Get a breakdown of reviews given and received by a student for an assignment.
+    Teacher/admin only.
+    """
+    email = get_jwt_identity()
+    requester = User.get_by_email(email)
+    if not requester:
+        return jsonify({"msg": "User not found"}), 404
+
+    if not (requester.is_teacher() or requester.is_admin()):
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    assignment = Assignment.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    if requester.is_teacher():
+        course = Course.get_by_id(assignment.courseID)
+        if not course or course.teacherID != requester.id:
+            return jsonify({"msg": "Unauthorized"}), 403
+
+    student = User.get_by_id(student_id)
+    if not student:
+        return jsonify({"msg": "Student not found"}), 404
+
+    enrollment = User_Course.get(student_id, assignment.courseID)
+    if not enrollment:
+        return jsonify({"msg": "Student not enrolled in this course"}), 404
+
+    # Find student's group for this course (if group assignment)
+    group_id = None
+    if assignment.submission_type == 'group':
+        membership = (
+            Group_Members.query.filter_by(userID=student_id)
+            .join(CourseGroup)
+            .filter(CourseGroup.courseID == assignment.courseID)
+            .first()
+        )
+        if membership:
+            group_id = membership.groupID
+
+    def calc_grade(review):
+        rubric = Rubric.query.filter_by(assignmentID=assignment_id).first()
+        if not rubric:
+            return None
+        criteria = CriteriaDescription.query.filter_by(rubricID=rubric.id).all()
+        if not criteria:
+            return None
+        percentages = []
+        for cd in criteria:
+            c = Criterion.query.filter_by(reviewID=review.id, criterionRowID=cd.id).first()
+            if c and c.grade is not None:
+                max_score = cd.scoreMax if cd.hasScore and cd.scoreMax > 0 else 100
+                percentages.append((c.grade / max_score) * 100)
+        return round(sum(percentages) / len(percentages), 1) if percentages else None
+
+    given_reviews = []
+    if assignment.submission_type == 'group' and assignment.internal_review and group_id:
+        for r in Review.query.filter_by(assignmentID=assignment_id, reviewerID=student_id, reviewer_type='user', reviewee_type='user').all():
+            reviewee = User.get_by_id(r.revieweeID)
+            given_reviews.append({"reviewee_name": reviewee.name if reviewee else f"User {r.revieweeID}", "grade": calc_grade(r), "type": "internal"})
+    if assignment.external_review:
+        if assignment.submission_type == 'group' and group_id:
+            for r in Review.query.filter_by(assignmentID=assignment_id, reviewerID=group_id, reviewer_type='group', reviewee_type='group').all():
+                g = CourseGroup.get_by_id(r.revieweeID)
+                given_reviews.append({"reviewee_name": g.name if g else f"Group {r.revieweeID}", "grade": calc_grade(r), "type": "external"})
+        else:
+            for r in Review.query.filter_by(assignmentID=assignment_id, reviewerID=student_id, reviewer_type='user', reviewee_type='user').all():
+                reviewee = User.get_by_id(r.revieweeID)
+                given_reviews.append({"reviewee_name": reviewee.name if reviewee else f"User {r.revieweeID}", "grade": calc_grade(r), "type": "external"})
+
+    received_reviews = []
+    if assignment.submission_type == 'group' and assignment.internal_review:
+        for r in Review.query.filter_by(assignmentID=assignment_id, revieweeID=student_id, reviewer_type='user', reviewee_type='user').all():
+            reviewer = User.get_by_id(r.reviewerID)
+            received_reviews.append({"reviewer_name": reviewer.name if reviewer else f"User {r.reviewerID}", "grade": calc_grade(r), "type": "internal"})
+    if assignment.external_review:
+        if assignment.submission_type == 'group' and group_id:
+            for r in Review.query.filter_by(assignmentID=assignment_id, revieweeID=group_id, reviewer_type='group', reviewee_type='group').all():
+                g = CourseGroup.get_by_id(r.reviewerID)
+                received_reviews.append({"reviewer_name": g.name if g else f"Group {r.reviewerID}", "grade": calc_grade(r), "type": "external"})
+        else:
+            for r in Review.query.filter_by(assignmentID=assignment_id, revieweeID=student_id, reviewer_type='user', reviewee_type='user').all():
+                reviewer = User.get_by_id(r.reviewerID)
+                received_reviews.append({"reviewer_name": reviewer.name if reviewer else f"User {r.reviewerID}", "grade": calc_grade(r), "type": "external"})
+
+    def avg(items):
+        graded = [i["grade"] for i in items if i["grade"] is not None]
+        return round(sum(graded) / len(graded), 1) if graded else None
+
+    return jsonify({
+        "student": {"id": student.id, "name": student.name},
+        "reviews_given": given_reviews,
+        "reviews_received": received_reviews,
+        "avg_given": avg(given_reviews),
+        "avg_received": avg(received_reviews),
+    }), 200

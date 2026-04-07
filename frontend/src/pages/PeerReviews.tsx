@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
+import { Button as ShadcnButton } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import RubricViewModal from "../components/RubricViewModal";
 import ViewSubmissionModal from "../components/ViewSubmissionModal";
+import { Loader2, Paperclip, FileText, Eye, Download, ChevronDown, MessageSquare, AlertCircle, Clock, Users } from "lucide-react";
 import {
   getAssignmentDetails,
   getUserId,
   listStuGroup,
-  getCourseGroups,
-  listCourseMembers,
+  getReviewTargets,
   createReview,
   getReview,
   getRubric,
@@ -20,7 +24,8 @@ import {
   SubmittedReviewData,
   ReceivedReviewData,
   getPeerReviewSubmissions,
-  downloadStudentSubmission
+  downloadStudentSubmission,
+  ReviewTarget,
 } from "../util/api";
 
 interface PeerReviewModalProps {
@@ -47,8 +52,9 @@ function PeerReviewModal({
   onReviewSubmitted
 }: PeerReviewModalProps) {
   const [selectedTarget, setSelectedTarget] = useState<{ id: number; name: string; type: 'internal' | 'external' } | null>(null);
-  const [groupMembers, setGroupMembers] = useState<Array<{ id: number; name: string }>>([]);
-  const [externalTargets, setExternalTargets] = useState<Array<{ id: number; name: string }>>([]);
+  const [groupMembers, setGroupMembers] = useState<ReviewTarget[]>([]);
+  const [externalTargets, setExternalTargets] = useState<ReviewTarget[]>([]);
+  const [reviewerEligible, setReviewerEligible] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -106,39 +112,16 @@ function PeerReviewModal({
             setComments([]);
           }
 
-          // Fetch group members for internal review (if enabled and group assignment)
+          // Fetch review targets with submission status from backend
+          const targets = await getReviewTargets(assignmentId);
+          setReviewerEligible(targets.reviewer_eligible);
+
           if (internalReviewEnabled && submissionType === 'group') {
-            const groupData = await listStuGroup(assignmentId, currentUserId);
-            const teammates = groupData
-              .filter((member: any) => member.id !== currentUserId)
-              .map((member: any) => ({
-                id: member.id,
-                name: member.name || `User ${member.id}`
-              }));
-            setGroupMembers(teammates);
+            setGroupMembers(targets.internal_targets);
           }
 
-          // Fetch external targets based on submission type
           if (externalReviewEnabled) {
-            if (submissionType === 'group') {
-              const groups = await getCourseGroups(courseId);
-              const groupList = groups
-                .filter((group: any) => group.id !== fetchedUserGroupId)
-                .map((group: any) => ({
-                  id: group.id,
-                  name: group.name || `Group ${group.id}`
-                }));
-              setExternalTargets(groupList);
-            } else {
-              const members = await listCourseMembers(String(courseId));
-              const classmates = members
-                .filter((member: any) => member.id !== currentUserId && member.role === 'student')
-                .map((member: any) => ({
-                  id: member.id,
-                  name: member.name || member.email
-                }));
-              setExternalTargets(classmates);
-            }
+            setExternalTargets(targets.external_targets);
           }
         } catch (error) {
           console.error('Error fetching review targets:', error);
@@ -255,6 +238,12 @@ function PeerReviewModal({
           revieweeType
         });
         const reviewResponse = await createReview(assignmentId, reviewerId, selectedTarget.id, reviewerType, revieweeType);
+        if (!reviewResponse.ok) {
+          const errorData = await reviewResponse.json();
+          alert(errorData.msg || 'Failed to create review');
+          setIsSubmitting(false);
+          return;
+        }
         const reviewData = await reviewResponse.json();
         const reviewId = reviewData.id;
 
@@ -322,7 +311,9 @@ function PeerReviewModal({
       <div className="bg-white rounded-lg w-[85%] max-w-6xl h-[85vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-5 border-b shrink-0">
           <h2 className="m-0 text-2xl">{assignmentName} - Peer Review</h2>
-          <button className="bg-transparent border-none text-3xl cursor-pointer text-gray-400 hover:text-gray-800 p-0 w-8 h-8 flex items-center justify-center transition-colors" onClick={onClose}>&times;</button>
+          <ShadcnButton variant="ghost" size="icon" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <span className="text-xl">&times;</span>
+          </ShadcnButton>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
@@ -331,7 +322,14 @@ function PeerReviewModal({
             <h3 className="mt-0 mb-5 text-gray-800 text-lg">Select Review Target</h3>
 
             {isLoading ? (
-              <div className="text-center text-gray-500">Loading...</div>
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : !reviewerEligible ? (
+              <div className="p-4 rounded-md border border-yellow-300 bg-yellow-50 text-sm text-yellow-800">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  You must submit this assignment before you can review others.
+                </div>
+              </div>
             ) : (
               <>
                 {internalReviewEnabled && submissionType === 'group' && (
@@ -341,7 +339,7 @@ function PeerReviewModal({
                       <p className="text-gray-400">No teammates available</p>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        {groupMembers.map((member) => (
+                        {groupMembers.filter(m => m.has_submitted).map((member) => (
                           <div
                             key={member.id}
                             className={`p-3 border-2 rounded-md cursor-pointer transition-all text-sm ${
@@ -352,8 +350,14 @@ function PeerReviewModal({
                             onClick={() => handleInternalSelect(member.id)}
                           >
                             {member.name}
+                            {member.is_late && <span className="ml-2 text-xs text-orange-500">(Late)</span>}
                           </div>
                         ))}
+                        {groupMembers.filter(m => !m.has_submitted).length > 0 && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {groupMembers.filter(m => !m.has_submitted).length} teammate(s) have not submitted and cannot be reviewed.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -362,13 +366,13 @@ function PeerReviewModal({
                 {externalReviewEnabled && (
                   <div className="mb-6">
                     <label className="block font-semibold text-gray-800 text-base mb-3">External Review</label>
-                    {externalTargets.length === 0 ? (
+                    {externalTargets.filter(t => t.has_submitted).length === 0 ? (
                       <p className="text-gray-400">
-                        {submissionType === 'group' ? 'No other groups available' : 'No other students available'}
+                        {submissionType === 'group' ? 'No other groups have submitted' : 'No other students have submitted'}
                       </p>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        {externalTargets.map((target) => (
+                        {externalTargets.filter(t => t.has_submitted).map((target) => (
                           <div
                             key={target.id}
                             className={`p-3 border-2 rounded-md cursor-pointer transition-all text-sm ${
@@ -379,8 +383,14 @@ function PeerReviewModal({
                             onClick={() => handleExternalSelect(target.id)}
                           >
                             {target.name}
+                            {target.is_late && <span className="ml-2 text-xs text-orange-500">(Late)</span>}
                           </div>
                         ))}
+                        {externalTargets.filter(t => !t.has_submitted).length > 0 && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {externalTargets.filter(t => !t.has_submitted).length} {submissionType === 'group' ? 'group(s)' : 'student(s)'} have not submitted and cannot be reviewed.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -406,51 +416,34 @@ function PeerReviewModal({
                       className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-blue-700">📎 Submissions</span>
+                        <span className="flex items-center gap-1 text-sm font-semibold text-blue-700"><Paperclip className="h-4 w-4" /> Submissions</span>
                         <span className="inline-block px-2 py-0.5 bg-blue-200 text-blue-700 rounded text-xs font-medium">
                           {targetSubmissions.length}
                         </span>
                       </div>
-                      <span className={`text-blue-600 transition-transform ${submissionsExpanded ? 'rotate-180' : ''}`}>
-                        ▼
-                      </span>
+                      <ChevronDown className={`h-4 w-4 text-blue-600 transition-transform ${submissionsExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     {submissionsExpanded && (
                       <div className="border-t border-blue-200 p-3 flex flex-col gap-2 bg-white">
                         {targetSubmissions.map((submission) => {
-                          const isTextSubmission = submission.submission_text;
-                          const isFileSubmission = submission.filename;
+                          const hasFile = !!submission.filename;
+                          const hasText = !!submission.submission_text;
 
                           return (
                             <button
                               key={submission.id}
-                              onClick={async () => {
-                                if (isTextSubmission) {
-                                  setSelectedSubmissionForView(submission);
-                                  setIsViewSubmissionModalOpen(true);
-                                } else {
-                                  try {
-                                    const blob = await downloadStudentSubmission(submission.id);
-                                    const url = window.URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = submission.filename;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    window.URL.revokeObjectURL(url);
-                                  } catch (error) {
-                                    console.error('Error downloading submission:', error);
-                                    alert('Failed to download submission');
-                                  }
-                                }
+                              onClick={() => {
+                                setSelectedSubmissionForView(submission);
+                                setIsViewSubmissionModalOpen(true);
                               }}
                               className="flex items-center justify-between p-2 rounded border border-blue-100 hover:bg-blue-50 transition-colors text-sm cursor-pointer text-left"
                             >
                               <span className="text-blue-600 font-medium truncate flex-1">
-                                {isTextSubmission ? '📝 Text Submission' : submission.filename}
+                                {hasFile
+                                  ? <><Paperclip className="mr-1 inline h-4 w-4" />{submission.filename}{hasText && <span className="ml-1 text-xs text-blue-400">+ text</span>}</>
+                                  : <><FileText className="mr-1 inline h-4 w-4" />Text Submission</>}
                               </span>
-                              <span className="text-blue-500 ml-2">{isTextSubmission ? '👁️' : '↓'}</span>
+                              <Eye className="ml-2 h-4 w-4 text-blue-500" />
                             </button>
                           );
                         })}
@@ -788,21 +781,35 @@ export default function PeerReviews() {
   };
 
   if (isLoading) {
-    return <div className="p-5 max-w-6xl mx-auto">Loading...</div>;
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   if (!assignment) {
-    return <div className="p-5 max-w-6xl mx-auto">Assignment not found</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          <h3 className="text-lg font-medium">Peer Reviews</h3>
+        </div>
+        <p className="py-8 text-center text-muted-foreground">Assignment not found</p>
+      </div>
+    );
   }
 
   const hasReviewsEnabled = assignment.internal_review || assignment.external_review;
 
   if (!hasReviewsEnabled) {
     return (
-      <div className="p-5 max-w-6xl mx-auto">
-        <div className="text-center py-10 text-gray-400">
-          <p>Peer reviews are not enabled for this assignment</p>
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          <h3 className="text-lg font-medium">Peer Reviews</h3>
         </div>
+        <p className="py-8 text-center text-muted-foreground">Peer reviews are not enabled for this assignment</p>
       </div>
     );
   }
@@ -810,173 +817,171 @@ export default function PeerReviews() {
   const reviewAvailability = isPeerReviewAvailable();
 
   return (
-    <div className="p-5 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h2 className="mb-1">Peer Reviews Dashboard</h2>
-        <p className="text-gray-500 m-0">Submit reviews for this assignment</p>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Users className="h-5 w-5" />
+        <h3 className="text-lg font-medium">Peer Reviews</h3>
       </div>
 
-      {!reviewAvailability.available && (
-        <div className={`mb-8 p-4 border rounded-lg ${
-          reviewAvailability.message?.includes('deadline') ?
-            'border-red-300 bg-red-50' :
-            'border-yellow-300 bg-yellow-50'
-        }`}>
-          <p className={`m-0 font-medium ${
-            reviewAvailability.message?.includes('deadline') ?
-              'text-red-800' :
-              'text-yellow-800'
-          }`}>{reviewAvailability.message}</p>
-        </div>
-      )}
-
-      {/* View Rubrics Section */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center p-5 border rounded-lg bg-white hover:shadow-md transition-shadow">
-          <div className="flex-1">
-            <h3 className="m-0 mb-2.5 text-xl">View Rubric</h3>
-            <p className="text-gray-500 m-0 text-sm">Click the button below to view the scoring rubric for this assignment. The rubric is split into Internal and External review sections.</p>
-          </div>
-          <Button onClick={() => setIsRubricModalOpen(true)} disabled={!rubricId}>
-            {rubricId ? 'View Rubrics' : 'No Rubric Available'}
-          </Button>
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <div className="flex justify-between items-center p-5 border rounded-lg bg-white hover:shadow-md transition-shadow">
-          <div className="flex-1">
-            <h3 className="m-0 mb-2.5 text-xl">Submit a Review</h3>
-            <div className="flex gap-2.5 mb-2.5">
-              {assignment.internal_review && (
-                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">Internal Review Enabled</span>
-              )}
-              {assignment.external_review && (
-                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">External Review Enabled</span>
-              )}
-            </div>
-            {assignment.due_date && (
-              <p className="text-gray-500 text-sm m-0">
-                Due: {new Date(assignment.due_date).toLocaleDateString()}
-              </p>
-            )}
-            {assignment.peer_review_start_date && (
-              <p className="text-gray-500 text-sm m-0">
-                Review starts: {formatDateWithTime(assignment.peer_review_start_date)}
-              </p>
-            )}
-            {assignment.peer_review_due_date && (
-              <p className="text-gray-500 text-sm m-0">
-                Review due: {formatDateWithTime(assignment.peer_review_due_date)}
-              </p>
-            )}
-          </div>
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            disabled={!reviewAvailability.available}
-          >
-            Start Review
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <h3 className="mb-4 text-gray-800">Your Submitted Reviews</h3>
-        {submittedReviews.length === 0 ? (
-          <div className="text-center py-10 text-gray-400">
-            <p>No reviews submitted yet</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {submittedReviews.map((review) => (
-              <div key={review.reviewId} className="flex justify-between items-center p-4 border rounded-md bg-gray-50 transition-all hover:shadow-md hover:border-gray-400">
-                <div className="flex items-center gap-3 flex-1">
-                  <span className="font-medium text-gray-800 text-base">{review.revieweeName}</span>
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">{review.type === 'internal' ? 'Internal' : 'External'}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleViewMyComments(review)}
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded font-medium text-sm hover:bg-gray-300 transition-colors"
-                  >
-                    My Comments
-                  </button>
-                  <div className={`text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center ${getGradeColorClasses(review.grade)}`}>
-                    {review.grade !== undefined && review.grade !== null ? review.grade.toFixed(1) : 'N/A'}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-4 mt-8">
-        <h3 className="mb-4 text-gray-800">Reviews Received</h3>
-        {receivedReviews.length === 0 ? (
-          <div className="text-center py-10 text-gray-400">
-            <p>No reviews received yet</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {receivedReviews.map((review) => (
-              <div key={`${review.type}-${review.reviewerId}`} className="flex justify-between items-center p-4 border rounded-md bg-gray-50 transition-all hover:shadow-md hover:border-gray-400">
-                <div className="flex items-center gap-3 flex-1">
-                  <span className="font-medium text-gray-800 text-base">{review.reviewerName}</span>
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">{review.type === 'internal' ? 'Internal' : 'External'}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleViewComments(review)}
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded font-medium text-sm hover:bg-gray-300 transition-colors"
-                  >
-                    Comments
-                  </button>
-                  <div className={`text-xl font-semibold py-2 px-4 rounded-lg min-w-[60px] text-center ${getGradeColorClasses(review.grade)}`}>
-                    {review.grade !== undefined && review.grade !== null ? review.grade.toFixed(1) : 'N/A'}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Comments Modal */}
-      {selectedReviewComments && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-[90%] max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl">
-            <div className="sticky top-0 flex justify-between items-center p-5 border-b bg-white">
-              <h2 className="m-0 text-xl">Review Comments</h2>
-              <button
-                onClick={() => setSelectedReviewComments(null)}
-                className="bg-transparent border-none text-2xl cursor-pointer text-gray-400 hover:text-gray-800 p-0 w-8 h-8 flex items-center justify-center"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-5">
-              {selectedReviewComments.comments && selectedReviewComments.comments.length > 0 ? (
-                <div className="space-y-4">
-                  {selectedReviewComments.comments.map((comment, idx) => {
-                    if (!comment) return null;
-                    return (
-                      <div key={idx} className="p-3 bg-gray-50 border border-gray-200 rounded">
-                        <p className="text-sm text-gray-600 m-0 mb-2 font-semibold">
-                          Criterion {idx + 1}
-                        </p>
-                        <p className="text-gray-800 m-0 whitespace-pre-wrap">{comment}</p>
-                      </div>
-                    );
-                  })}
-                </div>
+      <div className="space-y-6">
+        {!reviewAvailability.available && (
+          <Card>
+            <CardContent className="flex items-center gap-3 py-3">
+              {reviewAvailability.message?.includes('deadline') ? (
+                <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />
               ) : (
-                <p className="text-gray-500 text-center py-8">No comments provided for this review</p>
+                <Clock className="h-5 w-5 shrink-0 text-yellow-600" />
+              )}
+              <p className={`m-0 text-sm font-medium ${
+                reviewAvailability.message?.includes('deadline')
+                  ? 'text-destructive'
+                  : 'text-yellow-800'
+              }`}>
+                {reviewAvailability.message}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* View Rubric Section */}
+        <Card>
+          <CardContent className="flex items-center justify-between gap-4">
+            <div className="flex-1 space-y-1">
+              <h3 className="text-lg font-medium">View Rubric</h3>
+              <p className="text-sm text-muted-foreground">View the scoring rubric for this assignment, split into Internal and External review sections.</p>
+            </div>
+            <Button onClick={() => setIsRubricModalOpen(true)} disabled={!rubricId}>
+              {rubricId ? 'View Rubrics' : 'No Rubric Available'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Submit a Review Section */}
+        <Card>
+          <CardContent className="flex items-center justify-between gap-4">
+            <div className="flex-1 space-y-2">
+              <h3 className="text-lg font-medium">Submit a Review</h3>
+              <div className="flex gap-2">
+                {assignment.internal_review && (
+                  <Badge variant="secondary">Internal Review Enabled</Badge>
+                )}
+                {assignment.external_review && (
+                  <Badge variant="secondary">External Review Enabled</Badge>
+                )}
+              </div>
+              {assignment.due_date && (
+                <p className="text-sm text-muted-foreground">
+                  Due: {new Date(assignment.due_date).toLocaleDateString()}
+                </p>
+              )}
+              {assignment.peer_review_start_date && (
+                <p className="text-sm text-muted-foreground">
+                  Review starts: {formatDateWithTime(assignment.peer_review_start_date)}
+                </p>
+              )}
+              {assignment.peer_review_due_date && (
+                <p className="text-sm text-muted-foreground">
+                  Review due: {formatDateWithTime(assignment.peer_review_due_date)}
+                </p>
               )}
             </div>
-          </div>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              disabled={!reviewAvailability.available}
+            >
+              Start Review
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Submitted Reviews */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-medium">Your Submitted Reviews</h3>
+          {submittedReviews.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground">No reviews submitted yet</p>
+          ) : (
+            <div className="space-y-3">
+              {submittedReviews.map((review) => (
+                <Card key={review.reviewId}>
+                  <CardContent className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{review.revieweeName}</span>
+                      <Badge variant="secondary">{review.type === 'internal' ? 'Internal' : 'External'}</Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <ShadcnButton variant="outline" size="sm" onClick={() => handleViewMyComments(review)}>
+                        <MessageSquare className="h-4 w-4" />
+                        My Comments
+                      </ShadcnButton>
+                      <div className={`rounded-lg px-4 py-2 text-center text-xl font-semibold min-w-[60px] ${getGradeColorClasses(review.grade)}`}>
+                        {review.grade !== undefined && review.grade !== null ? review.grade.toFixed(1) : 'N/A'}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Received Reviews */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-medium">Reviews Received</h3>
+          {receivedReviews.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground">No reviews received yet</p>
+          ) : (
+            <div className="space-y-3">
+              {receivedReviews.map((review) => (
+                <Card key={`${review.type}-${review.reviewerId}`}>
+                  <CardContent className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{review.reviewerName}</span>
+                      <Badge variant="secondary">{review.type === 'internal' ? 'Internal' : 'External'}</Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <ShadcnButton variant="outline" size="sm" onClick={() => handleViewComments(review)}>
+                        <MessageSquare className="h-4 w-4" />
+                        Comments
+                      </ShadcnButton>
+                      <div className={`rounded-lg px-4 py-2 text-center text-xl font-semibold min-w-[60px] ${getGradeColorClasses(review.grade)}`}>
+                        {review.grade !== undefined && review.grade !== null ? review.grade.toFixed(1) : 'N/A'}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Comments Dialog */}
+      <Dialog open={!!selectedReviewComments} onOpenChange={(open) => { if (!open) setSelectedReviewComments(null); }}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Review Comments</DialogTitle>
+          </DialogHeader>
+          {selectedReviewComments?.comments && selectedReviewComments.comments.length > 0 ? (
+            <div className="space-y-4">
+              {selectedReviewComments.comments.map((comment, idx) => {
+                if (!comment) return null;
+                return (
+                  <Card key={idx} size="sm">
+                    <CardContent>
+                      <p className="mb-1 text-sm font-semibold text-muted-foreground">
+                        Criterion {idx + 1}
+                      </p>
+                      <p className="whitespace-pre-wrap">{comment}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-muted-foreground">No comments provided for this review</p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {assignment && (
         <PeerReviewModal
@@ -989,7 +994,6 @@ export default function PeerReviews() {
           externalReviewEnabled={assignment.external_review || false}
           courseId={assignment.courseID}
           onReviewSubmitted={async () => {
-            // Refresh both submitted and received reviews using batch endpoints
             try {
               const [submitted, received] = await Promise.all([
                 getSubmittedReviews(assignment.id),

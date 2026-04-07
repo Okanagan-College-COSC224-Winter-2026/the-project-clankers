@@ -5,10 +5,19 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { Checkbox } from "./ui/checkbox";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
+import { Badge } from "./ui/badge";
 import StatusMessage from "./StatusMessage";
+import ConfirmDialog from "./ConfirmDialog";
+import { MessageSquare, BarChart2, Trash2 } from "lucide-react";
+
+const toDatetimeLocal = (iso: string): string => {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}`;
+};
 
 interface AssignmentSettingsProps {
   assignmentId: number;
@@ -52,6 +61,8 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditingReview, setIsEditingReview] = useState(false);
 
   const loadAssignmentDetails = useCallback(async () => {
     try {
@@ -59,10 +70,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       setAssignment(data);
       setEditedName(data.name || "");
       setEditedDescription(data.description || "");
-      setEditedStartDate(data.start_date ? data.start_date.slice(0, 16) : "");
-      setEditedDueDate(data.due_date ? data.due_date.slice(0, 16) : "");
-      setEditedPeerReviewStartDate(data.peer_review_start_date ? data.peer_review_start_date.slice(0, 16) : "");
-      setEditedPeerReviewDueDate(data.peer_review_due_date ? data.peer_review_due_date.slice(0, 16) : "");
+      setEditedStartDate(data.start_date ? toDatetimeLocal(data.start_date) : "");
+      setEditedDueDate(data.due_date ? toDatetimeLocal(data.due_date) : "");
+      setEditedPeerReviewStartDate(data.peer_review_start_date ? toDatetimeLocal(data.peer_review_start_date) : "");
+      setEditedPeerReviewDueDate(data.peer_review_due_date ? toDatetimeLocal(data.peer_review_due_date) : "");
       setEditedSubmissionType((data.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(data.internal_review || false);
       setEditedExternalReview(data.external_review || false);
@@ -87,6 +98,30 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     if (!editedName.trim()) {
       setStatusType('error');
       setStatusMessage("Assignment name is required");
+      return;
+    }
+
+    if ((editedPeerReviewStartDate || editedPeerReviewDueDate) && !editedDueDate) {
+      setStatusType('error');
+      setStatusMessage("A due date must be set before setting peer review dates");
+      return;
+    }
+
+    if (editedDueDate && editedPeerReviewStartDate && new Date(editedPeerReviewStartDate) < new Date(editedDueDate)) {
+      setStatusType('error');
+      setStatusMessage("Peer review start date cannot be before the due date");
+      return;
+    }
+
+    if (editedDueDate && editedPeerReviewDueDate && new Date(editedPeerReviewDueDate) < new Date(editedDueDate)) {
+      setStatusType('error');
+      setStatusMessage("Peer review due date cannot be before the due date");
+      return;
+    }
+
+    if (editedPeerReviewStartDate && editedPeerReviewDueDate && new Date(editedPeerReviewDueDate) < new Date(editedPeerReviewStartDate)) {
+      setStatusType('error');
+      setStatusMessage("Peer review due date cannot be before the peer review start date");
       return;
     }
 
@@ -115,28 +150,48 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       };
 
       if (editedStartDate) {
-        updateData.start_date = new Date(editedStartDate).toISOString();
+        // Parse datetime-local as local time (format: YYYY-MM-DDTHH:mm)
+        const parts = editedStartDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.start_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       if (editedDueDate) {
-        updateData.due_date = new Date(editedDueDate).toISOString();
+        const parts = editedDueDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.due_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       if (editedPeerReviewStartDate) {
-        updateData.peer_review_start_date = new Date(editedPeerReviewStartDate).toISOString();
+        const parts = editedPeerReviewStartDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.peer_review_start_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
       if (editedPeerReviewDueDate) {
-        updateData.peer_review_due_date = new Date(editedPeerReviewDueDate).toISOString();
+        const parts = editedPeerReviewDueDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+        if (parts) {
+          const [, year, month, day, hours, minutes] = parts.map(Number);
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          updateData.peer_review_due_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+        }
       }
 
-      console.log("Sending update data:", updateData);
       const response = await editAssignment(assignmentId, updateData);
-      console.log("Response from backend:", response);
-      setAssignment(response.assignment);
+      setAssignment(prev => prev ? { ...prev, ...response.assignment } : response.assignment);
       setIsEditDialogOpen(false);
       setStatusType('success');
       setStatusMessage("Assignment updated successfully!");
+      setTimeout(() => setStatusMessage(""), 4500);
     } catch (error) {
       console.error("Error updating assignment:", error);
       setStatusType('error');
@@ -152,10 +207,10 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     if (assignment) {
       setEditedName(assignment.name || "");
       setEditedDescription(assignment.description || "");
-      setEditedStartDate(assignment.start_date ? assignment.start_date.slice(0, 16) : "");
-      setEditedDueDate(assignment.due_date ? assignment.due_date.slice(0, 16) : "");
-      setEditedPeerReviewStartDate(assignment.peer_review_start_date ? assignment.peer_review_start_date.slice(0, 16) : "");
-      setEditedPeerReviewDueDate(assignment.peer_review_due_date ? assignment.peer_review_due_date.slice(0, 16) : "");
+      setEditedStartDate(assignment.start_date ? toDatetimeLocal(assignment.start_date) : "");
+      setEditedDueDate(assignment.due_date ? toDatetimeLocal(assignment.due_date) : "");
+      setEditedPeerReviewStartDate(assignment.peer_review_start_date ? toDatetimeLocal(assignment.peer_review_start_date) : "");
+      setEditedPeerReviewDueDate(assignment.peer_review_due_date ? toDatetimeLocal(assignment.peer_review_due_date) : "");
       setEditedSubmissionType((assignment.submission_type as 'individual' | 'group') || 'individual');
       setEditedInternalReview(assignment.internal_review || false);
       setEditedExternalReview(assignment.external_review || false);
@@ -163,11 +218,39 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this assignment? This action cannot be undone.")) {
-      return;
+  const handleSaveReview = async () => {
+    setIsLoading(true);
+    setStatusMessage("");
+    try {
+      const response = await editAssignment(assignmentId, {
+        internal_review: editedInternalReview,
+        external_review: editedExternalReview,
+        anonymous_review: editedAnonymousReview,
+      });
+      setAssignment(prev => prev ? { ...prev, ...response.assignment } : response.assignment);
+      setIsEditingReview(false);
+      setStatusType('success');
+      setStatusMessage("Review settings updated successfully!");
+      setTimeout(() => setStatusMessage(""), 4500);
+    } catch (error) {
+      setStatusType('error');
+      setStatusMessage(error instanceof Error ? error.message : "Failed to update review settings");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  const handleCancelReview = () => {
+    setIsEditingReview(false);
+    setStatusMessage("");
+    if (assignment) {
+      setEditedInternalReview(assignment.internal_review || false);
+      setEditedExternalReview(assignment.external_review || false);
+      setEditedAnonymousReview(assignment.anonymous_review || false);
+    }
+  };
+
+  const handleDelete = async () => {
     setIsLoading(true);
     setStatusMessage("");
 
@@ -189,312 +272,386 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
   };
 
   if (!assignment) {
-    return <div className="text-center py-10 text-lg text-gray-500">Loading assignment details...</div>;
+    return <div className="text-center py-10 text-lg text-muted-foreground">Loading assignment details...</div>;
   }
 
   return (
-    <div className="p-5 max-w-3xl mx-auto">
-      <StatusMessage message={statusMessage} type={statusType} />
+    <div className="space-y-8">
+      {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}
 
-      <Card className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-5">
-        <CardHeader>
-          <CardTitle>Assignment Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Name:</span>
-              <span className="text-gray-800 flex-1">{assignment.name || "No name"}</span>
-            </div>
-
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Description:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.description ? (
-                  <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">Enabled</span>
-                ) : (
-                  <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm font-medium">Disabled</span>
-                )}
-              </span>
-            </div>
-
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Start Date:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.start_date
-                  ? new Date(assignment.start_date).toLocaleDateString()
-                  : "No start date set"}
-              </span>
-            </div>
-
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Due Date:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.due_date
-                  ? new Date(assignment.due_date).toLocaleDateString()
-                  : "No due date set"}
-              </span>
-            </div>
-
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Assignment Type:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
-              </span>
-            </div>
-
-            <div className="flex gap-2.5 mt-4">
-              <Button onClick={handleEdit} disabled={isLoading}>
-                Edit Assignment
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-5">
-        <CardHeader>
-          <CardTitle>Peer Review Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            {assignment.submission_type === 'group' && (
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Internal Review:</span>
-                <span className="text-gray-800 flex-1">
-                  {assignment.internal_review ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-            )}
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">External Review:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.external_review ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Anonymous Reviews:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.anonymous_review ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Rubrics Created:</span>
-              <span className="text-gray-800 flex-1">{assignment.rubrics?.length || 0}</span>
-            </div>
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Peer Review Start:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.peer_review_start_date
-                  ? new Date(assignment.peer_review_start_date).toLocaleDateString()
-                  : "Not Set"}
-              </span>
-            </div>
-            <div className="flex gap-2.5 py-2 border-b border-gray-200">
-              <span className="font-semibold text-gray-600 min-w-[120px]">Peer Review Due:</span>
-              <span className="text-gray-800 flex-1">
-                {assignment.peer_review_due_date
-                  ? new Date(assignment.peer_review_due_date).toLocaleDateString()
-                  : "Not Set"}
-              </span>
-            </div>
-            {assignment.rubrics && assignment.rubrics.length > 0 && (
-              <div className="mt-2.5 flex flex-col gap-2">
-                {assignment.rubrics.map((rubric) => (
-                  <div key={rubric.id} className="p-2 px-3 bg-white border border-gray-300 rounded text-sm">
-                    <span>Rubric #{rubric.id}</span>
-                    <span>{rubric.canComment ? " (Comments enabled)" : " (Comments disabled)"}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {assignment.review_count !== undefined && (
-        <Card className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-5">
+      {/* General */}
+      <section>
+        <Card className="border-slate-200/80 shadow-sm">
           <CardHeader>
-            <CardTitle>Progress Statistics</CardTitle>
+            <CardTitle className="text-base">Assignment Details</CardTitle>
+            <CardDescription>Manage the assignment name, dates, and submission type.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Total Reviews:</span>
-                <span className="text-gray-800 flex-1">{assignment.review_count}</span>
+            {isEditDialogOpen ? (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-sm font-medium">Assignment Name</Label>
+                  <Input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    placeholder="Enter assignment name"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <Label className="text-sm font-medium">Description</Label>
+                  <Textarea
+                    value={editedDescription}
+                    onChange={(e) => setEditedDescription(e.target.value)}
+                    placeholder="Enter description"
+                    className="resize-y min-h-[80px]"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Start Date</Label>
+                    {editedStartDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedStartDate}
+                          onChange={(e) => setEditedStartDate(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditedStartDate("")} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedStartDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Due Date</Label>
+                    {editedDueDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedDueDate}
+                          onChange={(e) => setEditedDueDate(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => { setEditedDueDate(""); setEditedPeerReviewStartDate(""); setEditedPeerReviewDueDate(""); }} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedDueDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Peer Review Start Date</Label>
+                    {editedPeerReviewStartDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedPeerReviewStartDate}
+                          onChange={(e) => setEditedPeerReviewStartDate(e.target.value)}
+                          min={editedDueDate || undefined}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditedPeerReviewStartDate("")} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewStartDate(editedDueDate || toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Peer Review Due Date</Label>
+                    {editedPeerReviewDueDate ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={editedPeerReviewDueDate}
+                          onChange={(e) => setEditedPeerReviewDueDate(e.target.value)}
+                          min={editedPeerReviewStartDate || editedDueDate || undefined}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditedPeerReviewDueDate("")} className="text-muted-foreground px-2">✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Not set</span>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewDueDate(editedPeerReviewStartDate || editedDueDate || toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-sm font-medium">Submission Type</Label>
+                  <div className="flex gap-5 items-center">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input
+                        type="radio"
+                        value="individual"
+                        checked={editedSubmissionType === 'individual'}
+                        onChange={(e) => {
+                          setEditedSubmissionType(e.target.value as 'individual');
+                          setEditedInternalReview(false);
+                        }}
+                      />
+                      Individual
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input
+                        type="radio"
+                        value="group"
+                        checked={editedSubmissionType === 'group'}
+                        onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
+                      />
+                      Group
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={handleSave} disabled={isLoading}>
+                    {isLoading ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2.5 py-2 border-b border-gray-200">
-                <span className="font-semibold text-gray-600 min-w-[120px]">Total Groups:</span>
-                <span className="text-gray-800 flex-1">{assignment.group_count || 0}</span>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Name</span>
+                  <span className="text-sm">{assignment.name || "No name"}</span>
+                </div>
+                {assignment.description && (
+                  <div className="flex items-start justify-between py-2 border-b border-slate-100 gap-4">
+                    <span className="text-sm font-medium text-muted-foreground shrink-0">Description</span>
+                    <span className="text-sm text-right">{assignment.description}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Start Date</span>
+                  <span className="text-sm">
+                    {assignment.start_date
+                      ? new Date(assignment.start_date).toLocaleString()
+                      : "Not set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Due Date</span>
+                  <span className="text-sm">
+                    {assignment.due_date
+                      ? new Date(assignment.due_date).toLocaleString()
+                      : "Not set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Peer Review Start</span>
+                  <span className="text-sm">
+                    {assignment.peer_review_start_date
+                      ? new Date(assignment.peer_review_start_date).toLocaleString()
+                      : "Not set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Peer Review Due</span>
+                  <span className="text-sm">
+                    {assignment.peer_review_due_date
+                      ? new Date(assignment.peer_review_due_date).toLocaleString()
+                      : "Not set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Submission Type</span>
+                  <Badge variant="secondary">
+                    {assignment.submission_type === 'group' ? 'Group' : 'Individual'}
+                  </Badge>
+                </div>
+                <div className="pt-2">
+                  <Button variant="outline" size="sm" onClick={handleEdit} disabled={isLoading}>
+                    Edit Details
+                  </Button>
+                </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Peer Review */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <MessageSquare className="h-5 w-5" />
+          <h3 className="text-lg font-medium">Peer Review</h3>
+        </div>
+        <Card className="border-slate-200/80 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Review Settings</CardTitle>
+            <CardDescription>Configure how peer reviews are conducted for this assignment.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {isEditingReview ? (
+              <div className="flex flex-col gap-4">
+                {editedSubmissionType === 'group' && (
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Internal Review</Label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={editedInternalReview}
+                        onChange={(e) => setEditedInternalReview(e.target.checked)}
+                      />
+                      Teammates review each other
+                    </label>
+                  </div>
+                )}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-sm font-medium">External Review</Label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={editedExternalReview}
+                      onChange={(e) => setEditedExternalReview(e.target.checked)}
+                    />
+                    Cross-group peer reviews
+                  </label>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-sm font-medium">Anonymous Reviews</Label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={editedAnonymousReview}
+                      onChange={(e) => setEditedAnonymousReview(e.target.checked)}
+                    />
+                    Hide reviewer names from students
+                  </label>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={handleSaveReview} disabled={isLoading}>
+                    {isLoading ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button variant="outline" onClick={handleCancelReview} disabled={isLoading}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {assignment.submission_type === 'group' && (
+                  <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm font-medium text-muted-foreground">Internal Review</span>
+                    <Badge variant={assignment.internal_review ? "default" : "secondary"}>
+                      {assignment.internal_review ? "Enabled" : "Disabled"}
+                    </Badge>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">External Review</span>
+                  <Badge variant={assignment.external_review ? "default" : "secondary"}>
+                    {assignment.external_review ? "Enabled" : "Disabled"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span className="text-sm font-medium text-muted-foreground">Anonymous Reviews</span>
+                  <Badge variant={assignment.anonymous_review ? "default" : "secondary"}>
+                    {assignment.anonymous_review ? "Enabled" : "Disabled"}
+                  </Badge>
+                </div>
+                {assignment.rubrics && assignment.rubrics.length > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm font-medium text-muted-foreground">Rubric Criteria</span>
+                    <Badge variant="secondary">{assignment.rubrics.length}</Badge>
+                  </div>
+                )}
+                <div className="pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsEditingReview(true)} disabled={isLoading}>
+                    Edit Review Settings
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Statistics */}
+      {assignment.review_count !== undefined && (
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <BarChart2 className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Statistics</h3>
+          </div>
+          <Card className="border-slate-200/80 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Progress Overview</CardTitle>
+              <CardDescription>Current activity data for this assignment.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                <span className="text-sm font-medium text-muted-foreground">Total Reviews</span>
+                <Badge variant="secondary">{assignment.review_count}</Badge>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                <span className="text-sm font-medium text-muted-foreground">Total Groups</span>
+                <Badge variant="secondary">{assignment.group_count ?? 0}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* Danger Zone */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <Trash2 className="h-5 w-5 text-destructive" />
+          <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
+        </div>
+        <Card className="border-destructive/30 bg-destructive/5 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Delete Assignment</p>
+                <p className="text-sm text-muted-foreground">
+                  Permanently remove this assignment and all associated submissions, reviews, and data.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isLoading}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
             </div>
           </CardContent>
         </Card>
+      </section>
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Delete Assignment"
+          message={`Permanently delete "${assignment.name}" and all associated data? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       )}
-
-      <Card className="border-red-500 bg-red-50 rounded-lg p-5 mb-5">
-        <CardHeader>
-          <CardTitle className="text-red-500">Danger Zone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-4">Deleting an assignment will permanently remove it and all associated data.</p>
-          <Button variant="destructive" onClick={handleDelete} disabled={isLoading}>
-            {isLoading ? "Deleting..." : "Delete Assignment"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Edit Assignment Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent showCloseButton={true} className="!max-w-6xl !max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Assignment</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="editAssignmentName">Assignment Name</Label>
-              <Input
-                id="editAssignmentName"
-                placeholder="Enter assignment name"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editDescription">Assignment Details (Optional)</Label>
-              <Textarea
-                id="editDescription"
-                placeholder="Enter assignment description (supports markdown formatting)"
-                value={editedDescription}
-                onChange={(e) => setEditedDescription(e.target.value)}
-                className="resize-none min-h-40 max-h-96 overflow-y-auto"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editStartDate">Start Date (Optional)</Label>
-              <Input
-                id="editStartDate"
-                type="datetime-local"
-                value={editedStartDate}
-                onChange={(e) => setEditedStartDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editDueDate">Due Date (Optional)</Label>
-              <Input
-                id="editDueDate"
-                type="datetime-local"
-                value={editedDueDate}
-                onChange={(e) => setEditedDueDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editPeerReviewStartDate">Peer Review Start Date (Optional)</Label>
-              <Input
-                id="editPeerReviewStartDate"
-                type="datetime-local"
-                value={editedPeerReviewStartDate}
-                onChange={(e) => setEditedPeerReviewStartDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editPeerReviewDueDate">Peer Review Due Date (Optional)</Label>
-              <Input
-                id="editPeerReviewDueDate"
-                type="datetime-local"
-                value={editedPeerReviewDueDate}
-                onChange={(e) => setEditedPeerReviewDueDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Submission Type</Label>
-              <div className="flex gap-4">
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="radio"
-                    value="individual"
-                    checked={editedSubmissionType === 'individual'}
-                    onChange={(e) => {
-                      setEditedSubmissionType(e.target.value as 'individual');
-                      setEditedInternalReview(false);
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm">Individual</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="radio"
-                    value="group"
-                    checked={editedSubmissionType === 'group'}
-                    onChange={(e) => setEditedSubmissionType(e.target.value as 'group')}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm">Group</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Peer Review Options</Label>
-              <div className="flex flex-col gap-3">
-                {editedSubmissionType === 'group' && (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="editInternalReview"
-                      checked={editedInternalReview}
-                      onCheckedChange={(checked) => setEditedInternalReview(!!checked)}
-                    />
-                    <Label htmlFor="editInternalReview" className="cursor-pointer text-sm font-normal">
-                      Internal Review
-                    </Label>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="editExternalReview"
-                    checked={editedExternalReview}
-                    onCheckedChange={(checked) => setEditedExternalReview(!!checked)}
-                  />
-                  <Label htmlFor="editExternalReview" className="cursor-pointer text-sm font-normal">
-                    External Review
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="editAnonymousReview"
-                    checked={editedAnonymousReview}
-                    onCheckedChange={(checked) => setEditedAnonymousReview(!!checked)}
-                  />
-                  <Label htmlFor="editAnonymousReview" className="cursor-pointer text-sm font-normal">
-                    Anonymous Reviews
-                  </Label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              onClick={handleCancel}
-              variant="outline"
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

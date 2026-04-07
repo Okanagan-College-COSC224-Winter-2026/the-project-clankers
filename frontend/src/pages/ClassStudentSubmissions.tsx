@@ -355,8 +355,8 @@ export default function ClassStudentSubmissions() {
                   path: `/classes/${id}/groups`,
                 },
                 {
-                  label: "Student Submissions",
-                  path: `/classes/${id}/student-submissions`,
+                  label: "Grades",
+                  path: `/classes/${id}/grades`,
                 },
               ]
             : [
@@ -367,6 +367,10 @@ export default function ClassStudentSubmissions() {
                 {
                   label: "Members",
                   path: `/classes/${id}/members`,
+                },
+                {
+                  label: "Grades",
+                  path: `/classes/${id}/grades`,
                 },
               ]
         }
@@ -415,7 +419,7 @@ export default function ClassStudentSubmissions() {
                         </p>
                       ) : isGroupAssignment ? (
                         // Group assignment table
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto rounded-lg border border-border">
                           <table className="w-full border-collapse">
                             <thead>
                               <tr className="border-b border-border">
@@ -456,7 +460,7 @@ export default function ClassStudentSubmissions() {
                         </div>
                       ) : (
                         // Individual assignment table
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto rounded-lg border border-border">
                           <table className="w-full border-collapse">
                             <thead>
                               <tr className="border-b border-border">

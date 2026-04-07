@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, FileSpreadsheet } from 'lucide-react'
+import { ChevronRight, FileSpreadsheet } from 'lucide-react'
 import TabNavigation from '../components/TabNavigation'
 import RubricCreator from '../components/RubricCreator'
 import RubricDisplay from '../components/RubricDisplay'
@@ -38,20 +38,16 @@ export default function AssignmentRubric() {
 
   return (
     <div className="flex flex-1 flex-col">
-      {courseId && (
-        <div className="border-b px-6 py-2">
-          <Link
-            to={`/classes/${courseId}/home`}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {courseName || 'Back to class'}
-          </Link>
-        </div>
-      )}
-
-      <div className="border-b bg-background px-6 py-4">
-        <h2 className="text-xl font-semibold">{assignmentName || 'Loading...'}</h2>
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          {courseId ? (
+            <Link to={`/classes/${courseId}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{courseName || '...'}</Link>
+          ) : (
+            <span className="text-muted-foreground">...</span>
+          )}
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">{assignmentName || '...'}</span>
+        </nav>
       </div>
 
       <TabNavigation
@@ -60,9 +56,8 @@ export default function AssignmentRubric() {
             ? [
                 { label: 'Home', path: `/assignments/${id}` },
                 { label: 'Members', path: `/assignments/${id}/members` },
-                { label: 'Groups', path: `/assignments/${id}/groups` },
                 { label: 'Rubric', path: `/assignments/${id}/rubric` },
-                { label: 'Student Submissions', path: `/assignments/${id}/student-submissions` },
+                { label: 'Submissions', path: `/assignments/${id}/student-submissions` },
                 { label: 'Manage', path: `/assignments/${id}/manage` },
               ]
             : [
@@ -77,7 +72,7 @@ export default function AssignmentRubric() {
       <div className="flex-1 space-y-6 p-6">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5" />
-          <h3 className="text-lg font-medium">Rubric</h3>
+          <h3 className="text-lg font-medium">Assignment Rubric</h3>
         </div>
 
         <Card className="p-6">

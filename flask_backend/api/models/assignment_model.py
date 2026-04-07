@@ -53,6 +53,10 @@ class Assignment(db.Model):
     student_submissions = db.relationship(
         "StudentSubmission", back_populates="assignment", cascade="all, delete-orphan", lazy="dynamic"
     )
+    grade_overrides = db.relationship(
+        "GradeOverride", cascade="all, delete-orphan", lazy="dynamic",
+        primaryjoin="Assignment.id == foreign(GradeOverride.assignmentID)"
+    )
 
     def __init__(self, courseID, name, rubric_text, start_date=None, due_date=None, submission_type='individual', internal_review=False, external_review=False, anonymous_review=False, attachment_filename=None, attachment_path=None, description=None, peer_review_start_date=None, peer_review_due_date=None):
         self.courseID = courseID

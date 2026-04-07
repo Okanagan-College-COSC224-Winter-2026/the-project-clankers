@@ -174,7 +174,11 @@ export default function Profile() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+    <div className="flex flex-1 flex-col">
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <h2 className="text-xl font-semibold">My Info</h2>
+      </div>
+      <div className="flex flex-1 flex-col gap-6 p-6">
       <Card>
         <CardContent className="flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-start">
           <div className="relative">
@@ -318,6 +322,7 @@ export default function Profile() {
             </CardContent>
           </Card>
         )}
+      </div>
       </div>
     </div>
   )

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """Database migration: Add attachment fields to Assignment table"""
 from api import create_app
 from api.models import db
@@ -34,5 +33,3 @@ with app.app_context():
         except Exception as e:
             print(f"Error during migration: {e}")
             conn.rollback()
-=======
->>>>>>> 396dd6f32cd182343cf6419449e2ff68f256efb8

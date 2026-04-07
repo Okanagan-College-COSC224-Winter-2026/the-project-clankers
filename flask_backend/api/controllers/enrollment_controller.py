@@ -106,6 +106,29 @@ def get_teacher_enrollment_requests():
     return jsonify(enrollment_requests_schema.dump(requests)), 200
 
 
+@bp.route("/course/<int:course_id>/requests", methods=["GET"])
+@jwt_teacher_required
+def get_course_enrollment_requests(course_id):
+    """
+    Get all pending enrollment requests for a specific course.
+    Only the course teacher (or an admin) may access this.
+    """
+    email = get_jwt_identity()
+    teacher = User.get_by_email(email)
+    if not teacher:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(course_id)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.teacherID != teacher.id and not teacher.is_admin():
+        return jsonify({"msg": "Not authorized"}), 403
+
+    requests = EnrollmentRequest.get_pending_for_course(course_id)
+    return jsonify(enrollment_requests_schema.dump(requests)), 200
+
+
 @bp.route("/<int:request_id>/approve", methods=["POST"])
 @jwt_teacher_required
 def approve_enrollment_request(request_id):

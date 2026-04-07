@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
+import { Settings, FileStack, Upload, ChevronRight, ClipboardList } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import TabNavigation from "../components/TabNavigation";
 import AssignmentSettings from "../components/AssignmentSettings";
@@ -8,6 +9,9 @@ import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
 import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
 import TeacherSubmissionView from "../components/TeacherSubmissionView";
 import ViewSubmissionModal from "../components/ViewSubmissionModal";
+import AssignmentGradebookView from "../components/AssignmentGradebookView";
+import RubricDisplay from "../components/RubricDisplay";
+import RubricCreator from "../components/RubricCreator";
 import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
 import ReactMarkdown from "react-markdown";
@@ -50,8 +54,11 @@ export default function Assignment() {
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
+  const isRubricTab = location.pathname.includes('/rubric');
   const isSubmissionTab = location.pathname.includes('/submission');
   const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
+  const isGradebookTab =
+    location.pathname.includes('/gradebook') || location.pathname.includes('/grades');
   const isPeerReviewsTab = location.pathname.includes('/peer-reviews');
 
   // Fetch assignment details to get the name
@@ -204,18 +211,16 @@ export default function Assignment() {
 
   return (
     <div className="flex flex-1 flex-col">
-      {courseId && (
-        <div className="px-3 py-2">
-          <Link
-            to={`/classes/${courseId}/home`}
-            className="text-sm text-muted-foreground no-underline hover:text-foreground transition-colors"
-          >
-            ← {courseName || "Back to class"}
-          </Link>
-        </div>
-      )}
-      <div className="flex flex-row items-center justify-between px-3 pb-3">
-        <h2 className="text-xl font-semibold">{assignmentName || "Loading..."}</h2>
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          {courseId ? (
+            <Link to={`/classes/${courseId}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{courseName || '...'}</Link>
+          ) : (
+            <span className="text-muted-foreground">...</span>
+          )}
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">{assignmentName || '...'}</span>
+        </nav>
       </div>
 
       <TabNavigation
@@ -227,19 +232,11 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Members",
-                  path: `/assignments/${id}/members`,
-                },
-                {
-                  label: "Groups",
-                  path: `/assignments/${id}/groups`,
-                },
-                {
                   label: "Rubric",
                   path: `/assignments/${id}/rubric`,
                 },
                 {
-                  label: "Student Submissions",
+                  label: "Submissions",
                   path: `/assignments/${id}/student-submissions`,
                 },
                 {
@@ -253,10 +250,6 @@ export default function Assignment() {
                   path: `/assignments/${id}`,
                 },
                 {
-                  label: "Members",
-                  path: `/assignments/${id}/members`,
-                },
-                {
                   label: "Submission",
                   path: `/assignments/${id}/submission`,
                 },
@@ -268,17 +261,50 @@ export default function Assignment() {
         }
       />
 
-      {isManageTab && isTeacher() ? (
-        <AssignmentSettings assignmentId={Number(id)} />
+      {isRubricTab ? (
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <ClipboardList className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Rubric</h3>
+          </div>
+          <Card>
+            <CardContent className="p-4">
+              <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+            </CardContent>
+          </Card>
+          {isTeacher() && <RubricCreator id={Number(id)} />}
+        </div>
+      ) : isManageTab && isTeacher() ? (
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Assignment Management</h3>
+          </div>
+          <AssignmentSettings assignmentId={Number(id)} />
+        </div>
       ) : isSubmissionTab && !isTeacher() ? (
-        /* Student submission upload tab */
-        <StudentSubmissionUpload assignmentId={Number(id)} />
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Submission</h3>
+          </div>
+          <StudentSubmissionUpload assignmentId={Number(id)} />
+        </div>
       ) : isStudentSubmissionsTab && isTeacher() ? (
-        /* Teacher view of all student submissions */
-        <TeacherSubmissionView assignmentId={Number(id)} />
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <FileStack className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Assignment Submissions</h3>
+          </div>
+          <TeacherSubmissionView assignmentId={Number(id)} />
+        </div>
+      ) : isGradebookTab && isTeacher() ? (
+        <AssignmentGradebookView assignmentId={Number(id)} />
       ) : isPeerReviewsTab && !isTeacher() ? (
         /* Student peer reviews tab */
-        <PeerReviews />
+        <div className="flex-1 space-y-6 p-6">
+          <PeerReviews />
+        </div>
       ) : (
         /* Home tab - default view */
         <div className="flex-1 space-y-6 p-6">

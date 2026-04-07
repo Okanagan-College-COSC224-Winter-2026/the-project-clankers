@@ -1,11 +1,14 @@
 from .assignment_model import Assignment
 from .assignment_file_model import AssignmentFile
 from .course_group_model import CourseGroup
+from .course_grade_policy_model import CourseGradePolicy
+from .course_total_override_model import CourseTotalOverride
 from .course_model import Course
 from .criteria_description_model import CriteriaDescription
 from .criterion_model import Criterion
 from .db import db, ma
 from .enrollment_request_model import EnrollmentRequest
+from .grade_override_model import GradeOverride
 from .group_members_model import Group_Members
 from .notification_model import Notification
 from .review_model import Review
@@ -41,6 +44,8 @@ __all__ = [
     "ma",
     "User",
     "Course",
+    "CourseGradePolicy",
+    "CourseTotalOverride",
     "Assignment",
     "AssignmentFile",
     "Rubric",
@@ -49,6 +54,7 @@ __all__ = [
     "Review",
     "CourseGroup",
     "Group_Members",
+    "GradeOverride",
     "User_Course",
     "Submission",
     "StudentSubmission",
