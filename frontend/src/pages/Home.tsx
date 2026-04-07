@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Users, Loader2, Archive } from 'lucide-react'
+import { Plus, Users, Loader2, Archive, Eye } from 'lucide-react'
 import ClassCard from '../components/ClassCard'
-import { listClasses, listAssignments, getArchivedClasses, unarchiveClass, getMyCourseGrade } from '../util/api'
+import { listClasses, listAssignments, getArchivedClasses, unarchiveClass, getMyCourseGrade, hideClass, getHiddenClasses, unhideClass } from '../util/api'
 import { isTeacher, isAdmin } from '../util/login'
 import { Button } from '@/components/ui/button'
 
@@ -27,6 +27,9 @@ export default function Home() {
   const [showArchivedModal, setShowArchivedModal] = useState(false)
   const [archivedClasses, setArchivedClasses] = useState<any[]>([])
   const [loadingArchived, setLoadingArchived] = useState(false)
+  const [showHiddenModal, setShowHiddenModal] = useState(false)
+  const [hiddenClasses, setHiddenClasses] = useState<any[]>([])
+  const [loadingHidden, setLoadingHidden] = useState(false)
 
   const fetchCourses = async () => {
     try {
@@ -146,6 +149,41 @@ export default function Home() {
     }
   }
 
+  const handleOpenHidden = async () => {
+    setShowHiddenModal(true)
+    setLoadingHidden(true)
+    try {
+      const hidden = await getHiddenClasses()
+      setHiddenClasses(hidden)
+    } catch (error) {
+      console.error('Error fetching hidden classes:', error)
+    } finally {
+      setLoadingHidden(false)
+    }
+  }
+
+  const handleHideClass = async (classId: number) => {
+    try {
+      await hideClass(classId)
+      // Remove from visible courses and reload
+      fetchCourses()
+    } catch (error) {
+      console.error('Error hiding class:', error)
+    }
+  }
+
+  const handleRestoreHiddenClass = async (classId: number) => {
+    try {
+      await unhideClass(classId)
+      // Remove from hidden list
+      setHiddenClasses(hiddenClasses.filter(c => c.id !== classId))
+      // Reload active courses
+      fetchCourses()
+    } catch (error) {
+      console.error('Error restoring hidden class:', error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 flex-col p-6">
@@ -171,12 +209,20 @@ export default function Home() {
     <div className="flex flex-1 flex-col">
       <div className="flex h-16 items-center justify-between border-b bg-background px-6">
         <h2 className="text-xl font-semibold">Dashboard</h2>
-        {(isTeacher() || isAdmin()) && (
-          <Button onClick={handleOpenArchived} variant="outline" size="sm">
-            <Archive className="mr-2 h-4 w-4" />
-            Archived Classes
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {!isTeacher() && !isAdmin() && (
+            <Button onClick={handleOpenHidden} variant="outline" size="sm">
+              <Eye className="mr-2 h-4 w-4" />
+              All Classes
+            </Button>
+          )}
+          {(isTeacher() || isAdmin()) && (
+            <Button onClick={handleOpenArchived} variant="outline" size="sm">
+              <Archive className="mr-2 h-4 w-4" />
+              Archived Classes
+            </Button>
+          )}
+        </div>
       </div>
       <div className="flex-1 p-6">
 
@@ -203,18 +249,27 @@ export default function Home() {
                 subtitle={assignmentText}
                 action={
                   !isTeacher() && !isAdmin() ? (
-                    <details className="w-full rounded-md border px-2 py-1 text-xs">
-                      <summary className="cursor-pointer font-medium">View Course Total</summary>
-                      <p className="mt-1 font-medium">
-                        Course Grade:{' '}
-                        {course.courseTotalGrade !== null && course.courseTotalGrade !== undefined
-                          ? course.courseTotalGrade.toFixed(1)
-                          : 'Pending'}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        {course.gradeStatus || 'pending evaluations'}
-                      </p>
-                    </details>
+                    <div className="w-full flex flex-col gap-2">
+                      <details className="w-full rounded-md border px-2 py-1 text-xs">
+                        <summary className="cursor-pointer font-medium">View Course Total</summary>
+                        <p className="mt-1 font-medium">
+                          Course Grade:{' '}
+                          {course.courseTotalGrade !== null && course.courseTotalGrade !== undefined
+                            ? course.courseTotalGrade.toFixed(1)
+                            : 'Pending'}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">
+                          {course.gradeStatus || 'pending evaluations'}
+                        </p>
+                      </details>
+                      <Button
+                        onClick={() => handleHideClass(course.id)}
+                        variant="outline"
+                        size="xs"
+                      >
+                        Remove from View
+                      </Button>
+                    </div>
                   ) : undefined
                 }
                 onclick={() => {
@@ -307,6 +362,69 @@ export default function Home() {
                       size="sm"
                     >
                       Restore
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showHiddenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 max-w-4xl w-full rounded-lg bg-white p-6 shadow-lg max-h-[80vh] overflow-y-auto">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">All Classes</h2>
+              <button
+                onClick={() => setShowHiddenModal(false)}
+                className="rounded p-1 hover:bg-gray-100"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {loadingHidden ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : hiddenClasses.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Eye className="mx-auto mb-4 h-12 w-12" />
+                <p>All your classes are visible</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {hiddenClasses.map((course) => (
+                  <div
+                    key={course.id}
+                    className="flex items-center justify-between rounded-lg border p-4"
+                  >
+                    <div>
+                      <h3 className="font-semibold">{course.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {course.assignments_count} assignment(s)
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => handleRestoreHiddenClass(course.id)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Add to View
                     </Button>
                   </div>
                 ))}
