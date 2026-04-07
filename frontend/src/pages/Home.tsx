@@ -15,6 +15,9 @@ interface Course {
 interface CourseWithAssignments extends Course {
   assignments: unknown[]
   assignmentCount: number
+  student_count: number
+  next_due_date: string | null
+  pending_reviews_count: number
 }
 
 export default function Home() {
@@ -32,7 +35,7 @@ export default function Home() {
       const coursesResp = await listClasses()
 
       const coursesWithAssignments = await Promise.all(
-        coursesResp.map(async (course: Course) => {
+        coursesResp.map(async (course: CourseWithAssignments) => {
           try {
             const assignments = await listAssignments(String(course.id))
             return {
@@ -85,7 +88,7 @@ export default function Home() {
       // Reload active courses
       const coursesResp = await listClasses()
       const coursesWithAssignments = await Promise.all(
-        coursesResp.map(async (course: Course) => {
+        coursesResp.map(async (course: CourseWithAssignments) => {
           try {
             const assignments = await listAssignments(String(course.id))
             return {
@@ -162,6 +165,9 @@ export default function Home() {
                 image="https://crc.losrios.edu//shared/img/social-1200-630/programs/general-science-social.jpg"
                 name={course.name}
                 subtitle={assignmentText}
+                studentCount={course.student_count}
+                nextDueDate={course.next_due_date}
+                pendingReviews={course.pending_reviews_count}
                 onclick={() => {
                   window.location.href = `/classes/${course.id}/home`
                 }}

@@ -105,3 +105,53 @@ class Course(db.Model):
         """Delete course from the database"""
         db.session.delete(self)
         db.session.commit()
+
+    def get_student_count(self):
+        """Get the number of students enrolled in this course"""
+        from .user_course_model import User_Course
+        return User_Course.query.filter_by(courseID=self.id).count()
+
+    def get_next_due_date(self):
+        """Get the earliest upcoming assignment due date for this course"""
+        from datetime import datetime, timezone
+        from .assignment_model import Assignment
+        
+        # Get all assignments for this course with due dates
+        assignments = self.assignments.filter(
+            Assignment.due_date.isnot(None)
+        ).all()
+        
+        if not assignments:
+            return None
+        
+        # Find the earliest due date that is in the future
+        now = datetime.now(timezone.utc)
+        future_due_dates = [a.due_date for a in assignments if a.due_date and a.due_date > now]
+        
+        if future_due_dates:
+            return min(future_due_dates)
+        
+        # If no future dates, return the latest past date
+        return max([a.due_date for a in assignments])
+
+    def get_pending_reviews_count(self):
+        """Get the count of incomplete peer reviews for this course"""
+        from sqlalchemy import func
+        from .criterion_model import Criterion
+        from .assignment_model import Assignment
+        from .review_model import Review
+        
+        # A review is incomplete if it has criteria with NULL grades
+        # Get all reviews for assignments in this course
+        incomplete_reviews = db.session.query(
+            func.count(db.distinct(Criterion.reviewID))
+        ).join(
+            Review, Criterion.reviewID == Review.id
+        ).join(
+            Assignment, Review.assignmentID == Assignment.id
+        ).filter(
+            Assignment.courseID == self.id,
+            Criterion.grade.is_(None)  # Incomplete: grade not set
+        ).scalar()
+        
+        return incomplete_reviews or 0
