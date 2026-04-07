@@ -29,23 +29,6 @@ export default function ClassCard(props: Props) {
     }
   }
 
-  // Generate a color based on course name (for visual differentiation)
-  const getCardColor = (name: string) => {
-    const colors = [
-      'from-blue-400 to-blue-600',
-      'from-purple-400 to-purple-600',
-      'from-pink-400 to-pink-600',
-      'from-green-400 to-green-600',
-      'from-amber-400 to-amber-600',
-      'from-indigo-400 to-indigo-600',
-      'from-rose-400 to-rose-600',
-      'from-cyan-400 to-cyan-600',
-    ]
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[hash % colors.length]
-  }
-
-  const cardGradient = getCardColor(props.name)
   const pendingCount = props.pendingReviews || 0
   const hasPendingReviews = pendingCount > 0
 
@@ -54,11 +37,12 @@ export default function ClassCard(props: Props) {
       className="cursor-pointer overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col h-full"
       onClick={props.onclick}
     >
-      {/* Gradient header instead of image */}
-      <div className={`aspect-video overflow-hidden bg-gradient-to-br ${cardGradient} flex items-center justify-center p-4`}>
-        <div className="text-white text-center">
-          <h3 className="text-sm font-semibold opacity-90">Academic Dashboard</h3>
-        </div>
+      <div className="aspect-video overflow-hidden">
+        <img
+          src={props.image}
+          alt={props.name}
+          className="h-full w-full object-cover transition-transform hover:scale-105"
+        />
       </div>
       
       <CardContent className="p-4 flex-1 flex flex-col justify-between">
@@ -68,7 +52,7 @@ export default function ClassCard(props: Props) {
         </div>
 
         {/* Metrics Grid */}
-        <div className="space-y-3 text-sm">
+        <div className="space-y-2 text-sm">
           {/* Student Count */}
           {props.studentCount !== undefined && (
             <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">

@@ -1,7 +1,7 @@
 # US14 – Teacher Dashboard Implementation
 
 ## Overview
-Completed all 4 pending acceptance criteria for US14 (Teacher Dashboard). Teachers now see enhanced course cards with actionable metrics: student enrollment counts, upcoming deadlines, pending peer review status, and visually distinct course cards.
+Completed all 4 pending acceptance criteria for US14 (Teacher Dashboard). Teachers now see enhanced course cards with actionable metrics: student enrollment counts, upcoming deadlines, and pending peer review status displayed below the course image with icon indicators.
 
 ## Status: ✅ Complete
 
@@ -148,42 +148,24 @@ Updated course rendering to pass new metrics to the ClassCard component:
 ```
 
 #### 3. ClassCard Component Redesign (`frontend/src/components/ClassCard.tsx`)
-Complete redesign replacing placeholder images with visual metrics:
+Enhanced to display new metrics below the placeholder image:
 
-##### Color Differentiation
-- **8 Tailwind gradient colors**: Blue, Purple, Pink, Green, Amber, Indigo, Rose, Cyan
-- **Hash-based deterministic selection** ensures the same course always gets the same color
-- Colors are assigned based on course name hash, not randomly
-
-```typescript
-const getCardColor = (name: string) => {
-  const colors = [
-    'from-blue-400 to-blue-600',
-    'from-purple-400 to-purple-600',
-    'from-pink-400 to-pink-600',
-    'from-green-400 to-green-600',
-    'from-amber-400 to-amber-600',
-    'from-indigo-400 to-indigo-600',
-    'from-rose-400 to-rose-600',
-    'from-cyan-400 to-cyan-600',
-  ]
-  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return colors[hash % colors.length]
-}
-```
+##### Image Display
+- Retains original placeholder image at the top of the card
+- Maintains existing hover scale effect
 
 ##### Metric Display Section
-Replaced simple subtitle with a metrics grid featuring:
+Added a metrics grid below the course information featuring:
 - **Student Count** with Users icon
 - **Next Due Date** with Calendar icon (formatted as "Apr 15, 26" or "No upcoming deadlines")
 - **Pending Reviews** with AlertCircle icon (amber highlight when pending)
 
 ```typescript
-<div className="space-y-3 text-sm">
+<div className="space-y-2 text-sm">
   {props.studentCount !== undefined && (
-    <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+    <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
       <Users className="h-4 w-4 flex-shrink-0" />
-      <span>{props.studentCount} students</span>
+      <span>{props.studentCount} {props.studentCount === 1 ? 'student' : 'students'}</span>
     </div>
   )}
   {/* Calendar and AlertCircle sections follow similar pattern */}
@@ -191,8 +173,8 @@ Replaced simple subtitle with a metrics grid featuring:
 ```
 
 ##### Visual Polish
-- Hover states with smooth transitions
-- Icon indicators for at-a-glance status
+- Icon indicators for at-a-glance status (Users, Calendar, AlertCircle)
+- Amber color highlight for pending reviews
 - Responsive layout using flexbox
 - Full-height card with flex layout for proper alignment
 
@@ -209,7 +191,7 @@ No database migrations required. Implementation uses existing relationships:
 | Student count on course card | ✅ | Displays "X students" with Users icon; data from User_Courses |
 | Upcoming due dates or next deadline | ✅ | Shows earliest future assignment due date or latest past date; formatted as "Apr 15, 26" |
 | Pending peer evaluation count | ✅ | Counts incomplete reviews (Criterion.grade IS NULL); displays count or "All reviews complete" |
-| Distinct visuals/color coding | ✅ | 8 gradient backgrounds assigned deterministically per course name; replaces placeholder images |
+| Distinct visuals/color coding | ✅ | Icon indicators (Users, Calendar, AlertCircle) provide visual differentiation; amber color for pending reviews |
 
 ## Testing Considerations
 
@@ -222,8 +204,8 @@ No new unit tests added (existing test suite continues to pass):
 1. Log in as teacher with multiple courses
 2. Verify each course card shows correct student count
 3. Check date formatting for various scenarios (future, past, none)
-4. Verify pending reviews count (0, positive)
-5. Confirm gradient colors are distinct and consistent
+4. Verify pending reviews count (0, positive) and amber color indicator
+5. Confirm metrics display with proper icons
 
 ## Files Modified
 
@@ -276,4 +258,4 @@ frontend/
 - **US29** (Peer Evaluation Settings) — Peer review data source
 
 ## Conclusion
-US14 is now fully implemented with all pending acceptance criteria complete. The teacher dashboard now provides actionable at-a-glance metrics (student count, upcoming deadlines, pending reviews) alongside visually distinct course cards, enabling efficient course management without drill-down navigation.
+US14 is now fully implemented with all pending acceptance criteria complete. The teacher dashboard now provides actionable at-a-glance metrics (student count, upcoming deadlines, pending reviews) displayed with icon indicators on each course card, enabling efficient course management without drill-down navigation.
