@@ -168,6 +168,7 @@ export default function Home() {
                 studentCount={course.student_count}
                 nextDueDate={course.next_due_date}
                 pendingReviews={course.pending_reviews_count}
+                classId={course.id}
                 onclick={() => {
                   window.location.href = `/classes/${course.id}/home`
                 }}

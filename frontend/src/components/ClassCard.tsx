@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { ReactNode } from 'react'
 import { Users, AlertCircle, Calendar } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface Props {
   image: string
@@ -11,9 +12,12 @@ interface Props {
   studentCount?: number
   nextDueDate?: string | null
   pendingReviews?: number
+  classId?: number
 }
 
 export default function ClassCard(props: Props) {
+  const navigate = useNavigate()
+
   // Parse and format the next due date
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'No upcoming deadlines'
@@ -31,6 +35,20 @@ export default function ClassCard(props: Props) {
 
   const pendingCount = props.pendingReviews || 0
   const hasPendingReviews = pendingCount > 0
+
+  const handleStudentCountClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (props.classId) {
+      navigate(`/classes/${props.classId}/members`)
+    }
+  }
+
+  const handlePendingReviewsClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (props.classId) {
+      navigate(`/classes/${props.classId}/student-submissions`)
+    }
+  }
 
   return (
     <Card
@@ -55,7 +73,10 @@ export default function ClassCard(props: Props) {
         <div className="space-y-2 text-sm">
           {/* Student Count */}
           {props.studentCount !== undefined && (
-            <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <div 
+              onClick={handleStudentCountClick}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
               <Users className="h-4 w-4 flex-shrink-0" />
               <span>{props.studentCount} {props.studentCount === 1 ? 'student' : 'students'}</span>
             </div>
@@ -71,11 +92,14 @@ export default function ClassCard(props: Props) {
 
           {/* Pending Reviews */}
           {props.pendingReviews !== undefined && (
-            <div className={`flex items-center gap-2 transition-colors ${
-              hasPendingReviews 
-                ? 'text-amber-600 hover:text-amber-700' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}>
+            <div 
+              onClick={handlePendingReviewsClick}
+              className={`flex items-center gap-2 transition-colors cursor-pointer ${
+                hasPendingReviews 
+                  ? 'text-amber-600 hover:text-amber-700' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <span>
                 {pendingCount === 0 
