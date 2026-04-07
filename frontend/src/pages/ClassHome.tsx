@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,12 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import AssignmentCard from '../components/AssignmentCard'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
-import RosterUploadResult from '../components/RosterUploadResult'
-import ErrorModal from '../components/ErrorModal'
-import { listAssignments, listClasses, createAssignment, updateClass, deleteClass, archiveClass, getClassDetails } from '../util/api'
-import { importCSV } from '../util/csv'
+import { listAssignments, listClasses, createAssignment } from '../util/api'
+
+const toDatetimeLocal = (iso: string): string => {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 import { isTeacher, isAdmin } from '../util/login'
-import { Upload, Plus, FileText } from 'lucide-react'
+import { Plus, FileText } from 'lucide-react'
 
 interface Assignment {
   id: number
@@ -22,31 +25,8 @@ interface Assignment {
   due_date?: string
 }
 
-interface RosterUploadResultData {
-  message: string
-  enrolled_count: number
-  created_count: number
-  existing_count?: number
-  new_students?: Array<{
-    email: string
-    student_id: string
-    temp_password: string
-  }>
-  enrolled_existing_students?: Array<{
-    email: string
-    student_id: string
-    name: string
-  }>
-  existing_students?: Array<{
-    email: string
-    student_id: string
-    name: string
-  }>
-}
-
 export default function ClassHome() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const idNew = Number(id)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [newAssignmentName, setNewAssignmentName] = useState('')
@@ -57,14 +37,8 @@ export default function ClassHome() {
   const [className, setClassName] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
   const [statusType, setStatusType] = useState<'error' | 'success'>('error')
-  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null)
-  const [isUploadingRoster, setIsUploadingRoster] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [isEditingClassName, setIsEditingClassName] = useState(false)
-  const [editedClassName, setEditedClassName] = useState('')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [studentCount, setStudentCount] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [createError, setCreateError] = useState('')
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
@@ -78,18 +52,33 @@ export default function ClassHome() {
       const currentClass = classes.find((c: { id: number }) => c.id === Number(id))
       setAssignments(resp)
       setClassName(currentClass?.name || null)
-      try {
-        const details = await getClassDetails(Number(id))
-        setStudentCount(details.student_count ?? 0)
-      } catch {
-        // non-critical, default stays 0
-      }
-    })()
-  }, [id])
+    })()  }, [id])
 
   const tryCreateAssignment = async () => {
     try {
       setStatusMessage('')
+      setCreateError('')
+
+      if ((peerReviewStartDate || peerReviewDueDate) && !dueDate) {
+        setCreateError('A due date must be set before setting peer review dates')
+        return
+      }
+
+      if (dueDate && peerReviewStartDate && new Date(peerReviewStartDate) < new Date(dueDate)) {
+        setCreateError('Peer review start date cannot be before the due date')
+        return
+      }
+
+      if (dueDate && peerReviewDueDate && new Date(peerReviewDueDate) < new Date(dueDate)) {
+        setCreateError('Peer review due date cannot be before the due date')
+        return
+      }
+
+      if (peerReviewStartDate && peerReviewDueDate && new Date(peerReviewDueDate) < new Date(peerReviewStartDate)) {
+        setCreateError('Peer review due date cannot be before the peer review start date')
+        return
+      }
+
       const response = await createAssignment(
         idNew,
         newAssignmentName,
@@ -125,160 +114,14 @@ export default function ClassHome() {
       setStatusMessage('Assignment created successfully!')
     } catch (error) {
       console.error('Error creating assignment:', error)
-      setStatusType('error')
-      setStatusMessage('Error creating assignment.')
-    }
-  }
-
-  const handleRosterUpload = () => {
-    if (isUploadingRoster) return
-
-    setIsUploadingRoster(true)
-    setStatusMessage('Opening file picker...')
-    setStatusType('success')
-
-    importCSV(
-      id as string,
-      (result) => {
-        setIsUploadingRoster(false)
-        setStatusMessage('')
-        setRosterResult(result)
-      },
-      (error) => {
-        setIsUploadingRoster(false)
-        setStatusMessage('')
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        setUploadError(errorMessage)
-      },
-      () => {
-        setIsUploadingRoster(false)
-        setStatusMessage('')
-      }
-    )
-  }
-
-  const handleEditClassName = () => {
-    setEditedClassName(className || '')
-    setIsEditingClassName(true)
-  }
-
-  const handleSaveClassName = async () => {
-    if (!editedClassName.trim()) {
-      setStatusType('error')
-      setStatusMessage('Class name cannot be empty')
-      return
-    }
-
-    try {
-      await updateClass(idNew, editedClassName.trim())
-      setClassName(editedClassName.trim())
-      setIsEditingClassName(false)
-      setStatusType('success')
-      setStatusMessage('Class name updated successfully!')
-    } catch (error) {
-      console.error('Error updating class name:', error)
-      setStatusType('error')
-      setStatusMessage(error instanceof Error ? error.message : 'Error updating class name')
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setIsEditingClassName(false)
-    setEditedClassName('')
-  }
-
-  const handleDeleteClass = async () => {
-    try {
-      await deleteClass(idNew)
-      setStatusType('success')
-      setStatusMessage('Class deleted successfully!')
-      setTimeout(() => {
-        navigate('/home')
-      }, 1500)
-    } catch (error) {
-      console.error('Error deleting class:', error)
-      setStatusType('error')
-      setStatusMessage(error instanceof Error ? error.message : 'Error deleting class')
-      setShowDeleteConfirm(false)
-    }
-  }
-
-  const handleArchiveClass = async () => {
-    try {
-      await archiveClass(idNew)
-      setStatusType('success')
-      setStatusMessage('Class archived successfully!')
-      setTimeout(() => {
-        navigate('/home')
-      }, 1500)
-    } catch (error) {
-      console.error('Error archiving class:', error)
-      setStatusType('error')
-      setStatusMessage(error instanceof Error ? error.message : 'Error archiving class')
-      setShowDeleteConfirm(false)
+      setCreateError('Error creating assignment.')
     }
   }
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between border-b bg-background px-6 py-4">
-        {isEditingClassName ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={editedClassName}
-              onChange={(e) => setEditedClassName(e.target.value)}
-              className="max-w-md"
-              placeholder="Class name"
-            />
-            <Button onClick={handleSaveClassName} size="sm">
-              Save
-            </Button>
-            <Button onClick={handleCancelEdit} size="sm" variant="outline">
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold">{className}</h2>
-            {isTeacher() && (
-              <button
-                onClick={handleEditClassName}
-                className="rounded p-1 hover:bg-gray-100"
-                title="Edit class name"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
-        <div className="flex gap-2">
-          {isTeacher() && (
-            <Button onClick={handleRosterUpload} disabled={isUploadingRoster} variant="outline">
-              <Upload className="mr-2 h-4 w-4" />
-              {isUploadingRoster ? 'Opening...' : 'Add Students via CSV'}
-            </Button>
-          )}
-          {(isTeacher() || isAdmin()) && (
-            <Button
-              onClick={() => setShowDeleteConfirm(true)}
-              variant="destructive"
-            >
-              Delete Class
-            </Button>
-          )}
-        </div>
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <h2 className="text-xl font-semibold">{className}</h2>
       </div>
 
       <TabNavigation
@@ -287,30 +130,19 @@ export default function ClassHome() {
             ? [
                 { label: 'Home', path: `/classes/${id}/home` },
                 { label: 'Members', path: `/classes/${id}/members` },
-                { label: 'Groups', path: `/classes/${id}/groups` },
-                { label: 'Student Submissions', path: `/classes/${id}/student-submissions` },
+                { label: 'Grades', path: `/classes/${id}/grades` },
+                { label: 'Settings', path: `/classes/${id}/settings` },
               ]
             : [
                 { label: 'Home', path: `/classes/${id}/home` },
                 { label: 'Members', path: `/classes/${id}/members` },
+                { label: 'Grades', path: `/classes/${id}/grades` },
               ]
         }
       />
 
       <div className="flex-1 space-y-6 p-6">
         {statusMessage && <StatusMessage message={statusMessage} type={statusType} />}
-
-        {rosterResult && (
-          <RosterUploadResult
-            enrolledCount={rosterResult.enrolled_count}
-            createdCount={rosterResult.created_count}
-            existingCount={rosterResult.existing_count}
-            newStudents={rosterResult.new_students}
-            enrolledExistingStudents={rosterResult.enrolled_existing_students}
-            existingStudents={rosterResult.existing_students}
-            onClose={() => setRosterResult(null)}
-          />
-        )}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -320,7 +152,7 @@ export default function ClassHome() {
             </h3>
             {isTeacher() && (
               <Button
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={() => { setCreateError(''); setIsCreateDialogOpen(true) }}
                 size="sm"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -347,19 +179,13 @@ export default function ClassHome() {
         </div>
       </div>
 
-      {uploadError && (
-        <ErrorModal
-          title="Upload Error"
-          message={uploadError}
-          onClose={() => setUploadError(null)}
-        />
-      )}
-
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent showCloseButton={true} className="!max-w-6xl !max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Assignment</DialogTitle>
           </DialogHeader>
+
+          {createError && <StatusMessage message={createError} type="error" />}
 
           <div className="space-y-4">
             <div className="space-y-2">
@@ -385,42 +211,88 @@ export default function ClassHome() {
 
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date (Optional)</Label>
-              <Input
-                id="startDate"
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              {startDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="startDate"
+                    type="datetime-local"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setStartDate('')} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setStartDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="dueDate">Due Date (Optional)</Label>
-              <Input
-                id="dueDate"
-                type="datetime-local"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+              {dueDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="dueDate"
+                    type="datetime-local"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setDueDate(''); setPeerReviewStartDate(''); setPeerReviewDueDate(''); }} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Not set</span>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setDueDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="peerReviewStartDate">Peer Review Start Date (Optional)</Label>
-              <Input
-                id="peerReviewStartDate"
-                type="datetime-local"
-                value={peerReviewStartDate}
-                onChange={(e) => setPeerReviewStartDate(e.target.value)}
-              />
+              {peerReviewStartDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="peerReviewStartDate"
+                    type="datetime-local"
+                    value={peerReviewStartDate}
+                    onChange={(e) => setPeerReviewStartDate(e.target.value)}
+                    min={dueDate || undefined}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setPeerReviewStartDate(''); setPeerReviewDueDate(''); }} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{dueDate ? 'Not set' : 'Set due date first'}</span>
+                  <Button type="button" variant="outline" size="sm" disabled={!dueDate} onClick={() => setPeerReviewStartDate(dueDate)}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="peerReviewDueDate">Peer Review Due Date (Optional)</Label>
-              <Input
-                id="peerReviewDueDate"
-                type="datetime-local"
-                value={peerReviewDueDate}
-                onChange={(e) => setPeerReviewDueDate(e.target.value)}
-              />
+              {peerReviewDueDate ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="peerReviewDueDate"
+                    type="datetime-local"
+                    value={peerReviewDueDate}
+                    onChange={(e) => setPeerReviewDueDate(e.target.value)}
+                    min={peerReviewStartDate || dueDate || undefined}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPeerReviewDueDate('')} className="text-muted-foreground px-2">✕</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{dueDate ? 'Not set' : 'Set due date first'}</span>
+                  <Button type="button" variant="outline" size="sm" disabled={!dueDate} onClick={() => setPeerReviewDueDate(peerReviewStartDate || dueDate)}>Set</Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -495,6 +367,7 @@ export default function ClassHome() {
             <Button
               onClick={() => {
                 setIsCreateDialogOpen(false)
+                setCreateError('')
                 setNewAssignmentName('')
                 setSubmissionType('individual')
                 setInternalReview(false)
@@ -517,48 +390,6 @@ export default function ClassHome() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 max-w-lg rounded-lg bg-white p-6 shadow-lg">
-            <h2 className="mb-4 text-xl font-bold">Delete or Archive Class</h2>
-            <p className="mb-2">
-              What would you like to do with <strong>"{className}"</strong>?
-            </p>
-            <p className="mb-4 text-sm text-gray-600">
-              <strong>Archive</strong> hides the class from your dashboard but preserves all data.
-              <br />
-              <strong>Delete</strong> permanently removes the class and cannot be undone.
-            </p>
-            {(assignments.length > 0 || studentCount > 0) && (
-              <p className={`mb-4 font-bold ${isAdmin() ? 'text-orange-600' : 'text-red-600'}`}>
-                ⚠️ This class has
-                {assignments.length > 0 && ` ${assignments.length} assignment(s)`}
-                {assignments.length > 0 && studentCount > 0 && ' and'}
-                {studentCount > 0 && ` ${studentCount} enrolled student(s)`}
-                .{isAdmin()
-                  ? ' As an admin, you can force delete this class, but all data will be permanently lost.'
-                  : ' This class cannot be deleted. Archive it instead, or contact an admin to force delete.'}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setShowDeleteConfirm(false)} variant="outline">
-                Cancel
-              </Button>
-              <Button onClick={handleArchiveClass} variant="secondary">
-                Archive
-              </Button>
-              <Button
-                onClick={handleDeleteClass}
-                variant="destructive"
-                disabled={(assignments.length > 0 || studentCount > 0) && !isAdmin()}
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

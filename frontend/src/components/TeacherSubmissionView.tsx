@@ -1,9 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
+import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers, getAssignmentGradebook } from "../util/api";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "./ui/dropdown-menu";
+import { Search, Users, LayoutList } from "lucide-react";
 import ViewSubmissionModal from "./ViewSubmissionModal";
+import StudentReviewSummaryModal from "./StudentReviewSummaryModal";
 
 interface StudentSubmission {
   id: number;
@@ -62,6 +70,12 @@ export default function TeacherSubmissionView({
   const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewModalEntityName, setViewModalEntityName] = useState("");
+  // Map of student_id -> { completed, expected } peer evaluation counts
+  const [evalMap, setEvalMap] = useState<Map<number, { completed: number; expected: number }>>(new Map());
+  const [reviewModalStudent, setReviewModalStudent] = useState<{ id: number; name: string } | null>(null);
+  const [studentSearch, setStudentSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState<string>('all')
+  const [studentGroupMap, setStudentGroupMap] = useState<Map<number, string>>(new Map())
   const navigate = useNavigate();
 
   // Load all student submissions and class roster
@@ -84,7 +98,19 @@ export default function TeacherSubmissionView({
       }
 
       // Fetch all submissions for this assignment
-      const submissionsData = await getStudentSubmissions(assignmentId);
+      const [submissionsData] = await Promise.all([
+        getStudentSubmissions(assignmentId),
+        getAssignmentGradebook(assignmentId).then((gb) => {
+          const map = new Map<number, { completed: number; expected: number }>();
+          gb.students.forEach((s) => {
+            map.set(s.student_id, {
+              completed: s.entry.peer_evaluation.completed,
+              expected: s.entry.peer_evaluation.expected,
+            });
+          });
+          setEvalMap(map);
+        }).catch(() => { /* gradebook may not exist yet */ }),
+      ]);
 
       if (submissionType === 'group') {
         // Handle group assignments
@@ -158,6 +184,21 @@ export default function TeacherSubmissionView({
     });
 
     setStudentsWithSubmissions(merged);
+
+    // Fetch group memberships so we can show group badges + filter
+    try {
+      const groupsData = await getCourseGroups(classId);
+      const gMap = new Map<number, string>();
+      await Promise.all(
+        groupsData.map(async (group: CourseGroup) => {
+          try {
+            const membersData = await getGroupMembers(classId, group.id);
+            membersData.forEach((m: { id: number }) => gMap.set(m.id, group.name));
+          } catch { /* ignore */ }
+        })
+      );
+      setStudentGroupMap(gMap);
+    } catch { /* groups are best-effort */ }
   };
 
   const loadGroupSubmissions = async (
@@ -269,6 +310,22 @@ export default function TeacherSubmissionView({
     setGroupsWithSubmissions(merged);
   };
 
+  const handleDownload = async (submissionId: number, filename?: string) => {
+    try {
+      const blob = await downloadStudentSubmission(submissionId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `submission_${submissionId}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
   const handleViewSubmission = (submission: StudentSubmission, entityName: string) => {
     setSelectedSubmission(submission);
     setViewModalEntityName(entityName);
@@ -317,243 +374,298 @@ export default function TeacherSubmissionView({
     }
   };
 
-  return (
-    <Card className="w-full my-5">
-      <CardHeader>
-        <CardTitle>Student Submissions {isGroupAssignment && "(Group Assignment)"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoadingSubmissions ? (
-          <p className="text-center text-muted-foreground italic py-5">Loading submissions...</p>
-        ) : error ? (
-          <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
-            {error}
-          </div>
-        ) : isGroupAssignment ? (
-          // Render group submissions accordion
-          groupsWithSubmissions.length > 0 ? (
-            <div className="mt-5">
-              {groupsWithSubmissions.map((groupItem) => {
-                const isExpanded = expandedGroups.has(groupItem.group.id);
-                return (
-                  <div key={groupItem.group.id} className="mb-3 bg-white rounded-lg shadow-sm overflow-hidden ring-1 ring-foreground/10">
-                    {/* Group Summary Row */}
-                    <div
-                      onClick={() => toggleGroupExpanded(groupItem.group.id)}
-                      className={`flex items-center p-4 cursor-pointer transition-colors ${
-                        isExpanded ? "bg-gray-50 border-b border-gray-200" : "bg-white hover:bg-gray-50"
-                      }`}
-                    >
-                      {/* Expand/Collapse Icon */}
-                      <div className={`mr-3 text-lg transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}>
-                        ▶
-                      </div>
+  // ── Derived filtered data ─────────────────────────────────────────────────
+  const groupNames = useMemo(
+    () => Array.from(new Set(Array.from(studentGroupMap.values()))).sort(),
+    [studentGroupMap]
+  )
 
-                      {/* Group Info */}
-                      <div className="flex-1 flex items-center gap-5 flex-wrap">
-                        <div className="min-w-[200px]">
-                          <div className="font-semibold text-base">
-                            {groupItem.group.name}
+  const filteredIndividual = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase()
+    return studentsWithSubmissions.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.student.name.toLowerCase().includes(q) ||
+        item.student.email.toLowerCase().includes(q) ||
+        (item.student.student_id || '').toLowerCase().includes(q)
+      const gName = studentGroupMap.get(item.student.id)
+      const matchesGroup =
+        groupFilter === 'all' ||
+        (groupFilter === 'unassigned' && !gName) ||
+        gName === groupFilter
+      return matchesSearch && matchesGroup
+    })
+  }, [studentsWithSubmissions, studentSearch, groupFilter, studentGroupMap])
+
+  const filteredGroups = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase()
+    if (!q) return groupsWithSubmissions
+    return groupsWithSubmissions.filter(
+      (g) =>
+        g.group.name.toLowerCase().includes(q) ||
+        g.members.some((m) => m.name.toLowerCase().includes(q))
+    )
+  }, [groupsWithSubmissions, studentSearch])
+
+  return (
+    <div className="w-full">
+      {isLoadingSubmissions ? (
+        <p className="text-center text-muted-foreground italic py-5">Loading submissions...</p>
+      ) : error ? (
+        <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
+          {error}
+        </div>
+      ) : (
+        <>
+          {/* ── Search + filter toolbar ── */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={isGroupAssignment ? 'Search groups or members…' : 'Search by name, email, or student ID…'}
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            {!isGroupAssignment && (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground">
+                  <LayoutList className="h-4 w-4" />
+                  {groupFilter === 'all'
+                    ? 'All Students'
+                    : groupFilter === 'unassigned'
+                    ? 'No Group'
+                    : `Group: ${groupFilter}`}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setGroupFilter('all')}>All Students</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGroupFilter('unassigned')}>No Group</DropdownMenuItem>
+                  {groupNames.map((g) => (
+                    <DropdownMenuItem key={g} onClick={() => setGroupFilter(g)}>
+                      Group: {g}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+
+          {isGroupAssignment ? (
+            filteredGroups.length > 0 ? (
+              <div>
+                {filteredGroups.map((groupItem) => {
+                  const isExpanded = expandedGroups.has(groupItem.group.id);
+                  return (
+                    <div key={groupItem.group.id} className="mb-3 bg-white rounded-lg shadow-sm overflow-hidden ring-1 ring-foreground/10">
+                      {/* Group Summary Row */}
+                      <div
+                        onClick={() => toggleGroupExpanded(groupItem.group.id)}
+                        className={`flex items-center p-4 cursor-pointer transition-colors ${
+                          isExpanded ? "bg-gray-50 border-b border-gray-200" : "bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className={`mr-3 text-lg transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}>
+                          ▶
+                        </div>
+                        <div className="flex-1 flex items-center gap-5 flex-wrap">
+                          <div className="min-w-[200px]">
+                            <div className="font-semibold text-base">{groupItem.group.name}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {groupItem.members.length} member{groupItem.members.length !== 1 ? 's' : ''}
+                              {groupItem.submittedBy && <span> - Submitted by: {groupItem.submittedBy}</span>}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {groupItem.members.length} member{groupItem.members.length !== 1 ? 's' : ''}
-                            {groupItem.submittedBy && (
-                              <span> - Submitted by: {groupItem.submittedBy}</span>
+                          <div className="flex gap-5 items-center">
+                            <div>
+                              <div className="text-xs text-muted-foreground uppercase mb-0.5">Status</div>
+                              <div className={`text-sm ${getStatusClasses(groupItem.status)}`}>{groupItem.status}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground uppercase mb-0.5">Grade</div>
+                              <div className="text-sm">{groupItem.grade || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground uppercase mb-0.5">Last Modified</div>
+                              <div className="text-sm">{groupItem.submission ? formatDate(groupItem.submission.submitted_at) : 'N/A'}</div>
+                            </div>
+                            {groupItem.submission && (
+                              <div>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownload(groupItem.submission!.id, groupItem.submission!.filename);
+                                  }}
+                                >
+                                  Download
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </div>
+                      </div>
 
-                        <div className="flex gap-5 items-center">
-                          <div>
-                            <div className="text-xs text-muted-foreground uppercase mb-0.5">
-                              Status
-                            </div>
-                            <div className={`text-sm ${getStatusClasses(groupItem.status)}`}>
-                              {groupItem.status}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-xs text-muted-foreground uppercase mb-0.5">
-                              Grade
-                            </div>
-                            <div className="text-sm">
-                              {groupItem.grade || '-'}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-xs text-muted-foreground uppercase mb-0.5">
-                              Last Modified
-                            </div>
-                            <div className="text-sm">
-                              {groupItem.submission ? formatDate(groupItem.submission.submitted_at) : 'N/A'}
-                            </div>
-                          </div>
-
-                          {groupItem.submission && (
-                            <div>
+                      {/* Expanded Member Details */}
+                      {isExpanded && (
+                        <div className="rounded-lg border border-gray-200 overflow-hidden">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="bg-gray-100">
+                                <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Name</th>
+                                <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Student ID</th>
+                                <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Email</th>
+                                <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Status</th>
+                                <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Evaluations</th>
+                                <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Grade</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {groupItem.members.length > 0 ? (
+                                groupItem.members.map((member) => {
+                                  const isSubmitter = groupItem.submission && groupItem.submission.student_id === member.id;
+                                  return (
+                                    <tr key={member.id} className={`border-b border-gray-100 ${isSubmitter ? "bg-blue-50" : "bg-white"}`}>
+                                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => setReviewModalStudent({ id: member.id, name: member.name })}
+                                            className="text-blue-600 font-medium cursor-pointer hover:underline text-left"
+                                          >
+                                            {member.name}
+                                          </button>
+                                          {isSubmitter && (
+                                            <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded font-semibold">
+                                              Submitter
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">{member.student_id || 'N/A'}</td>
+                                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">{member.email}</td>
+                                      <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(groupItem.status)}`}>{groupItem.status}</td>
+                                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                                        {(() => {
+                                          const ev = evalMap.get(member.id);
+                                          if (!ev || ev.expected === 0) return <span className="text-muted-foreground">—</span>;
+                                          const color = ev.completed >= ev.expected ? 'text-green-600' : 'text-orange-500';
+                                          return <span className={`font-medium ${color}`}>{ev.completed}/{ev.expected}</span>;
+                                        })()}
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">{groupItem.grade || '-'}</td>
+                                    </tr>
+                                  );
+                                })
+                              ) : (
+                                <tr>
+                                  <td colSpan={6} className="p-5 text-center text-muted-foreground">
+                                    No members in this group
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground italic p-4 rounded border border-dashed border-gray-300">
+                {groupsWithSubmissions.length === 0 ? 'No groups created for this class' : 'No groups match your search'}
+              </p>
+            )
+          ) : (
+            filteredIndividual.length > 0 ? (
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full border-collapse bg-white">
+                  <thead>
+                    <tr className="bg-gray-100 border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Name</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Student ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Email</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Group</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Status</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Evaluations</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Grade</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Last Modified</th>
+                      <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">File Submission</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredIndividual.map((item) => (
+                      <tr key={item.student.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                          <button
+                            onClick={() => setReviewModalStudent({ id: item.student.id, name: item.student.name })}
+                            className="text-blue-600 font-medium cursor-pointer hover:underline text-left"
+                          >
+                            {item.student.name}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">{item.student.student_id || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">{item.student.email}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                          {(() => {
+                            const gName = studentGroupMap.get(item.student.id);
+                            return gName
+                              ? <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-medium text-blue-700"><Users className="h-3 w-3" />{gName}</span>
+                              : <span className="text-muted-foreground text-xs">—</span>;
+                          })()}
+                        </td>
+                        <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(item.status)}`}>{item.status}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                          {(() => {
+                            const ev = evalMap.get(item.student.id);
+                            if (!ev || ev.expected === 0) return <span className="text-muted-foreground">—</span>;
+                            const color = ev.completed >= ev.expected ? 'text-green-600' : 'text-orange-500';
+                            return <span className={`font-medium ${color}`}>{ev.completed}/{ev.expected}</span>;
+                          })()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">{item.grade || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                          {item.submission ? formatDate(item.submission.submitted_at) : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 align-middle">
+                          {item.submission ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm">{item.submission.filename}</span>
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewSubmission(groupItem.submission!, groupItem.group.name);
-                                }}
+                                onClick={() => handleDownload(item.submission!.id, item.submission!.filename)}
                               >
                                 View
                               </Button>
                             </div>
+                          ) : (
+                            <span className="text-muted-foreground">No file</span>
                           )}
-                        </div>
-                      </div>
-                    </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground italic p-4 rounded border border-dashed border-gray-300">
+                {studentsWithSubmissions.length === 0 ? 'No students enrolled in this class' : 'No students match your search or filter'}
+              </p>
+            )
+          )}
 
-                    {/* Expanded Member Details */}
-                    {isExpanded && (
-                      <div>
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="bg-gray-100">
-                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Name</th>
-                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Student ID</th>
-                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Email</th>
-                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Status</th>
-                              <th className="px-4 py-3 text-left font-semibold text-xs text-gray-700 whitespace-nowrap">Grade</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {groupItem.members.length > 0 ? (
-                              groupItem.members.map((member) => {
-                                const isSubmitter = groupItem.submission && groupItem.submission.student_id === member.id;
-                                return (
-                                  <tr key={member.id} className={`border-b border-gray-100 ${isSubmitter ? "bg-blue-50" : "bg-white"}`}>
-                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                                      <div className="flex items-center gap-2">
-                                        <a
-                                          href="#"
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            handleViewProfile(member.id);
-                                          }}
-                                          className="text-blue-600 font-medium cursor-pointer hover:underline"
-                                        >
-                                          {member.name}
-                                        </a>
-                                        {isSubmitter && (
-                                          <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded font-semibold">
-                                            Submitter
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                                      {member.student_id || 'N/A'}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                                      {member.email}
-                                    </td>
-                                    <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(groupItem.status)}`}>
-                                      {groupItem.status}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                                      {groupItem.grade || '-'}
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                            ) : (
-                              <tr>
-                                <td colSpan={5} className="p-5 text-center text-muted-foreground">
-                                  No members in this group
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No groups created for this class</p>
-          )
-        ) : (
-          // Render individual submissions table
-          studentsWithSubmissions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse mt-5 bg-white shadow-sm rounded-lg overflow-hidden ring-1 ring-foreground/10">
-                <thead>
-                  <tr className="bg-gray-100 border-b-2 border-gray-200">
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Name</th>
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Student ID</th>
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Email</th>
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Grade</th>
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">Last Modified</th>
-                    <th className="px-4 py-3 text-left font-semibold text-sm text-gray-700 whitespace-nowrap">File Submission</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {studentsWithSubmissions.map((item) => (
-                    <tr key={item.student.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleViewProfile(item.student.id);
-                          }}
-                          className="text-blue-600 font-medium cursor-pointer hover:underline"
-                        >
-                          {item.student.name}
-                        </a>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        {item.student.student_id || 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        {item.student.email}
-                      </td>
-                      <td className={`px-4 py-3 text-sm align-middle ${getStatusClasses(item.status)}`}>
-                        {item.status}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        {item.grade || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        {item.submission ? formatDate(item.submission.submitted_at) : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">
-                        {item.submission ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm">
-                              {item.submission.filename || "Text Submission"}
-                            </span>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleViewSubmission(item.submission!, item.student.name)}
-                            >
-                              View
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">No file</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground italic p-4 bg-white rounded border border-dashed border-gray-300">No students enrolled in this class</p>
-          )
-        )}
-      </CardContent>
+          {reviewModalStudent && (
+            <StudentReviewSummaryModal
+              assignmentId={assignmentId}
+              studentId={reviewModalStudent.id}
+              studentName={reviewModalStudent.name}
+              onClose={() => setReviewModalStudent(null)}
+            />
+          )}
+        </>
+      )}
       {selectedSubmission && (
         <ViewSubmissionModal
           isOpen={isViewModalOpen}
@@ -565,6 +677,6 @@ export default function TeacherSubmissionView({
           entityName={viewModalEntityName}
         />
       )}
-    </Card>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import { importCSV } from "../util/csv";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
 import { Card } from "@/components/ui/card";
+import { ChevronRight } from "lucide-react";
 
 interface Assignment {
   id: number;
@@ -97,7 +98,7 @@ export default function ClassRubrics() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b bg-background px-6 py-4">
+      <div className="flex h-16 items-center justify-between border-b bg-background px-6">
         <h2 className="text-xl font-semibold">{className}</h2>
         <div>
           {isTeacher() ? (
@@ -115,7 +116,6 @@ export default function ClassRubrics() {
                 { label: "Home", path: `/classes/${id}/home` },
                 { label: "Members", path: `/classes/${id}/members` },
                 { label: "Groups", path: `/classes/${id}/groups` },
-                { label: "Student Submissions", path: `/classes/${id}/student-submissions` },
                 { label: "Rubrics", path: `/classes/${id}/rubrics` },
               ]
             : [

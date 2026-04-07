@@ -571,3 +571,128 @@ def unarchive_class():
     return jsonify({
         "msg": f"Class '{class_name}' restored successfully"
     }), 200
+
+
+@bp.route("/<int:course_id>/registered_students", methods=["GET"])
+@jwt_teacher_required
+def get_registered_students_for_course(course_id):
+    """
+    Get all registered students NOT enrolled in the given course.
+    Supports optional ?search= query param to filter by name, email, or student_id.
+    """
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(course_id)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "Not authorized"}), 403
+
+    # Collect IDs of already-enrolled students
+    enrolled_ids = {uc.userID for uc in User_Course.query.filter_by(courseID=course_id).all()}
+
+    search = (request.args.get("search") or "").strip().lower()
+
+    all_students = User.query.filter_by(role="student").order_by(User.name).all()
+    result = []
+    for s in all_students:
+        if s.id in enrolled_ids:
+            continue
+        if search and not (
+            search in s.name.lower()
+            or search in s.email.lower()
+            or (s.student_id and search in s.student_id.lower())
+        ):
+            continue
+        result.append({
+            "id": s.id,
+            "name": s.name,
+            "email": s.email,
+            "student_id": s.student_id,
+        })
+
+    return jsonify(result), 200
+
+
+@bp.route("/<int:course_id>/enroll_direct", methods=["POST"])
+@jwt_teacher_required
+def enroll_direct(course_id):
+    """
+    Directly enroll one or more registered students into a course by user ID.
+    Expects JSON: { "student_ids": [1, 2, 3] }
+    Idempotent — already-enrolled students are counted but not duplicated.
+    """
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(course_id)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "Not authorized"}), 403
+
+    data = request.get_json() or {}
+    student_ids = data.get("student_ids", [])
+    if not student_ids:
+        return jsonify({"msg": "No student IDs provided"}), 400
+
+    enrolled_count = 0
+    already_enrolled_count = 0
+    not_found_count = 0
+
+    for sid in student_ids:
+        student = User.get_by_id(sid)
+        if not student or not student.is_student():
+            not_found_count += 1
+            continue
+        if User_Course.get(student.id, course_id):
+            already_enrolled_count += 1
+            continue
+        User_Course.add(student.id, course_id)
+        enrolled_count += 1
+
+    return jsonify({
+        "msg": "Enrollment complete",
+        "enrolled_count": enrolled_count,
+        "already_enrolled_count": already_enrolled_count,
+        "not_found_count": not_found_count,
+    }), 200
+
+
+@bp.route("/<int:course_id>/members/<int:student_id>", methods=["DELETE"])
+@jwt_teacher_required
+def unenroll_student(course_id, student_id):
+    """
+    Remove (unenroll) a student from a course.
+    Only the course owner or an admin may perform this action.
+    """
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    course = Course.get_by_id(course_id)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.teacherID != user.id and not user.is_admin():
+        return jsonify({"msg": "Not authorized"}), 403
+
+    student = User.get_by_id(student_id)
+    if not student:
+        return jsonify({"msg": "Student not found"}), 404
+
+    enrollment = User_Course.get(student_id, course_id)
+    if not enrollment:
+        return jsonify({"msg": "Student is not enrolled in this course"}), 404
+
+    enrollment.delete()
+
+    return jsonify({"msg": f"{student.name} has been removed from the course"}), 200

@@ -4,6 +4,7 @@ Student submission controller - handles student file uploads for assignments
 
 import os
 import uuid
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -61,50 +62,45 @@ def upload_student_submission(assignment_id):
     if not enrollment:
         return jsonify({"msg": "Unauthorized: You are not enrolled in this course"}), 403
 
+    # Build a single submission with text and/or file
+    submission_text = None
+    filename = None
+    file_path_val = None
+
     if has_text:
-        # Handle text submission
         submission_text = request.form["submissionText"].strip()
-        new_submission = StudentSubmission(
-            assignment_id=assignment_id,
-            student_id=user.id,
-            submission_text=submission_text,
-        )
-        StudentSubmission.create(new_submission)
 
     if has_file:
-        # Handle file submission
         file = request.files["file"]
 
-        # Validate file type
         if not allowed_submission_file(file.filename):
             return jsonify({
                 "msg": "Invalid file type. Allowed types: pdf, docx, txt, zip"
             }), 400
 
-        # Generate unique filename to avoid collisions
         ext = file.filename.rsplit(".", 1)[1].lower()
         unique_filename = f"submission_{assignment_id}_{user.id}_{uuid.uuid4().hex}.{ext}"
 
-        # Ensure submission folder exists
         submission_folder = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], "submissions")
         os.makedirs(submission_folder, exist_ok=True)
 
-        # Save new file
         filepath = os.path.join(submission_folder, unique_filename)
         file.save(filepath)
 
-        # Create new StudentSubmission record
-        # Store original filename for display (unique_filename ensures filesystem safety)
-        new_submission = StudentSubmission(
-            assignment_id=assignment_id,
-            student_id=user.id,
-            filename=file.filename,  # Keep original filename with spaces
-            file_path=unique_filename,
-        )
-        StudentSubmission.create(new_submission)
+        filename = file.filename
+        file_path_val = unique_filename
+
+    new_submission = StudentSubmission(
+        assignment_id=assignment_id,
+        student_id=user.id,
+        filename=filename,
+        file_path=file_path_val,
+        submission_text=submission_text,
+    )
+    StudentSubmission.create(new_submission)
 
     return jsonify({
-        "msg": "Submission(s) uploaded successfully"
+        "msg": "Submission uploaded successfully"
     }), 200
 
 
@@ -207,10 +203,12 @@ def download_submission(submission_id):
     is_group_member = False
     is_peer_reviewer = False
 
-    # Check if user is enrolled in the course
-    enrollment = User_Course.query.filter_by(userID=user.id, courseID=course.id).first()
-    if not enrollment:
-        return jsonify({"msg": "Unauthorized: You are not enrolled in this course"}), 403
+    # Teachers/admins skip enrollment check; students must be enrolled
+    enrollment = None
+    if not is_teacher:
+        enrollment = User_Course.query.filter_by(userID=user.id, courseID=course.id).first()
+        if not enrollment:
+            return jsonify({"msg": "Unauthorized: You are not enrolled in this course"}), 403
 
     # Check if this is a group assignment and user is in same group
     if not is_owner and assignment.submission_type == 'group':
@@ -299,6 +297,80 @@ def get_peer_review_submissions(assignment_id, target_id):
     }), 200
 
 
+@bp.route("/<int:submission_id>", methods=["PUT"])
+@jwt_required()
+def edit_submission(submission_id):
+    """Edit an existing submission (students can only edit their own)
+    - For text submissions: update the submission_text field
+    - For file submissions: replace the file with a new upload
+    """
+    submission = StudentSubmission.get_by_id(submission_id)
+    if not submission:
+        return jsonify({"msg": "Submission not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    if submission.student_id != user.id:
+        return jsonify({"msg": "Unauthorized: You can only edit your own submissions"}), 403
+
+    has_file = "file" in request.files and request.files["file"].filename != ""
+    has_text = "submissionText" in request.form
+    remove_file = request.form.get("removeFile") == "true"
+
+    if not has_file and not has_text and not remove_file:
+        return jsonify({"msg": "No changes provided"}), 400
+
+    # Update text (can be set or cleared)
+    if has_text:
+        text_val = request.form["submissionText"].strip()
+        submission.submission_text = text_val if text_val else None
+
+    # Remove existing file if requested
+    if remove_file and not has_file:
+        if submission.file_path:
+            submission_folder = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], "submissions")
+            old_file = os.path.join(submission_folder, submission.file_path)
+            if os.path.exists(old_file):
+                os.remove(old_file)
+        submission.filename = None
+        submission.file_path = None
+
+    # Replace file if a new one is uploaded
+    if has_file:
+        file = request.files["file"]
+        if not allowed_submission_file(file.filename):
+            return jsonify({"msg": "Invalid file type. Allowed types: pdf, docx, txt, zip"}), 400
+
+        submission_folder = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], "submissions")
+        os.makedirs(submission_folder, exist_ok=True)
+
+        # Delete old file if it exists
+        if submission.file_path:
+            old_file = os.path.join(submission_folder, submission.file_path)
+            if os.path.exists(old_file):
+                os.remove(old_file)
+
+        ext = file.filename.rsplit(".", 1)[1].lower()
+        unique_filename = f"submission_{submission.assignment_id}_{user.id}_{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(submission_folder, unique_filename)
+        file.save(filepath)
+
+        submission.filename = file.filename
+        submission.file_path = unique_filename
+
+    # Ensure at least text or file remains
+    if not submission.submission_text and not submission.file_path:
+        return jsonify({"msg": "Submission must have at least text or a file"}), 400
+
+    submission.submitted_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    return jsonify({"msg": "Submission updated successfully"}), 200
+
+
 @bp.route("/<int:submission_id>", methods=["DELETE"])
 @jwt_required()
 def delete_submission(submission_id):
@@ -317,11 +389,12 @@ def delete_submission(submission_id):
         return jsonify({"msg": "Unauthorized: You can only delete your own submissions"}), 403
 
     # Delete file from filesystem
-    submission_folder = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], "submissions")
-    file_path = os.path.join(submission_folder, submission.file_path)
+    if submission.file_path:
+        submission_folder = os.path.join(current_app.config["ASSIGNMENT_UPLOAD_FOLDER"], "submissions")
+        file_path = os.path.join(submission_folder, submission.file_path)
 
-    if os.path.exists(file_path):
-        os.remove(file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
     # Delete database record
     StudentSubmission.delete(submission)

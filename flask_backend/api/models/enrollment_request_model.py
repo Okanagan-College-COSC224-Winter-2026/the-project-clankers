@@ -4,7 +4,7 @@ When a student requests to join a course, a request is created.
 Teachers can approve or reject the request via notifications.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import CheckConstraint
 
 from .db import db
@@ -19,7 +19,7 @@ class EnrollmentRequest(db.Model):
     studentID = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False, index=True)
     courseID = db.Column(db.Integer, db.ForeignKey("Course.id"), nullable=False, index=True)
     status = db.Column(db.String(50), default="pending", nullable=False)  # pending, approved, rejected
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     resolved_at = db.Column(db.DateTime, nullable=True)
     teacher_notes = db.Column(db.Text, nullable=True)
 
@@ -83,13 +83,13 @@ class EnrollmentRequest(db.Model):
 
         # Mark request as approved
         self.status = "approved"
-        self.resolved_at = datetime.utcnow()
+        self.resolved_at = datetime.now(timezone.utc)
         db.session.commit()
 
     def reject(self, notes=None):
         """Reject the enrollment request"""
         self.status = "rejected"
-        self.resolved_at = datetime.utcnow()
+        self.resolved_at = datetime.now(timezone.utc)
         if notes:
             self.teacher_notes = notes
         db.session.commit()

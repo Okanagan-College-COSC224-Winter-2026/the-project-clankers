@@ -128,10 +128,10 @@ export const getProfilePictureUrl = (filename: string | null | undefined) => {
 
 export const maybeHandleExpire = (response: Response) => {
   if (didExpire(response)) {
-    // Remove the token
     removeToken();
-    // Don't force navigation here - let the app handle redirection naturally
-    // through protected route checks
+    // Redirect to login so the user doesn't see a broken teacher UI
+    // (isTeacher() reads from localStorage, which is now cleared)
+    window.location.href = '/';
   }
 }
 
@@ -354,6 +354,319 @@ export const unarchiveClass = async (classId: number) => {
     method: 'PUT',
     body: JSON.stringify({ id: classId }),
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export interface GradebookAssignmentEntry {
+  assignment_id: number;
+  assignment_name: string;
+  due_date: string | null;
+  submission_status: 'submitted' | 'submitted late' | 'no submission';
+  submission: {
+    id: number;
+    filename: string;
+    submitted_at: string;
+  } | null;
+  peer_evaluation: {
+    completed: number;
+    expected: number;
+    ratio: number;
+    status: 'complete' | 'incomplete' | 'not required';
+  };
+  computed_grade: number | null;
+  penalty_applied_percent: number;
+  effective_grade: number | null;
+  override_grade: number | null;
+  override_reason: string | null;
+  grade_source: 'override' | 'computed' | 'pending';
+}
+
+export interface GradebookStudentRow {
+  student_id: number;
+  student_name: string;
+  student_number: string | null;
+  email: string;
+  course_total?: {
+    computed: number | null;
+    effective: number | null;
+    override: number | null;
+    reason: string | null;
+    source: 'override' | 'computed' | 'pending';
+  };
+  course_total_grade: number | null;
+  assignments: GradebookAssignmentEntry[];
+}
+
+export interface GradebookAggregate {
+  assignment_id: number;
+  assignment_name: string;
+  due_date: string | null;
+  submitted_count: number;
+  late_count: number;
+  missing_count: number;
+  average_grade: number | null;
+}
+
+export interface GradebookData {
+  class: {
+    id: number;
+    name: string;
+  };
+  policy: {
+    late_penalty_percent: number;
+    incomplete_evaluation_penalty_percent: number;
+  };
+  assignment_aggregates: GradebookAggregate[];
+  students: GradebookStudentRow[];
+  generated_at: string;
+}
+
+export interface StudentGradebookDetail {
+  class: {
+    id: number;
+    name: string;
+  };
+  student: {
+    id: number;
+    name: string;
+    email: string;
+    student_number: string | null;
+  };
+  course_total?: {
+    computed: number | null;
+    effective: number | null;
+    override: number | null;
+    reason: string | null;
+    source: 'override' | 'computed' | 'pending';
+  };
+  course_total_grade: number | null;
+  assignments: Array<
+    GradebookAssignmentEntry & {
+      all_submissions: Array<{
+        id: number;
+        filename: string;
+        submitted_at: string;
+      }>;
+      received_reviews: Array<{
+        review_id: number;
+        review_type: string;
+        reviewer_id: number;
+        reviewer_name: string;
+        is_complete: boolean;
+        grade: number | null;
+      }>;
+    }
+  >;
+}
+
+export interface MyCourseGradeData {
+  class: {
+    id: number;
+    name: string;
+  };
+  student: {
+    id: number;
+    name: string;
+  };
+  course_total?: {
+    computed: number | null;
+    effective: number | null;
+    override: number | null;
+    reason: string | null;
+    source: 'override' | 'computed' | 'pending';
+  };
+  course_total_grade: number | null;
+  status: string;
+  assignments: GradebookAssignmentEntry[];
+}
+
+export const getClassGradebook = async (classId: number): Promise<GradebookData> => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const getStudentGradebookDetail = async (
+  classId: number,
+  studentId: number
+): Promise<StudentGradebookDetail> => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/student/${studentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const updateClassGradePolicy = async (
+  classId: number,
+  data: {
+    late_penalty_percent?: number;
+    incomplete_evaluation_penalty_percent?: number;
+  }
+) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/policy`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const updateGradeOverride = async (
+  classId: number,
+  data: {
+    assignment_id: number;
+    student_id: number;
+    override_grade?: number | null;
+    reason?: string;
+  }
+) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/overrides`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const updateCourseTotalOverride = async (
+  classId: number,
+  data: {
+    student_id: number;
+    override_total?: number | null;
+    reason?: string;
+  }
+) => {
+  const response = await fetch(`${BASE_URL}/class/${classId}/gradebook/course-total-overrides`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const getMyCourseGrade = async (
+  classId: number,
+  studentId?: number
+): Promise<MyCourseGradeData> => {
+  const query = studentId ? `?student_id=${studentId}` : '';
+  const response = await fetch(`${BASE_URL}/class/${classId}/my-grade${query}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export interface AssignmentGradebookData {
+  class: {
+    id: number;
+    name: string;
+  };
+  assignment: {
+    id: number;
+    name: string;
+    due_date: string | null;
+  };
+  policy: {
+    late_penalty_percent: number;
+    incomplete_evaluation_penalty_percent: number;
+  };
+  aggregate: {
+    submitted_count: number;
+    late_count: number;
+    missing_count: number;
+    average_grade: number | null;
+  };
+  students: Array<{
+    student_id: number;
+    student_name: string;
+    student_number: string | null;
+    email: string;
+    entry: GradebookAssignmentEntry;
+  }>;
+}
+
+export const getAssignmentGradebook = async (
+  assignmentId: number
+): Promise<AssignmentGradebookData> => {
+  const response = await fetch(`${BASE_URL}/assignment/${assignmentId}/gradebook`, {
+    method: 'GET',
     credentials: 'include'
   });
 
@@ -727,9 +1040,12 @@ export const getAssignmentDetails = async (assignmentId: number) => {
 
 export const editAssignment = async (assignmentId: number, data: {
   name?: string,
+  description?: string,
   rubric?: string,
   start_date?: string,
   due_date?: string,
+  peer_review_start_date?: string,
+  peer_review_due_date?: string,
   submission_type?: string,
   internal_review?: boolean,
   external_review?: boolean,
@@ -897,6 +1213,29 @@ export const getReceivedReviews = async (assignmentID: number): Promise<Received
 
   return await resp.json()
 }
+
+export interface StudentReviewSummary {
+  student: { id: number; name: string };
+  reviews_given: Array<{ reviewee_name: string; grade: number | null; type: string }>;
+  reviews_received: Array<{ reviewer_name: string; grade: number | null; type: string }>;
+  avg_given: number | null;
+  avg_received: number | null;
+}
+
+export const getStudentReviewSummary = async (
+  assignmentId: number,
+  studentId: number
+): Promise<StudentReviewSummary> => {
+  const resp = await fetch(
+    `${BASE_URL}/assignment/${assignmentId}/student/${studentId}/review-summary`,
+    { method: 'GET', credentials: 'include' }
+  );
+  maybeHandleExpire(resp);
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+  return await resp.json();
+};
 
 export const getNextGroupID = async(assignmentID: number)=> {
   const response = await fetch(`${BASE_URL}/next_groupid?assignmentID=${assignmentID}`, {
@@ -1068,13 +1407,17 @@ export const deleteAssignmentFile = async (fileId: number) => {
 // ================================
 
 // Upload a student submission file or text
-export const uploadStudentSubmission = async (assignmentId: number, fileOrText?: File | string) => {
+export const uploadStudentSubmission = async (
+  assignmentId: number,
+  options: { file?: File; text?: string }
+) => {
   const formData = new FormData();
 
-  if (fileOrText instanceof File) {
-    formData.append('file', fileOrText);
-  } else if (typeof fileOrText === 'string') {
-    formData.append('submissionText', fileOrText);
+  if (options.file) {
+    formData.append('file', options.file);
+  }
+  if (options.text) {
+    formData.append('submissionText', options.text);
   }
 
   const response = await fetch(`${BASE_URL}/submissions/upload/${assignmentId}`, {
@@ -1129,6 +1472,35 @@ export const getPeerReviewSubmissions = async (assignmentId: number, targetId: n
   return data.submissions || [];
 };
 
+export interface ReviewTarget {
+  id: number;
+  name: string;
+  has_submitted: boolean;
+  is_late: boolean;
+}
+
+export interface ReviewTargetsResponse {
+  reviewer_eligible: boolean;
+  internal_targets: ReviewTarget[];
+  external_targets: ReviewTarget[];
+}
+
+export const getReviewTargets = async (assignmentId: number): Promise<ReviewTargetsResponse> => {
+  const response = await fetch(`${BASE_URL}/review-targets/${assignmentId}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 // Download a student submission file
 export const downloadStudentSubmission = async (submissionId: number) => {
   const response = await fetch(`${BASE_URL}/submissions/download/${submissionId}`, {
@@ -1145,6 +1517,39 @@ export const downloadStudentSubmission = async (submissionId: number) => {
 
   // Return the blob for download
   return response.blob();
+};
+
+// Edit a student submission (update text and/or replace file)
+export const editStudentSubmission = async (
+  submissionId: number,
+  options: { text?: string; file?: File; removeFile?: boolean }
+) => {
+  const formData = new FormData();
+
+  if (options.text !== undefined) {
+    formData.append('submissionText', options.text);
+  }
+  if (options.file) {
+    formData.append('file', options.file);
+  }
+  if (options.removeFile) {
+    formData.append('removeFile', 'true');
+  }
+
+  const response = await fetch(`${BASE_URL}/submissions/${submissionId}`, {
+    method: 'PUT',
+    body: formData,
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
 };
 
 // Delete a student submission
@@ -1331,6 +1736,77 @@ export const markNotificationAsRead = async (notificationId: number) => {
     const errorData = await response.json().catch(() => ({}));
     const errorMessage = errorData.msg || `Response status: ${response.status}`;
     throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+// Get all registered students NOT enrolled in a specific course (for direct-add)
+export const getRegisteredStudentsForCourse = async (courseId: string | number, search?: string) => {
+  const params = search ? `?search=${encodeURIComponent(search)}` : ''
+  const response = await fetch(`${BASE_URL}/class/${courseId}/registered_students${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Directly enroll one or more registered students into a course by user ID
+export const enrollDirectStudents = async (courseId: string | number, studentIds: number[]) => {
+  const response = await fetch(`${BASE_URL}/class/${courseId}/enroll_direct`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_ids: studentIds }),
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Remove (unenroll) a student from a course
+export const unenrollStudent = async (courseId: string | number, studentId: number) => {
+  const response = await fetch(`${BASE_URL}/class/${courseId}/members/${studentId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Get pending enrollment requests for a specific course
+export const getCourseEnrollmentRequests = async (courseId: string | number) => {
+  const response = await fetch(`${BASE_URL}/enrollments/course/${courseId}/requests`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.msg || `Response status: ${response.status}`);
   }
 
   return await response.json();
