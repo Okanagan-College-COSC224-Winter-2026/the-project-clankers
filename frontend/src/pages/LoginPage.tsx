@@ -65,6 +65,7 @@ export default function LoginPage() {
               <PasswordInput
                 value={password}
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 onInput={setPassword}
               />
             </div>

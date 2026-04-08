@@ -12,6 +12,7 @@ interface Props {
   name?: string
   id?: string
   required?: boolean
+  autoComplete?: string
 }
 
 export default function PasswordInput(props: Props) {
@@ -27,6 +28,7 @@ export default function PasswordInput(props: Props) {
         name={props.name}
         id={props.id}
         required={props.required}
+        autoComplete={props.autoComplete || 'off'}
         onChange={(e) => props.onInput(e.target.value)}
       />
       <Button
