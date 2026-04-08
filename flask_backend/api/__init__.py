@@ -144,6 +144,19 @@ def create_app(test_config=None):
     # Initialize CLI commands
     init_app(app)
 
+    # Set Content Security Policy headers to allow external images
+    @app.after_request
+    def set_csp_header(response):
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "img-src 'self' https:; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "font-src 'self' data:; "
+            "connect-src 'self' https:;"
+        )
+        return response
+
     # Register blueprints
     app.register_blueprint(auth_controller.bp)
     app.register_blueprint(user_controller.bp)
