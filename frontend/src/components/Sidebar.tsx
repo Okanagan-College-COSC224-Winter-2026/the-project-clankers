@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { logout, isStudent, isTeacher } from '../util/login'
+import { logout, isStudent, isTeacher, isAdmin } from '../util/login'
 import { cn } from '@/lib/utils'
 import { LogOut, Home, User, Search, Bell, GraduationCap } from 'lucide-react'
 import { getEnrollmentRequests } from '../util/api'
@@ -94,6 +94,19 @@ export default function Sidebar() {
           >
             My Info
           </SidebarRow>
+
+          {isAdmin() && (
+            <>
+              <div className="border-t my-2" />
+              <div className="text-xs font-semibold text-sidebar-foreground/70 px-3 py-2">Admin</div>
+              <SidebarRow
+                selected={location === '/admin/manage-users'}
+                href="/admin/manage-users"
+              >
+                Manage Users
+              </SidebarRow>
+            </>
+          )}
 
           <div className="mt-auto pt-2">
             <SidebarRow
