@@ -53,6 +53,8 @@ export default function Assignment() {
   const [selectedTextSubmission, setSelectedTextSubmission] = useState<any>(null);
   const [isViewTextModalOpen, setIsViewTextModalOpen] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
+  const [internalReview, setInternalReview] = useState(false);
+  const [externalReview, setExternalReview] = useState(false);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
@@ -83,6 +85,12 @@ export default function Assignment() {
         }
         if (assignmentData && assignmentData.due_date) {
           setDueDate(assignmentData.due_date);
+        }
+        if (assignmentData && assignmentData.internal_review) {
+          setInternalReview(assignmentData.internal_review);
+        }
+        if (assignmentData && assignmentData.external_review) {
+          setExternalReview(assignmentData.external_review);
         }
         if (assignmentData && assignmentData.courseID) {
           setCourseId(assignmentData.courseID);
@@ -279,7 +287,13 @@ export default function Assignment() {
           </div>
           <Card>
             <CardContent className="p-4">
-              <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+              <RubricDisplay
+                rubricId={Number(id)}
+                onCriterionSelect={() => {}}
+                grades={[]}
+                internalReviewEnabled={internalReview}
+                externalReviewEnabled={externalReview}
+              />
             </CardContent>
           </Card>
           {isTeacher() && <RubricCreator id={Number(id)} />}
