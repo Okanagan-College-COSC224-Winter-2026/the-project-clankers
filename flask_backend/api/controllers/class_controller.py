@@ -63,7 +63,8 @@ def get_user_classes():
     elif user.is_admin():
         courses = Course.get_all_courses()
     elif user.is_student():
-        user_courses = User_Course.get_courses_by_student(user.id)
+        # Students only see visible (not hidden) courses
+        user_courses = User_Course.get_visible_courses_by_student(user.id)
         courses = [Course.get_by_id(uc.courseID) for uc in user_courses]
     else:
         courses = []
@@ -571,6 +572,106 @@ def unarchive_class():
     return jsonify({
         "msg": f"Class '{class_name}' restored successfully"
     }), 200
+
+
+@bp.route("/hide_class", methods=["PUT"])
+@jwt_required()
+def hide_class():
+    """Hide a class from a student's dashboard view"""
+    data = request.get_json()
+    class_id = data.get("id")
+
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Only students can hide classes
+    if not user.is_student():
+        return jsonify({"msg": "Only students can hide classes"}), 403
+
+    # Check if student is enrolled in this class
+    enrollment = User_Course.get(user.id, class_id)
+    if not enrollment:
+        return jsonify({"msg": "You are not enrolled in this class"}), 403
+
+    enrollment.hide()
+
+    return jsonify({
+        "msg": f"Class '{course.name}' removed from view"
+    }), 200
+
+
+@bp.route("/unhide_class", methods=["PUT"])
+@jwt_required()
+def unhide_class():
+    """Restore a hidden class to a student's dashboard view"""
+    data = request.get_json()
+    class_id = data.get("id")
+
+    if not class_id:
+        return jsonify({"msg": "Class ID is required"}), 400
+
+    course = Course.get_by_id(class_id)
+    if not course:
+        return jsonify({"msg": "Class not found"}), 404
+
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Only students can unhide classes
+    if not user.is_student():
+        return jsonify({"msg": "Only students can unhide classes"}), 403
+
+    # Check if student is enrolled in this class
+    enrollment = User_Course.get(user.id, class_id)
+    if not enrollment:
+        return jsonify({"msg": "You are not enrolled in this class"}), 403
+
+    enrollment.unhide()
+
+    return jsonify({
+        "msg": f"Class '{course.name}' restored to view"
+    }), 200
+
+
+@bp.route("/hidden_classes", methods=["GET"])
+@jwt_required()
+def get_hidden_classes():
+    """Get all hidden classes for the authenticated student"""
+    email = get_jwt_identity()
+    user = User.get_by_email(email)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Only students can view their hidden classes
+    if not user.is_student():
+        return jsonify({"msg": "Only students can view hidden classes"}), 403
+
+    hidden_user_courses = User_Course.get_hidden_courses_by_student(user.id)
+    hidden_courses = []
+
+    for uc in hidden_user_courses:
+        course = Course.get_by_id(uc.courseID)
+        if course:
+            # Get assignments count
+            assignments_count = course.assignments.count()
+            hidden_courses.append({
+                "id": course.id,
+                "name": course.name,
+                "assignments_count": assignments_count
+            })
+
+    return jsonify(hidden_courses), 200
 
 
 @bp.route("/<int:course_id>/registered_students", methods=["GET"])

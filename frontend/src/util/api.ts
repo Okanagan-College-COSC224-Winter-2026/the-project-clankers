@@ -368,6 +368,61 @@ export const unarchiveClass = async (classId: number) => {
   return await response.json();
 }
 
+export const hideClass = async (classId: number) => {
+  const response = await fetch(`${BASE_URL}/class/hide_class`, {
+    method: 'PUT',
+    body: JSON.stringify({ id: classId }),
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const unhideClass = async (classId: number) => {
+  const response = await fetch(`${BASE_URL}/class/unhide_class`, {
+    method: 'PUT',
+    body: JSON.stringify({ id: classId }),
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+export const getHiddenClasses = async () => {
+  const response = await fetch(`${BASE_URL}/class/hidden_classes`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.msg || `Error: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
 export interface GradebookAssignmentEntry {
   assignment_id: number;
   assignment_name: string;

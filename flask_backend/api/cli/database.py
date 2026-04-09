@@ -88,12 +88,14 @@ def ensure_admin_command():
     """Ensure a default admin exists using environment variables.
 
     Requires DEFAULT_ADMIN_NAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD.
+    Optional: DEFAULT_ADMIN_ROLE (defaults to "teacher" for presentation, use "admin" for actual admin)
     Safe to run repeatedly; updates role/password if the user already exists.
     """
 
     name = os.environ.get("DEFAULT_ADMIN_NAME")
     email = os.environ.get("DEFAULT_ADMIN_EMAIL")
     password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+    role = os.environ.get("DEFAULT_ADMIN_ROLE", "teacher")  # Default to teacher for demo
 
     if not all([name, email, password]):
         click.echo(
@@ -109,18 +111,18 @@ def ensure_admin_command():
     hashed = generate_password_hash(password, method="pbkdf2:sha256")
 
     if existing_user:
-        if existing_user.role != "admin" or existing_user.hash_pass != hashed:
-            existing_user.role = "admin"
+        if existing_user.role != role or existing_user.hash_pass != hashed:
+            existing_user.role = role
             existing_user.hash_pass = hashed
             existing_user.update()
-            click.echo(f"Updated existing user '{email}' to admin role")
+            click.echo(f"Updated existing user '{email}' to role '{role}'")
         else:
-            click.echo(f"Admin user '{email}' already exists; no changes made")
+            click.echo(f"User '{email}' already exists with role '{role}'; no changes made")
         return
 
-    admin = User(name=name, email=email, hash_pass=hashed, role="admin")
-    User.create_user(admin)
-    click.echo(f"Admin user '{email}' created successfully")
+    user = User(name=name, email=email, hash_pass=hashed, role=role)
+    User.create_user(user)
+    click.echo(f"User '{email}' created successfully with role '{role}'")
 
 
 @click.command("add_sample_courses")

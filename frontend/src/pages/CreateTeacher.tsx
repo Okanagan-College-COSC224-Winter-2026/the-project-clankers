@@ -111,6 +111,7 @@ export default function CreateTeacher() {
               type="password"
               placeholder="Temporary password"
               value={password}
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>

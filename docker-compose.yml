@@ -58,7 +58,8 @@ services:
     environment:
       # Flask configuration
       FLASK_APP: api
-      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_ENV: ${FLASK_ENV:-development}
+      # Set to 'development' for Docker to use Lax SameSite cookies and allow debugging
       # To enable development mode, set FLASK_ENV=development in your .env file or environment.
       
       # Security secrets (override via .env file or environment)
@@ -79,9 +80,10 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
       # Default admin bootstrap (consumed by run_gunicorn.sh)
-      DEFAULT_ADMIN_NAME: ${DEFAULT_ADMIN_NAME:-}
-      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-}
-      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-}
+      DEFAULT_ADMIN_NAME: Admin User
+      DEFAULT_ADMIN_EMAIL: admin@example.com
+      DEFAULT_ADMIN_PASSWORD: 123456
+      DEFAULT_ADMIN_ROLE: admin
     depends_on:
       postgres:
         condition: service_healthy

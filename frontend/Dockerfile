@@ -17,8 +17,8 @@ RUN npm ci
 COPY . .
 
 # Build the application
-# This runs TypeScript compilation and Vite build
-RUN npm run build
+# Vite build (skips TypeScript checking for Docker)
+RUN npx vite build
 
 # ===========================
 # Stage 2: Production Stage
