@@ -110,6 +110,10 @@ def create_review():
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
 
+    # Check if course is archived
+    if assignment.course.is_archived:
+        return jsonify({"msg": "Cannot submit reviews in an archived class"}), 403
+
     # Check if peer review period is available
     if not assignment.is_peer_review_available():
         if not assignment.is_peer_review_started():
@@ -199,6 +203,11 @@ def create_criterion():
     review = Review.get_by_id(review_id)
     if not review:
         return jsonify({"msg": "Review not found"}), 404
+
+    # Check if course is archived
+    assignment = Assignment.get_by_id(review.assignmentID)
+    if not assignment or assignment.course.is_archived:
+        return jsonify({"msg": "Cannot update reviews in an archived class"}), 403
 
     email = get_jwt_identity()
     user = User.get_by_email(email)
@@ -632,6 +641,10 @@ def get_review_targets(assignment_id):
     assignment = Assignment.get_by_id(assignment_id)
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
+
+    # Check if course is archived
+    if assignment.course.is_archived:
+        return jsonify({"msg": "Cannot review in an archived class"}), 403
 
     course_id = assignment.courseID
     is_group = assignment.submission_type == "group"

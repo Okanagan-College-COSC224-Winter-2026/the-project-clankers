@@ -1,5 +1,5 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
-import { uploadStudentSubmission, editStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile } from "../util/api";
+import { uploadStudentSubmission, editStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile, listClasses } from "../util/api";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
@@ -42,6 +42,7 @@ export default function StudentSubmissionUpload({
   const [editFile, setEditFile] = useState<File | null>(null);
   const [editRemoveFile, setEditRemoveFile] = useState(false);
   const [isEditDragging, setIsEditDragging] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +59,13 @@ export default function StudentSubmissionUpload({
         ]);
         setAssignment(assignmentData);
         setCurrentUserId(userProfile.id);
+
+        // Fetch course data to check archived status
+        const classes = await listClasses();
+        const course = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+        if (course) {
+          setIsArchived(course.is_archived || false);
+        }
       } catch (err) {
         console.error('Error loading assignment details:', err);
       }
@@ -457,7 +465,7 @@ export default function StudentSubmissionUpload({
                           Download
                         </Button>
                       )}
-                      {isOwnSubmission && editingSubmission?.id !== submission.id && (
+                      {isOwnSubmission && editingSubmission?.id !== submission.id && !isArchived && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -466,7 +474,7 @@ export default function StudentSubmissionUpload({
                           Edit
                         </Button>
                       )}
-                      {isOwnSubmission && (
+                      {isOwnSubmission && !isArchived && (
                         <Button
                           variant="destructive"
                           size="sm"
@@ -491,6 +499,7 @@ export default function StudentSubmissionUpload({
         )}
 
         {/* Upload new submission section */}
+        {!isArchived ? (
         <div className="mt-5 pt-5 border-t-2 border-gray-300">
           <h4 className="text-lg font-semibold mb-4">Submit New</h4>
 
@@ -567,17 +576,22 @@ export default function StudentSubmissionUpload({
           >
             {isUploading ? "Submitting..." : "Submit"}
           </Button>
+
+          {uploadError && (
+            <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
+              {uploadError}
+            </div>
+          )}
+
+          {uploadSuccess && (
+            <div className="mt-4 p-3 rounded bg-green-50 text-green-800 border border-green-400">
+              Submission saved successfully!
+            </div>
+          )}
         </div>
-
-        {uploadError && (
-          <div className="mt-4 p-3 rounded bg-red-50 text-red-800 border border-red-400">
-            {uploadError}
-          </div>
-        )}
-
-        {uploadSuccess && (
-          <div className="mt-4 p-3 rounded bg-green-50 text-green-800 border border-green-400">
-            Submission saved successfully!
+        ) : (
+          <div className="mt-5 pt-5 border-t-2 border-gray-300 p-4 bg-gray-50 rounded-lg text-center">
+            <p className="text-gray-600 text-sm font-medium">This class is archived and is in view-only mode. You cannot submit new work.</p>
           </div>
         )}
       </CardContent>

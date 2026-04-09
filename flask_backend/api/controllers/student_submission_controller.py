@@ -57,6 +57,10 @@ def upload_student_submission(assignment_id):
     if not course:
         return jsonify({"msg": "Course not found"}), 404
 
+    # Check if course is archived
+    if course.is_archived:
+        return jsonify({"msg": "Cannot submit to an archived class"}), 403
+
     # Check if student is enrolled in the course
     enrollment = User_Course.query.filter_by(userID=user.id, courseID=course.id).first()
     if not enrollment:
@@ -316,6 +320,18 @@ def edit_submission(submission_id):
     if submission.student_id != user.id:
         return jsonify({"msg": "Unauthorized: You can only edit your own submissions"}), 403
 
+    # Check if course/assignment is archived
+    assignment = Assignment.get_by_id(submission.assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.is_archived:
+        return jsonify({"msg": "Cannot edit submissions in an archived class"}), 403
+
     has_file = "file" in request.files and request.files["file"].filename != ""
     has_text = "submissionText" in request.form
     remove_file = request.form.get("removeFile") == "true"
@@ -387,6 +403,18 @@ def delete_submission(submission_id):
     # Only the student who submitted can delete (or maybe teacher later?)
     if submission.student_id != user.id:
         return jsonify({"msg": "Unauthorized: You can only delete your own submissions"}), 403
+
+    # Check if course/assignment is archived
+    assignment = Assignment.get_by_id(submission.assignment_id)
+    if not assignment:
+        return jsonify({"msg": "Assignment not found"}), 404
+
+    course = Course.get_by_id(assignment.courseID)
+    if not course:
+        return jsonify({"msg": "Course not found"}), 404
+
+    if course.is_archived:
+        return jsonify({"msg": "Cannot delete submissions in an archived class"}), 403
 
     # Delete file from filesystem
     if submission.file_path:
