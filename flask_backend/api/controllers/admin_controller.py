@@ -112,6 +112,94 @@ def update_user_role(user_id):
     )
 
 
+@bp.route("/users/<int:user_id>", methods=["PUT"])
+@jwt_admin_required
+def update_user(user_id):
+    """Update user details (name, email, role, password, student_id) - admin only"""
+    if not request.is_json:
+        return jsonify({"msg": "Missing JSON in request"}), 400
+
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Get current user for permission checks
+    current_email = get_jwt_identity()
+    current_user = User.get_by_email(current_email)
+
+    # Extract optional fields
+    name = request.json.get("name", None)
+    email = request.json.get("email", None)
+    role = request.json.get("role", None)
+    password = request.json.get("password", None)
+    student_id = request.json.get("student_id", None)
+
+    # Update name if provided
+    if name is not None and name != "":
+        user.name = name
+
+    # Update student_id if provided (only for students)
+    if student_id is not None:
+        # Allow empty string to clear student_id, otherwise require it for students
+        if student_id == "":
+            user.student_id = None
+        else:
+            # Check if student_id is already taken by another student
+            existing_student = User.query.filter_by(student_id=student_id).first()
+            if existing_student and existing_student.id != user_id:
+                return jsonify({"msg": f"Student ID {student_id} is already in use by another student"}), 400
+            user.student_id = student_id
+
+    # Update email if provided
+    if email is not None and email != "":
+        # Check if email is already taken by another user
+        existing_user = User.get_by_email(email)
+        if existing_user and existing_user.id != user_id:
+            return jsonify({"msg": f"Email {email} is already in use"}), 400
+        user.email = email
+
+    # Update role if provided
+    if role is not None:
+        # Validate role
+        if role not in ["student", "teacher", "admin"]:
+            return jsonify({"msg": "Invalid role. Must be 'student', 'teacher', or 'admin'"}), 400
+
+        # Prevent self-demotion from admin
+        if current_user.id == user_id and role != "admin":
+            return jsonify({"msg": "Cannot demote yourself from admin role"}), 400
+
+        user.role = role
+
+    # Update password if provided
+    if password is not None and password != "":
+        # Validate password strength
+        if len(password) < 8:
+            return jsonify({"msg": "Password must be at least 8 characters"}), 400
+        if not any(c.isupper() for c in password):
+            return jsonify({"msg": "Password must contain an uppercase letter"}), 400
+        if not any(c.islower() for c in password):
+            return jsonify({"msg": "Password must contain a lowercase letter"}), 400
+        if not any(c.isdigit() for c in password):
+            return jsonify({"msg": "Password must contain a number"}), 400
+        if not any(c in "!@#$%^&*" for c in password):
+            return jsonify({"msg": "Password must contain a special character (!@#$%^&*)"}), 400
+
+        user.hash_pass = generate_password_hash(password)
+
+    # Save changes
+    try:
+        user.update()
+    except Exception as e:
+        if "UNIQUE constraint failed" in str(e):
+            return jsonify({"msg": "Student ID or Email already in use"}), 400
+        return jsonify({"msg": f"Error updating user: {str(e)}"}), 500
+
+    return jsonify({
+        "msg": "User updated successfully",
+        "user": UserSchema().dump(user)
+    }), 200
+
+
 @bp.route("/users/<int:user_id>", methods=["DELETE"])
 @jwt_admin_required
 def delete_user(user_id):
@@ -127,6 +215,20 @@ def delete_user(user_id):
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    user.delete()
+    # Check if teacher has any classes (active or archived)
+    if user.role == "teacher":
+        from ..models import Course
+        has_courses = Course.query.filter_by(teacherID=user_id).first()
+        if has_courses:
+            return jsonify({"msg": "Cannot delete a teacher with existing classes. Please delete or reassign all their classes first."}), 400
 
-    return jsonify({"msg": "User deleted successfully"}), 200
+    try:
+        # Delete related reviews first (as reviewer and reviewee)
+        from ..models import Review
+        Review.query.filter((Review.reviewerID == user_id) | (Review.revieweeID == user_id)).delete()
+
+        # Delete the user
+        user.delete()
+        return jsonify({"msg": "User deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"msg": f"Error deleting user: {str(e)}"}), 500

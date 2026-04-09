@@ -1,0 +1,176 @@
+.EditUserModal-Overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: modalFadeIn 0.2s ease;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.EditUserModal-Card {
+  background: var(--background-primary, #fff);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: modalSlideUp 0.25s ease;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.EditUserModal-Header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.EditUserModal-Header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary, #1f2937);
+}
+
+.EditUserModal-CloseButton {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.EditUserModal-CloseButton:hover {
+  background: var(--background-secondary, #f3f4f6);
+}
+
+.EditUserModal-Body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.EditUserModal-Field {
+  margin-bottom: 1.25rem;
+}
+
+.EditUserModal-Field:last-child {
+  margin-bottom: 0;
+}
+
+.EditUserModal-Field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary, #374151);
+  font-size: 0.875rem;
+}
+
+.EditUserModal-ReadOnlyRole {
+  padding: 12px;
+  background: var(--background-secondary, #f3f4f6);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 4px;
+  font-weight: 600;
+  color: var(--text-primary, #374151);
+}
+
+.EditUserModal-RoleNote {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+}
+
+.EditUserModal-PasswordHint {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.EditUserModal-Actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  background: var(--background-secondary, #f9fafb);
+}
+
+.EditUserModal-CancelButton,
+.EditUserModal-SaveButton {
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.15s ease;
+}
+
+.EditUserModal-CancelButton {
+  background: var(--background-secondary, #e5e7eb);
+  color: var(--text-primary, #374151);
+}
+
+.EditUserModal-CancelButton:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.EditUserModal-SaveButton {
+  background: #3b82f6;
+  color: white;
+}
+
+.EditUserModal-SaveButton:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.EditUserModal-CancelButton:disabled,
+.EditUserModal-SaveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .EditUserModal-Card {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .EditUserModal-Header,
+  .EditUserModal-Body,
+  .EditUserModal-Actions {
+    padding: 1rem;
+  }
+
+  .EditUserModal-Header h2 {
+    font-size: 1.1rem;
+  }
+}

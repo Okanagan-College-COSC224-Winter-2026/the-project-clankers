@@ -19,6 +19,7 @@ import ChangePassword from "./pages/ChangePassword";
 import CreateTeacher from "./pages/CreateTeacher";
 import Browse from "./pages/Browse";
 import StudentGrades from "./pages/StudentGrades";
+import ManageUsers from "./pages/ManageUsers";
 
 function AppContent() {
   const location = useLocation();
@@ -54,6 +55,12 @@ function AppContent() {
           <Route path="/admin/create-teacher" element={
             <ProtectedRoute>
               <CreateTeacher />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/manage-users" element={
+            <ProtectedRoute>
+              <ManageUsers />
             </ProtectedRoute>
           } />
 

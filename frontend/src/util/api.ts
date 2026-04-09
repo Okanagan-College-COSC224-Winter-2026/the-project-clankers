@@ -1866,3 +1866,166 @@ export const getCourseEnrollmentRequests = async (courseId: string | number) => 
 
   return await response.json();
 }
+
+// Admin - Get All Users
+export const getAllUsers = async () => {
+  const response = await fetch(`${BASE_URL}/admin/users`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Admin - Create User
+export const createUser = async (
+  name: string,
+  email: string,
+  password: string,
+  role: string,
+  must_change_password: boolean = false
+) => {
+  const response = await fetch(`${BASE_URL}/admin/users/create`, {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      role,
+      must_change_password
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || `Response status: ${response.status}`);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('JSON')) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+      throw e;
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    throw new Error('Invalid response from server');
+  }
+}
+
+// Admin - Update User
+export const updateUser = async (
+  userId: number,
+  updates: { name?: string; email?: string; role?: string; student_id?: string | null; hash_pass?: string }
+) => {
+  // Convert hash_pass to password for the backend
+  const backendUpdates: any = { ...updates };
+  if (backendUpdates.hash_pass) {
+    backendUpdates.password = backendUpdates.hash_pass;
+    delete backendUpdates.hash_pass;
+  }
+
+  const response = await fetch(`${BASE_URL}/admin/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(backendUpdates),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || `Response status: ${response.status}`);
+    } catch (e) {
+      // If response isn't JSON, throw generic error
+      if (e instanceof Error && e.message.includes('JSON')) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+      throw e;
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    throw new Error('Invalid response from server');
+  }
+}
+
+// Admin - Delete User
+export const deleteUser = async (userId: number) => {
+  const response = await fetch(`${BASE_URL}/admin/users/${userId}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || `Response status: ${response.status}`);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('JSON')) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+      throw e;
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    throw new Error('Invalid response from server');
+  }
+}
+
+// Admin - Change User Password
+export const changeUserPassword = async (userId: number, password: string) => {
+  const response = await fetch(`${BASE_URL}/admin/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ password }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || `Response status: ${response.status}`);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('JSON')) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+      throw e;
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    throw new Error('Invalid response from server');
+  }
+}

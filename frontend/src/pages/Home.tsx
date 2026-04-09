@@ -15,8 +15,9 @@ interface Course {
 interface CourseWithAssignments extends Course {
   assignments: unknown[]
   assignmentCount: number
-  courseTotalGrade?: number | null
-  gradeStatus?: string
+  student_count: number
+  next_due_date: string | null
+  pending_reviews_count: number
 }
 
 export default function Home() {
@@ -37,7 +38,7 @@ export default function Home() {
       const coursesResp = await listClasses()
 
       const coursesWithAssignments = await Promise.all(
-        coursesResp.map(async (course: Course) => {
+        coursesResp.map(async (course: CourseWithAssignments) => {
           try {
             const assignments = await listAssignments(String(course.id))
             let courseTotalGrade: number | null = null
@@ -108,7 +109,7 @@ export default function Home() {
       // Reload active courses
       const coursesResp = await listClasses()
       const coursesWithAssignments = await Promise.all(
-        coursesResp.map(async (course: Course) => {
+        coursesResp.map(async (course: CourseWithAssignments) => {
           try {
             const assignments = await listAssignments(String(course.id))
               let courseTotalGrade: number | null = null
@@ -272,6 +273,10 @@ export default function Home() {
                     </div>
                   ) : undefined
                 }
+                studentCount={course.student_count}
+                nextDueDate={course.next_due_date}
+                pendingReviews={course.pending_reviews_count}
+                classId={course.id}
                 onclick={() => {
                   window.location.href = `/classes/${course.id}/home`
                 }}
