@@ -7,6 +7,7 @@ import PasswordInput from '../components/PasswordInput'
 import PasswordCriteria from '../components/PasswordCriteria'
 import StatusMessage from '../components/StatusMessage'
 import { changePassword } from '../util/api'
+import { validatePassword } from '../util/passwordValidation'
 
 export default function ChangePassword() {
   const navigate = useNavigate()
@@ -36,8 +37,9 @@ export default function ChangePassword() {
         return
       }
 
-      if (newPassword.length < 6) {
-        setError('New password must be at least 6 characters')
+      const validation = validatePassword(newPassword)
+      if (!validation.isValid) {
+        setError(validation.errors.join(', '))
         return
       }
 
@@ -66,6 +68,15 @@ export default function ChangePassword() {
       navigate('/profile')
     }
   }
+
+  const passwordValidation = newPassword ? validatePassword(newPassword) : { isValid: false, errors: [] }
+  const isFormValid =
+    currentPassword &&
+    newPassword &&
+    confirmPassword &&
+    newPassword === confirmPassword &&
+    passwordValidation.isValid &&
+    currentPassword !== newPassword
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -118,7 +129,7 @@ export default function ChangePassword() {
           <div className="flex gap-2">
             <Button
               onClick={handleChangePassword}
-              disabled={success}
+              disabled={success || !isFormValid}
               className="flex-1"
             >
               Change Password
