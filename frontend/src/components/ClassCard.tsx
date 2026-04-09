@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ReactNode } from 'react'
 import { Users, AlertCircle, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { isTeacher } from '@/util/login'
 
 interface Props {
   image: string
@@ -91,7 +92,7 @@ export default function ClassCard(props: Props) {
           )}
 
           {/* Pending Reviews */}
-          {props.pendingReviews !== undefined && (
+          {props.pendingReviews !== undefined && isTeacher() && (
             <div 
               onClick={handlePendingReviewsClick}
               className={`flex items-center gap-2 transition-colors cursor-pointer ${
