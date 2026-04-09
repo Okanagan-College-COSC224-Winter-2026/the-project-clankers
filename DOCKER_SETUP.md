@@ -99,6 +99,13 @@ docker-compose down
 - Stops and removes all containers
 - Database data is preserved in volumes
 
+```powershell
+docker-compose down -v
+```
+- Stops and removes all containers
+- Data data is not preserved, wipes database
+
+
 ### Stop and Remove Everything (Including Data)
 ```powershell
 docker-compose down -v
