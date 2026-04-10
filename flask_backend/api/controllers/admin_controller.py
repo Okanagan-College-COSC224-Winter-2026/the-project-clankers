@@ -3,6 +3,9 @@ Admin management endpoints
 Only admin users can access these endpoints
 """
 
+import re
+import string
+import secrets
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity
 from werkzeug.security import generate_password_hash
@@ -232,3 +235,185 @@ def delete_user(user_id):
         return jsonify({"msg": "User deleted successfully"}), 200
     except Exception as e:
         return jsonify({"msg": f"Error deleting user: {str(e)}"}), 500
+
+
+def csv_to_list(csv_string):
+    """
+    Parse CSV string into a list of student dictionaries.
+    CSV format: id, name, email
+    Returns: (list of dicts, list of error messages)
+    """
+    REQUIRED_HEADERS = ["id", "name", "email"]
+    rows = []
+    errors = []
+
+    lines = csv_string.strip().split('\n')
+
+    # Parse header
+    if not lines:
+        return [], ["CSV file is empty"]
+
+    header_line = lines[0].strip()
+    try:
+        headers = [h.strip().lower() for h in header_line.split(',')]
+    except Exception as e:
+        return [], [f"Error parsing header: {str(e)}"]
+
+    # Validate headers
+    if headers != REQUIRED_HEADERS:
+        return [], [f"Invalid headers. Expected: {', '.join(REQUIRED_HEADERS)}, Got: {', '.join(headers)}"]
+
+    # Parse rows
+    for line_num, line in enumerate(lines[1:], start=2):
+        line = line.strip()
+        if not line:
+            continue
+
+        try:
+            values = [v.strip() for v in line.split(',')]
+        except Exception as e:
+            errors.append(f"Line {line_num}: Error parsing row: {str(e)}")
+            continue
+
+        if len(values) != len(headers):
+            errors.append(f"Line {line_num}: Expected {len(headers)} columns, got {len(values)}")
+            continue
+
+        normalized = dict(zip(headers, values))
+
+        if any(not normalized[field] for field in REQUIRED_HEADERS):
+            errors.append(f"Line {line_num}: Missing required fields")
+            continue
+
+        rows.append({
+            "id": normalized["id"],
+            "name": normalized["name"],
+            "email": normalized["email"]
+        })
+
+    return rows, errors
+
+
+def generate_temporary_password(length=10):
+    """Generate a unique temporary password using secrets module"""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+@bp.route("/import_students", methods=["POST"])
+@jwt_admin_required
+def import_students():
+    """
+    Import students into the system via CSV (admin only).
+    CSV format: id, name, email
+    - If student_id exists in system, skip (already in system)
+    - If student_id doesn't exist, create new user with temporary password
+    - Temporary passwords are unique and students must change them on first login
+    - Students are NOT enrolled in any course
+    """
+
+    data = request.get_json()
+    student_emails_csv = data.get("students", "")
+
+    if not student_emails_csv:
+        return jsonify({"msg": "Student roster is required"}), 400
+
+    students, parse_errors = csv_to_list(student_emails_csv)
+    if parse_errors:
+        error_message = "\n".join(parse_errors)
+        return jsonify({"msg": error_message}), 400
+
+    # Check for duplicate student IDs within the CSV
+    student_ids_in_csv = [s["id"] for s in students]
+    duplicate_ids = [sid for sid in student_ids_in_csv if student_ids_in_csv.count(sid) > 1]
+    if duplicate_ids:
+        unique_duplicates = list(set(duplicate_ids))
+        return jsonify({
+            "msg": f"Duplicate student IDs found in CSV: {', '.join(unique_duplicates)}. "
+                   "Each student ID must be unique."
+        }), 400
+
+    created_students = []
+    existing_students = []  # Students who already exist in the system
+
+    for student_info in students:
+        student_id = student_info["id"]
+        email = student_info["email"]
+        name = student_info["name"]
+
+        # validate email format with regex
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return jsonify({"msg": f"Invalid email format: {email}"}), 400
+
+        # Check if student_id is already used by another student
+        existing_by_id = User.get_by_student_id(student_id)
+        existing_by_email = User.get_by_email(email)
+
+        # Prevent student_id conflicts
+        if existing_by_id and existing_by_email and existing_by_id.id != existing_by_email.id:
+            return jsonify({
+                "msg": f"Student ID {student_id} is already assigned to {existing_by_id.email}, "
+                       f"but email {email} belongs to a different student"
+            }), 400
+
+        # Prevent reusing a student_id with a different email
+        if existing_by_id and not existing_by_email:
+            return jsonify({
+                "msg": f"Student ID {student_id} is already assigned to {existing_by_id.email}. "
+                       f"Cannot use the same student ID for {email}."
+            }), 400
+
+        # Prevent using an existing email with a different student_id
+        if existing_by_email and existing_by_email.student_id and existing_by_email.student_id != student_id:
+            return jsonify({
+                "msg": f"Email {email} is already registered with student ID {existing_by_email.student_id}. "
+                       f"Cannot assign different student ID {student_id} to the same email."
+            }), 400
+
+        # Determine which student record to use
+        student = existing_by_id or existing_by_email
+        student_already_existed = student is not None
+
+        if not student:
+            # Create new student with unique temporary password
+            temp_password = generate_temporary_password()
+            student = User(
+                name=name,
+                email=email,
+                hash_pass=generate_password_hash(temp_password),
+                role="student",
+                must_change_password=True,
+                student_id=student_id
+            )
+            try:
+                User.create_user(student)
+                created_students.append({
+                    "email": email,
+                    "student_id": student_id,
+                    "temp_password": temp_password
+                })
+            except Exception as e:
+                return jsonify({"msg": f"Error creating user {email}: {str(e)}"}), 500
+        else:
+            # Track students who already exist in the system
+            existing_students.append({
+                "email": email,
+                "student_id": student_id,
+                "name": name
+            })
+
+    response_data = {
+        "msg": f"{len(created_students)} new students added to the system",
+        "created_count": len(created_students),
+        "existing_count": len(existing_students)
+    }
+
+    # Include temporary passwords in response for admin to distribute
+    if created_students:
+        response_data["new_students"] = created_students
+
+    # Include existing accounts
+    if existing_students:
+        response_data["existing_students"] = existing_students
+
+    return jsonify(response_data), 200

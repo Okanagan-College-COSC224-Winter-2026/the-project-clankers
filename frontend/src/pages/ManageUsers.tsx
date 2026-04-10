@@ -17,7 +17,18 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StatusMessage from '../components/StatusMessage';
 import Checkbox from '../components/Checkbox';
+import RosterUploadResult from '../components/RosterUploadResult';
+import ErrorModal from '../components/ErrorModal';
+import { importCSVAdmin } from '../util/csv';
 import './ManageUsers.css';
+
+interface RosterUploadResultData {
+  message: string;
+  created_count: number;
+  existing_count?: number;
+  new_students?: Array<{ email: string; student_id: string; temp_password: string }>;
+  existing_students?: Array<{ email: string; student_id: string; name: string }>;
+}
 
 export default function ManageUsers() {
   // User data
@@ -50,6 +61,11 @@ export default function ManageUsers() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  // CSV upload state
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   // Load data on mount
   useEffect(() => {
     loadData();
@@ -75,7 +91,8 @@ export default function ManageUsers() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.student_id && user.student_id.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -144,6 +161,24 @@ export default function ManageUsers() {
     setCreatePassword('');
     setCreateRole('student');
     setCreateMustChangePassword(true);
+  };
+
+  // CSV upload
+  const handleCSVUpload = () => {
+    if (isUploadingCSV) return;
+    setIsUploadingCSV(true);
+    importCSVAdmin(
+      (result) => {
+        setIsUploadingCSV(false);
+        setRosterResult(result);
+        loadData();
+      },
+      (error) => {
+        setIsUploadingCSV(false);
+        setUploadError(error instanceof Error ? error.message : String(error));
+      },
+      () => setIsUploadingCSV(false)
+    );
   };
 
   // Edit user
@@ -227,9 +262,14 @@ export default function ManageUsers() {
 
   return (
     <div className="ManageUsers">
-      <div className="ManageUsers-Header">
+    <div className="ManageUsers-Header">
         <h1>User Management</h1>
-        <Button onClick={() => setShowCreateModal(true)}>Create New User</Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button onClick={handleCSVUpload} disabled={isUploadingCSV}>
+            {isUploadingCSV ? 'Uploading CSV...' : 'Upload CSV'}
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>Create New User</Button>
+        </div>
       </div>
 
       {successMessage && <StatusMessage type="success">{successMessage}</StatusMessage>}
@@ -238,7 +278,7 @@ export default function ManageUsers() {
       <div className="ManageUsers-Filters">
         <div className="ManageUsers-SearchBox">
           <Textbox
-            placeholder="Search by name or email..."
+            placeholder="Search by name, email, or student ID..."
             value={searchTerm}
             onInput={setSearchTerm}
           />
@@ -439,6 +479,27 @@ export default function ManageUsers() {
             setShowDeleteDialog(false);
             setSelectedUser(null);
           }}
+        />
+      )}
+
+      {/* CSV Upload Result Modal */}
+      {rosterResult && (
+        <RosterUploadResult
+          enrolledCount={0}
+          createdCount={rosterResult.created_count}
+          existingCount={rosterResult.existing_count}
+          newStudents={rosterResult.new_students}
+          existingStudents={rosterResult.existing_students}
+          onClose={() => setRosterResult(null)}
+        />
+      )}
+
+      {/* CSV Upload Error Modal */}
+      {uploadError && (
+        <ErrorModal
+          title="CSV Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
         />
       )}
     </div>
