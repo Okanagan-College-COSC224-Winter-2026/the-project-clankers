@@ -55,6 +55,10 @@ COPY run_gunicorn.sh /app/run_gunicorn.sh
 # Ensure entrypoint script is executable
 RUN chmod +x /app/run_gunicorn.sh
 
+# Create uploads directories before changing ownership
+RUN mkdir -p /app/instance/uploads/profile_pictures \
+    && mkdir -p /app/instance/uploads/assignments
+
 # Set ownership to non-root user
 RUN chown -R flask:flask /app
 

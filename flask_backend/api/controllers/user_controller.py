@@ -18,6 +18,21 @@ bp = Blueprint("user", __name__, url_prefix="/user")
 user_schema = UserSchema()
 
 
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """Validate password meets security requirements"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    if not any(c in "!@#$%^&*" for c in password):
+        return False, "Password must contain at least one special character (!@#$%^&*)"
+    return True, ""
+
+
 class UserUpdateSchema(Schema):
     """Schema for updating user information"""
 
@@ -129,8 +144,11 @@ def change_password():
         return jsonify({"msg": "Current password is required"}), 400
     if not new_password:
         return jsonify({"msg": "New password is required"}), 400
-    if len(new_password) < 6:
-        return jsonify({"msg": "New password must be at least 6 characters"}), 400
+
+    # Validate password strength
+    is_valid, error_msg = validate_password_strength(new_password)
+    if not is_valid:
+        return jsonify({"msg": error_msg}), 400
 
     email = get_jwt_identity()
     user = User.get_by_email(email)

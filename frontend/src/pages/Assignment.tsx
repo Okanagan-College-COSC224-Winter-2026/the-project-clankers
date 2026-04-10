@@ -24,7 +24,8 @@ import {
   listStuGroup,
   getCurrentUserProfile,
   downloadStudentSubmission,
-  getMyGroup
+  getMyGroup,
+  getClassDetails
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -51,6 +52,9 @@ export default function Assignment() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [selectedTextSubmission, setSelectedTextSubmission] = useState<any>(null);
   const [isViewTextModalOpen, setIsViewTextModalOpen] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
+  const [internalReview, setInternalReview] = useState(false);
+  const [externalReview, setExternalReview] = useState(false);
 
   // Determine which tab is active based on URL path
   const isManageTab = location.pathname.includes('/manage');
@@ -82,13 +86,22 @@ export default function Assignment() {
         if (assignmentData && assignmentData.due_date) {
           setDueDate(assignmentData.due_date);
         }
+        if (assignmentData && assignmentData.internal_review) {
+          setInternalReview(assignmentData.internal_review);
+        }
+        if (assignmentData && assignmentData.external_review) {
+          setExternalReview(assignmentData.external_review);
+        }
         if (assignmentData && assignmentData.courseID) {
           setCourseId(assignmentData.courseID);
-          // Fetch the course name
+          // Fetch the course name and archived status
           const { listClasses } = await import("../util/api");
           const classes = await listClasses();
           const course = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
-          if (course) setCourseName(course.name);
+          if (course) {
+            setCourseName(course.name);
+            setIsArchived(course.is_archived || false);
+          }
         }
 
         // Fetch student submissions and group info if not a teacher
@@ -218,6 +231,11 @@ export default function Assignment() {
           ) : (
             <span className="text-muted-foreground">...</span>
           )}
+          {isArchived && (
+            <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+              VIEW ONLY
+            </span>
+          )}
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
           <span className="font-semibold text-foreground">{assignmentName || '...'}</span>
         </nav>
@@ -269,7 +287,13 @@ export default function Assignment() {
           </div>
           <Card>
             <CardContent className="p-4">
-              <RubricDisplay rubricId={Number(id)} onCriterionSelect={() => {}} grades={[]} />
+              <RubricDisplay
+                rubricId={Number(id)}
+                onCriterionSelect={() => {}}
+                grades={[]}
+                internalReviewEnabled={internalReview}
+                externalReviewEnabled={externalReview}
+              />
             </CardContent>
           </Card>
           {isTeacher() && <RubricCreator id={Number(id)} />}

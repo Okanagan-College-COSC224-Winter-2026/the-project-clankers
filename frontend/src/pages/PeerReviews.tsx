@@ -26,6 +26,7 @@ import {
   getPeerReviewSubmissions,
   downloadStudentSubmission,
   ReviewTarget,
+  listClasses,
 } from "../util/api";
 
 interface PeerReviewModalProps {
@@ -582,6 +583,7 @@ export default function PeerReviews() {
   const [selectedReviewComments, setSelectedReviewComments] = useState<{ reviewId: number; comments: string[] } | null>(null);
   const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
   const [rubricId, setRubricId] = useState<number | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
 
   // Helper function to get color classes based on grade percentage
   const getGradeColorClasses = (grade: number | null | undefined) => {
@@ -645,6 +647,13 @@ export default function PeerReviews() {
         setIsLoading(true);
         const assignmentData = await getAssignmentDetails(Number(id));
         setAssignment(assignmentData);
+
+        // Fetch course data to check archived status
+        const classes = await listClasses();
+        const course = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+        if (course) {
+          setIsArchived(course.is_archived || false);
+        }
 
         // Fetch rubric ID for the "View Rubrics" button
         try {
@@ -856,6 +865,16 @@ export default function PeerReviews() {
           </CardContent>
         </Card>
 
+        {/* Archived Class Message */}
+        {isArchived && (
+          <Card>
+            <CardContent className="flex items-center gap-3 py-3">
+              <AlertCircle className="h-5 w-5 shrink-0 text-gray-600" />
+              <p className="m-0 text-sm font-medium text-gray-700">This class is archived and is in view-only mode. You cannot submit new reviews.</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Submit a Review Section */}
         <Card>
           <CardContent className="flex items-center justify-between gap-4">
@@ -887,7 +906,7 @@ export default function PeerReviews() {
             </div>
             <Button
               onClick={() => setIsModalOpen(true)}
-              disabled={!reviewAvailability.available}
+              disabled={!reviewAvailability.available || isArchived}
             >
               Start Review
             </Button>

@@ -439,7 +439,11 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                 {assignment.description && (
                   <div className="flex items-start justify-between py-2 border-b border-slate-100 gap-4">
                     <span className="text-sm font-medium text-muted-foreground shrink-0">Description</span>
-                    <span className="text-sm text-right">{assignment.description}</span>
+                    <span className="text-sm text-right">
+                      {assignment.description.length > 200
+                        ? assignment.description.substring(0, 200) + '...'
+                        : assignment.description}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between py-2 border-b border-slate-100">
