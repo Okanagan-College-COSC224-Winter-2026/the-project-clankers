@@ -34,6 +34,9 @@ interface Props {
 
 export default function RosterUploadResult(props: Props) {
   const [copied, setCopied] = useState(false)
+  const [credentialsSaved, setCredentialsSaved] = useState(false)
+
+  const hasNewPasswords = props.newStudents && props.newStudents.length > 0
 
   const handleCopyAll = () => {
     if (!props.newStudents || props.newStudents.length === 0) return
@@ -44,6 +47,7 @@ export default function RosterUploadResult(props: Props) {
 
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true)
+      setCredentialsSaved(true)
       setTimeout(() => setCopied(false), 2000)
     })
   }
@@ -63,11 +67,25 @@ export default function RosterUploadResult(props: Props) {
     a.download = `student-credentials-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
+    setCredentialsSaved(true)
+  }
+
+  const handleClose = () => {
+    if (hasNewPasswords && !credentialsSaved) {
+      window.alert(
+        '⚠️ You must save the temporary passwords before closing!\n\nPlease use "Copy All" or "Download CSV" to save the credentials. They will not be shown again.'
+      )
+      return
+    }
+    props.onClose()
   }
 
   return (
-    <Dialog open onOpenChange={props.onClose}>
-      <DialogContent className="max-h-[90vh] max-w-6xl sm:max-w-6xl overflow-y-auto">
+    <Dialog open onOpenChange={handleClose}>
+      <DialogContent
+        className="max-h-[90vh] max-w-6xl sm:max-w-6xl overflow-y-auto"
+        showCloseButton={!hasNewPasswords || credentialsSaved}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
@@ -121,11 +139,18 @@ export default function RosterUploadResult(props: Props) {
           {/* New Students with Passwords */}
           {props.newStudents && props.newStudents.length > 0 && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
+              <div className={`flex items-center gap-2 rounded-lg border p-3 ${credentialsSaved ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200' : 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200'}`}>
+                {credentialsSaved ? (
+                  <Check className="h-4 w-4 shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                )}
                 <span className="text-sm">
-                  <strong>Important:</strong> Save these temporary passwords now. They will not be
-                  shown again.
+                  {credentialsSaved ? (
+                    <strong>Credentials saved! You may now close this dialog.</strong>
+                  ) : (
+                    <><strong>⚠️ Important:</strong> You must copy or download these temporary passwords before closing. They will <strong>not</strong> be shown again.</>
+                  )}
                 </span>
               </div>
 
@@ -234,7 +259,13 @@ export default function RosterUploadResult(props: Props) {
         </div>
 
         <DialogFooter>
-          <Button onClick={props.onClose}>Close</Button>
+          {hasNewPasswords && !credentialsSaved ? (
+            <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+              Please copy or download credentials before closing.
+            </p>
+          ) : (
+            <Button onClick={handleClose}>Close</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
