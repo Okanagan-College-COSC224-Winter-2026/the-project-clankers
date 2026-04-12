@@ -659,17 +659,20 @@ def get_review_targets(assignment_id):
     # Build internal targets (group members, excluding self)
     internal_targets = []
     if is_group and user_group_id:
+        # For group assignments, check if the GROUP has submitted (not individual members)
+        # If the group has submitted, all members are eligible for internal review
+        group_has_sub = _has_group_submission(assignment_id, user_group_id)
+
         members = Group_Members.query.filter_by(groupID=user_group_id).all()
         for m in members:
             if m.userID == user.id:
                 continue
             member_user = User.get_by_id(m.userID)
-            has_sub = _has_submission(assignment_id, m.userID)
             internal_targets.append({
                 "id": m.userID,
                 "name": member_user.name if member_user else f"User {m.userID}",
-                "has_submitted": has_sub,
-                "is_late": _is_late_submission(assignment_id, m.userID, due_date) if has_sub else False,
+                "has_submitted": group_has_sub,
+                "is_late": _is_late_submission(assignment_id, m.userID, due_date) if group_has_sub else False,
             })
 
     # Build external targets
