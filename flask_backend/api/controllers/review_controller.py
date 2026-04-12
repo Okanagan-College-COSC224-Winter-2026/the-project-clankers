@@ -153,8 +153,24 @@ def create_review():
         if not _has_group_submission(assignment_id, reviewee_id):
             return jsonify({"msg": "This group has not submitted the assignment and cannot be reviewed."}), 403
     else:
-        if not _has_submission(assignment_id, reviewee_id):
-            return jsonify({"msg": "This student has not submitted the assignment and cannot be reviewed."}), 403
+        # For individual reviewees, we need to check if they're in a group assignment
+        # For group assignments, check if their group has submitted (not just the individual)
+        is_group_assignment = assignment.submission_type == 'group'
+
+        if is_group_assignment:
+            # Get the reviewee's group for this assignment
+            group_member = Group_Members.query.filter_by(userID=reviewee_id).first()
+            if group_member:
+                # Check if the group has submitted
+                if not _has_group_submission(assignment_id, group_member.groupID):
+                    return jsonify({"msg": "This student's group has not submitted the assignment and cannot be reviewed."}), 403
+            else:
+                # Reviewee is not in a group, which shouldn't happen for group assignments
+                return jsonify({"msg": "This student is not part of a group assignment."}), 403
+        else:
+            # For individual assignments, check individual submission
+            if not _has_submission(assignment_id, reviewee_id):
+                return jsonify({"msg": "This student has not submitted the assignment and cannot be reviewed."}), 403
 
     # Check if a review already exists for this combination
     existing_review = Review.query.filter_by(
