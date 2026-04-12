@@ -144,8 +144,26 @@ def create_review():
         if not _has_group_submission(assignment_id, reviewer_id):
             return jsonify({"msg": "Your group has not submitted this assignment. You must submit before reviewing others."}), 403
     else:
-        if not _has_submission(assignment_id, user.id):
-            return jsonify({"msg": "You have not submitted this assignment. You must submit before reviewing others."}), 403
+        # For user reviewers, check submission status based on assignment type
+        is_group_assignment = assignment.submission_type == 'group'
+        if is_group_assignment:
+            # For group assignments, reviewer's GROUP must have submitted
+            group_member = Group_Members.query.join(
+                CourseGroup, Group_Members.groupID == CourseGroup.id
+            ).filter(
+                Group_Members.userID == user.id,
+                CourseGroup.courseID == assignment.courseID
+            ).first()
+            if group_member:
+                if not _has_group_submission(assignment_id, group_member.groupID):
+                    return jsonify({"msg": "Your group has not submitted this assignment. You must submit before reviewing others."}), 403
+            else:
+                # User is not in a group, which shouldn't happen for group assignments
+                return jsonify({"msg": "You are not part of a group for this assignment."}), 403
+        else:
+            # For individual assignments, check individual submission
+            if not _has_submission(assignment_id, user.id):
+                return jsonify({"msg": "You have not submitted this assignment. You must submit before reviewing others."}), 403
 
     # 2. Reviewee must have submitted — you cannot review someone
     #    who has not submitted.
@@ -158,8 +176,13 @@ def create_review():
         is_group_assignment = assignment.submission_type == 'group'
 
         if is_group_assignment:
-            # Get the reviewee's group for this assignment
-            group_member = Group_Members.query.filter_by(userID=reviewee_id).first()
+            # Get the reviewee's group for this assignment (must be from the same course)
+            group_member = Group_Members.query.join(
+                CourseGroup, Group_Members.groupID == CourseGroup.id
+            ).filter(
+                Group_Members.userID == reviewee_id,
+                CourseGroup.courseID == assignment.courseID
+            ).first()
             if group_member:
                 # Check if the group has submitted
                 if not _has_group_submission(assignment_id, group_member.groupID):
