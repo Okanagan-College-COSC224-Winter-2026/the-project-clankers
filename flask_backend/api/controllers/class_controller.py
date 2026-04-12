@@ -28,9 +28,9 @@ def create_class():
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    existing_class = Course.get_by_name(class_name)
+    existing_class = Course.get_by_name_teacher(class_name, user.id)
     if existing_class:
-        return jsonify({"msg": "Class already exists"}), 400
+        return jsonify({"msg": "You already have a class with this name"}), 400
 
     new_class = Course(teacherID=user.id, name=class_name)
     Course.create_course(new_class)

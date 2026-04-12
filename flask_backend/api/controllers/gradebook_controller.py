@@ -112,7 +112,20 @@ def _course_students(course_id):
     return [student for student in students if student and student.is_student()]
 
 
-def _latest_submission_for_student(assignment_id, student_id):
+def _latest_submission_for_student(assignment_id, student_id, assignment=None, group_id=None):
+    # For group assignments, check if the group has submitted (not just the individual)
+    if assignment and assignment.submission_type == 'group' and group_id:
+        # Get all submissions from group members
+        group_members = Group_Members.query.filter_by(groupID=group_id).all()
+        member_ids = [m.userID for m in group_members]
+        if member_ids:
+            submissions = StudentSubmission.query.filter(
+                StudentSubmission.assignment_id == assignment_id,
+                StudentSubmission.student_id.in_(member_ids)
+            ).order_by(StudentSubmission.submitted_at.desc()).all()
+            return submissions[0] if submissions else None
+
+    # For individual assignments, check only this student
     submissions = StudentSubmission.get_by_student_and_assignment(student_id, assignment_id)
     return submissions[0] if submissions else None
 
@@ -240,7 +253,7 @@ def _received_reviews_for_grade(assignment, student_id, group_id):
 def _grade_entry(policy, assignment, student, class_students):
     criteria_ids, criteria_map = _assignment_context(assignment)
     group_id = _student_group(assignment.courseID, student.id)
-    latest_submission = _latest_submission_for_student(assignment.id, student.id)
+    latest_submission = _latest_submission_for_student(assignment.id, student.id, assignment, group_id)
     submission_status = _submission_status(assignment, latest_submission)
     peer_completion = _student_peer_completion(
         assignment, student, class_students, group_id, criteria_ids
