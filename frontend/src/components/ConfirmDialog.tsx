@@ -19,6 +19,7 @@ interface ConfirmDialogProps {
   variant?: 'danger' | 'warning' | 'info' | 'success'
   onConfirm: () => void
   onCancel: () => void
+  error?: string
 }
 
 const variantConfig = {
@@ -52,6 +53,7 @@ export default function ConfirmDialog({
   variant = 'danger',
   onConfirm,
   onCancel,
+  error,
 }: ConfirmDialogProps) {
   const config = variantConfig[variant]
   const Icon = config.icon
@@ -71,6 +73,11 @@ export default function ConfirmDialog({
           <AlertDialogDescription className="text-sm text-muted-foreground">
             {message}
           </AlertDialogDescription>
+          {error && (
+            <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded text-sm text-destructive">
+              {error}
+            </div>
+          )}
         </div>
         <AlertDialogFooter className="border-t px-5 py-3 flex justify-end gap-2">
           <AlertDialogCancel onClick={onCancel} className="h-8 px-4 text-sm">{cancelLabel}</AlertDialogCancel>

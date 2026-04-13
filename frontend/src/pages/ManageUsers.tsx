@@ -60,6 +60,7 @@ export default function ManageUsers() {
   // Status messages
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
 
   // CSV upload state
   const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
@@ -220,6 +221,7 @@ export default function ManageUsers() {
   // Delete user
   const handleDeleteClick = (user: User) => {
     setSelectedUser(user);
+    setDeleteErrorMessage('');
     setShowDeleteDialog(true);
   };
 
@@ -231,11 +233,10 @@ export default function ManageUsers() {
       setSuccessMessage(`User ${selectedUser.name} deleted successfully`);
       setShowDeleteDialog(false);
       setSelectedUser(null);
+      setDeleteErrorMessage('');
       await loadData();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to delete user');
-      setShowDeleteDialog(false);
-      setSelectedUser(null);
+      setDeleteErrorMessage(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
 
@@ -478,7 +479,9 @@ export default function ManageUsers() {
           onCancel={() => {
             setShowDeleteDialog(false);
             setSelectedUser(null);
+            setDeleteErrorMessage('');
           }}
+          error={deleteErrorMessage}
         />
       )}
 
