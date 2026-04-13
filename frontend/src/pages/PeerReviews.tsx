@@ -201,10 +201,13 @@ function PeerReviewModal({
 
   const loadTargetSubmissions = async (targetId: number, targetType: 'user' | 'group') => {
     try {
+      console.log(`[DEBUG] Loading submissions for target ${targetId} (type: ${targetType})`);
       const submissions = await getPeerReviewSubmissions(assignmentId, targetId, targetType);
+      console.log(`[DEBUG] Received ${submissions.length} submissions:`, submissions);
       setTargetSubmissions(submissions);
     } catch (error) {
-      console.warn('Error loading target submissions:', error);
+      console.error('[ERROR] Error loading target submissions:', error);
+      console.error('Error details:', error instanceof Error ? error.message : String(error));
       setTargetSubmissions([]);
     }
   };
@@ -411,10 +414,10 @@ function PeerReviewModal({
 
                 {/* Submissions Section */}
                 {targetSubmissions.length > 0 && (
-                  <div className="w-full border rounded-md bg-blue-50 border-blue-200 overflow-hidden">
+                  <div className="w-full border rounded-md bg-blue-50 border-blue-200 overflow-visible">
                     <button
                       onClick={() => setSubmissionsExpanded(!submissionsExpanded)}
-                      className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
+                      className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left min-h-[50px]"
                     >
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-1 text-sm font-semibold text-blue-700"><Paperclip className="h-4 w-4" /> Submissions</span>

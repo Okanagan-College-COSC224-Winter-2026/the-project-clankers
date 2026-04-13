@@ -260,6 +260,8 @@ def get_peer_review_submissions(assignment_id, target_id):
     For individual assignments: get submissions from the target student
     For group assignments: get submissions from all members of the target group
     """
+    import sys
+
     assignment = Assignment.get_by_id(assignment_id)
     if not assignment:
         return jsonify({"msg": "Assignment not found"}), 404
@@ -281,10 +283,18 @@ def get_peer_review_submissions(assignment_id, target_id):
     # Get query parameter to determine if target is a student or group
     target_type = request.args.get('type', 'user')  # 'user' or 'group'
 
+    # Debug logging
+    print(f"[DEBUG] get_peer_review_submissions: assignment_id={assignment_id}, target_id={target_id}, target_type={target_type}", file=sys.stderr)
+
     if target_type == 'group':
         # Get all members of the target group
-        group_member_ids = [member.userID for member in Group_Members.query.filter_by(groupID=target_id).all()]
+        group_members = Group_Members.query.filter_by(groupID=target_id).all()
+        group_member_ids = [member.userID for member in group_members]
+
+        print(f"[DEBUG] Found {len(group_member_ids)} members in group {target_id}: {group_member_ids}", file=sys.stderr)
+
         if not group_member_ids:
+            print(f"[DEBUG] No members found in group {target_id}", file=sys.stderr)
             return jsonify({"submissions": []}), 200
 
         # Get submissions from any group member
@@ -292,9 +302,12 @@ def get_peer_review_submissions(assignment_id, target_id):
             StudentSubmission.assignment_id == assignment_id,
             StudentSubmission.student_id.in_(group_member_ids)
         ).all()
+
+        print(f"[DEBUG] Found {len(submissions)} submissions from group members", file=sys.stderr)
     else:
         # Get submissions from the specific student
         submissions = StudentSubmission.get_by_student_and_assignment(target_id, assignment_id)
+        print(f"[DEBUG] Found {len(submissions)} submissions from student {target_id}", file=sys.stderr)
 
     return jsonify({
         "submissions": StudentSubmissionSchema(many=True).dump(submissions)
