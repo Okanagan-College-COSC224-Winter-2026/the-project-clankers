@@ -21,7 +21,7 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     # relationships
-    user = db.relationship("User", backref="notifications", foreign_keys=[userID])
+    user = db.relationship("User", back_populates="notifications", foreign_keys=[userID])
 
     def __init__(self, userID, type, related_id, message):
         self.userID = userID

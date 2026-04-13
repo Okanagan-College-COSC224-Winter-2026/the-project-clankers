@@ -28,7 +28,7 @@ class EnrollmentRequest(db.Model):
     )
 
     # relationships
-    student = db.relationship("User", foreign_keys=[studentID], backref="enrollment_requests")
+    student = db.relationship("User", foreign_keys=[studentID], back_populates="enrollment_requests")
     course = db.relationship("Course", foreign_keys=[courseID], backref="enrollment_requests")
 
     def __init__(self, studentID, courseID):
