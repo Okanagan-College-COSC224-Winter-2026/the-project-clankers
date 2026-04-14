@@ -642,7 +642,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                                                 <Button size="sm" variant="outline" onClick={() => handleDownloadSubmission(row.submission.id, row.submission.filename)}>
                                                   Download
                                                 </Button>
-                                              ) : <span className="text-muted-foreground text-xs">\u2014</span>}
+                                              ) : <span className="text-muted-foreground text-xs">-</span>}
                                             </td>
                                           </tr>
                                         ))}
@@ -677,7 +677,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                                                 <Button size="sm" variant="outline" onClick={() => handleDownloadSubmission(row.submission.id, row.submission.filename)}>
                                                   Download
                                                 </Button>
-                                              ) : <span className="text-muted-foreground text-xs">\u2014</span>}
+                                              ) : <span className="text-muted-foreground text-xs">-</span>}
                                             </td>
                                           </tr>
                                         ))}

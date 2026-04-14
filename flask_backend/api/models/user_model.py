@@ -51,6 +51,12 @@ class User(db.Model):
     group_memberships = db.relationship(
         "Group_Members", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
     )
+    enrollment_requests = db.relationship(
+        "EnrollmentRequest", back_populates="student", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    notifications = db.relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
     def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None, profile_picture_url=None):
         valid_roles = ["student", "teacher", "admin"]

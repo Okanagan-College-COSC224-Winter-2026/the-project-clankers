@@ -43,8 +43,20 @@ def _submission_status(assignment, latest_submission):
     return "submitted"
 
 
-def _is_review_complete(review, criteria_ids):
+def _is_review_complete(review, criteria_ids, review_type=None):
     if not criteria_ids:
+        return True
+
+    # Filter criteria by review type if specified
+    # review_type can be 'internal', 'external', or None (for all)
+    applicable_criteria = criteria_ids
+    if review_type:
+        applicable_criteria = [
+            c_id for c_id in criteria_ids
+            if _criteria_applies_to_review_type(c_id, review_type)
+        ]
+
+    if not applicable_criteria:
         return True
 
     graded_ids = {
@@ -52,7 +64,16 @@ def _is_review_complete(review, criteria_ids):
         for c in Criterion.query.filter_by(reviewID=review.id).all()
         if c.grade is not None
     }
-    return all(criteria_id in graded_ids for criteria_id in criteria_ids)
+    return all(criteria_id in graded_ids for criteria_id in applicable_criteria)
+
+
+def _criteria_applies_to_review_type(criteria_id, review_type):
+    """Check if a criteria description applies to the given review type."""
+    criteria_desc = CriteriaDescription.get_by_id(criteria_id)
+    if not criteria_desc:
+        return False
+    # Criteria applies if it's marked as 'both', or if it matches the review type
+    return criteria_desc.criteria_type == 'both' or criteria_desc.criteria_type == review_type
 
 
 def _calculate_review_grade(review, criteria_map):
@@ -112,7 +133,20 @@ def _course_students(course_id):
     return [student for student in students if student and student.is_student()]
 
 
-def _latest_submission_for_student(assignment_id, student_id):
+def _latest_submission_for_student(assignment_id, student_id, assignment=None, group_id=None):
+    # For group assignments, check if the group has submitted (not just the individual)
+    if assignment and assignment.submission_type == 'group' and group_id:
+        # Get all submissions from group members
+        group_members = Group_Members.query.filter_by(groupID=group_id).all()
+        member_ids = [m.userID for m in group_members]
+        if member_ids:
+            submissions = StudentSubmission.query.filter(
+                StudentSubmission.assignment_id == assignment_id,
+                StudentSubmission.student_id.in_(member_ids)
+            ).order_by(StudentSubmission.submitted_at.desc()).all()
+            return submissions[0] if submissions else None
+
+    # For individual assignments, check only this student
     submissions = StudentSubmission.get_by_student_and_assignment(student_id, assignment_id)
     return submissions[0] if submissions else None
 
@@ -120,7 +154,7 @@ def _latest_submission_for_student(assignment_id, student_id):
 def _student_group(course_id, student_id):
     membership = (
         Group_Members.query.filter_by(userID=student_id)
-        .join(CourseGroup)
+        .join(CourseGroup, Group_Members.groupID == CourseGroup.id)
         .filter(CourseGroup.courseID == course_id)
         .first()
     )
@@ -156,7 +190,7 @@ def _student_peer_completion(assignment, student, class_students, group_id, crit
             reviewer_type="user",
             reviewee_type="user",
         ).all()
-        completed += sum(1 for review in reviews if review.revieweeID in teammate_ids and _is_review_complete(review, criteria_ids))
+        completed += sum(1 for review in reviews if review.revieweeID in teammate_ids and _is_review_complete(review, criteria_ids, 'internal'))
 
     if assignment.external_review:
         if assignment.submission_type == "group":
@@ -173,7 +207,7 @@ def _student_peer_completion(assignment, student, class_students, group_id, crit
                 completed += sum(
                     1
                     for review in group_reviews
-                    if review.revieweeID in expected_targets and _is_review_complete(review, criteria_ids)
+                    if review.revieweeID in expected_targets and _is_review_complete(review, criteria_ids, 'external')
                 )
         else:
             student_ids = [s.id for s in class_students]
@@ -188,7 +222,7 @@ def _student_peer_completion(assignment, student, class_students, group_id, crit
             completed += sum(
                 1
                 for review in user_reviews
-                if review.revieweeID in expected_targets and _is_review_complete(review, criteria_ids)
+                if review.revieweeID in expected_targets and _is_review_complete(review, criteria_ids, 'external')
             )
 
     ratio = (completed / expected) if expected > 0 else 1.0
@@ -240,19 +274,31 @@ def _received_reviews_for_grade(assignment, student_id, group_id):
 def _grade_entry(policy, assignment, student, class_students):
     criteria_ids, criteria_map = _assignment_context(assignment)
     group_id = _student_group(assignment.courseID, student.id)
-    latest_submission = _latest_submission_for_student(assignment.id, student.id)
+    latest_submission = _latest_submission_for_student(assignment.id, student.id, assignment, group_id)
     submission_status = _submission_status(assignment, latest_submission)
     peer_completion = _student_peer_completion(
         assignment, student, class_students, group_id, criteria_ids
     )
 
     received_reviews = _received_reviews_for_grade(assignment, student.id, group_id)
-    review_grades = [
-        _calculate_review_grade(review, criteria_map)
-        for review in received_reviews
-        if _is_review_complete(review, criteria_ids)
-    ]
-    review_grades = [grade for grade in review_grades if grade is not None]
+    review_grades = []
+    for review in received_reviews:
+        # Determine review type
+        review_type = None
+        if assignment.submission_type == "group":
+            if review.reviewer_type == "user" and review.reviewee_type == "user":
+                review_type = "internal"
+            elif review.reviewer_type == "group" and review.reviewee_type == "group":
+                review_type = "external"
+        else:
+            # Individual assignment - all reviews are external
+            review_type = "external"
+
+        if _is_review_complete(review, criteria_ids, review_type):
+            grade = _calculate_review_grade(review, criteria_map)
+            if grade is not None:
+                review_grades.append(grade)
+
     computed_grade = (sum(review_grades) / len(review_grades)) if review_grades else None
 
     penalty_percent = 0.0

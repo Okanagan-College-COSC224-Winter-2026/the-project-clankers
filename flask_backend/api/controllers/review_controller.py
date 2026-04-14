@@ -148,8 +148,26 @@ def create_review():
         if not _has_group_submission(assignment_id, reviewer_id):
             return jsonify({"msg": "Your group has not submitted this assignment. You must submit before reviewing others."}), 403
     else:
-        if not _has_submission(assignment_id, user.id):
-            return jsonify({"msg": "You have not submitted this assignment. You must submit before reviewing others."}), 403
+        # For user reviewers, check submission status based on assignment type
+        is_group_assignment = assignment.submission_type == 'group'
+        if is_group_assignment:
+            # For group assignments, reviewer's GROUP must have submitted
+            group_member = Group_Members.query.join(
+                CourseGroup, Group_Members.groupID == CourseGroup.id
+            ).filter(
+                Group_Members.userID == user.id,
+                CourseGroup.courseID == assignment.courseID
+            ).first()
+            if group_member:
+                if not _has_group_submission(assignment_id, group_member.groupID):
+                    return jsonify({"msg": "Your group has not submitted this assignment. You must submit before reviewing others."}), 403
+            else:
+                # User is not in a group, which shouldn't happen for group assignments
+                return jsonify({"msg": "You are not part of a group for this assignment."}), 403
+        else:
+            # For individual assignments, check individual submission
+            if not _has_submission(assignment_id, user.id):
+                return jsonify({"msg": "You have not submitted this assignment. You must submit before reviewing others."}), 403
 
     # 2. Reviewee must have submitted — you cannot review someone
     #    who has not submitted.
@@ -157,8 +175,29 @@ def create_review():
         if not _has_group_submission(assignment_id, reviewee_id):
             return jsonify({"msg": "This group has not submitted the assignment and cannot be reviewed."}), 403
     else:
-        if not _has_submission(assignment_id, reviewee_id):
-            return jsonify({"msg": "This student has not submitted the assignment and cannot be reviewed."}), 403
+        # For individual reviewees, we need to check if they're in a group assignment
+        # For group assignments, check if their group has submitted (not just the individual)
+        is_group_assignment = assignment.submission_type == 'group'
+
+        if is_group_assignment:
+            # Get the reviewee's group for this assignment (must be from the same course)
+            group_member = Group_Members.query.join(
+                CourseGroup, Group_Members.groupID == CourseGroup.id
+            ).filter(
+                Group_Members.userID == reviewee_id,
+                CourseGroup.courseID == assignment.courseID
+            ).first()
+            if group_member:
+                # Check if the group has submitted
+                if not _has_group_submission(assignment_id, group_member.groupID):
+                    return jsonify({"msg": "This student's group has not submitted the assignment and cannot be reviewed."}), 403
+            else:
+                # Reviewee is not in a group, which shouldn't happen for group assignments
+                return jsonify({"msg": "This student is not part of a group assignment."}), 403
+        else:
+            # For individual assignments, check individual submission
+            if not _has_submission(assignment_id, reviewee_id):
+                return jsonify({"msg": "This student has not submitted the assignment and cannot be reviewed."}), 403
 
     # Check if a review already exists for this combination
     existing_review = Review.query.filter_by(
@@ -672,17 +711,20 @@ def get_review_targets(assignment_id):
     # Build internal targets (group members, excluding self)
     internal_targets = []
     if is_group and user_group_id:
+        # For group assignments, check if the GROUP has submitted (not individual members)
+        # If the group has submitted, all members are eligible for internal review
+        group_has_sub = _has_group_submission(assignment_id, user_group_id)
+
         members = Group_Members.query.filter_by(groupID=user_group_id).all()
         for m in members:
             if m.userID == user.id:
                 continue
             member_user = User.get_by_id(m.userID)
-            has_sub = _has_submission(assignment_id, m.userID)
             internal_targets.append({
                 "id": m.userID,
                 "name": member_user.name if member_user else f"User {m.userID}",
-                "has_submitted": has_sub,
-                "is_late": _is_late_submission(assignment_id, m.userID, due_date) if has_sub else False,
+                "has_submitted": group_has_sub,
+                "is_late": _is_late_submission(assignment_id, m.userID, due_date) if group_has_sub else False,
             })
 
     # Build external targets

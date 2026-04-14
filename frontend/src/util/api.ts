@@ -2029,3 +2029,37 @@ export const changeUserPassword = async (userId: number, password: string) => {
     throw new Error('Invalid response from server');
   }
 }
+
+// Admin - Import Students
+export const importStudentsAdmin = async (students: string) => {
+  const response = await fetch(`${BASE_URL}/admin/import_students`, {
+    method: 'POST',
+    body: JSON.stringify({
+      students,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  maybeHandleExpire(response);
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || `Response status: ${response.status}`);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('JSON')) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+      throw e;
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    throw new Error('Invalid response from server');
+  }
+}

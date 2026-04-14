@@ -17,7 +17,18 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StatusMessage from '../components/StatusMessage';
 import Checkbox from '../components/Checkbox';
+import RosterUploadResult from '../components/RosterUploadResult';
+import ErrorModal from '../components/ErrorModal';
+import { importCSVAdmin } from '../util/csv';
 import './ManageUsers.css';
+
+interface RosterUploadResultData {
+  message: string;
+  created_count: number;
+  existing_count?: number;
+  new_students?: Array<{ email: string; student_id: string; temp_password: string }>;
+  existing_students?: Array<{ email: string; student_id: string; name: string }>;
+}
 
 export default function ManageUsers() {
   // User data
@@ -49,6 +60,12 @@ export default function ManageUsers() {
   // Status messages
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
+
+  // CSV upload state
+  const [rosterResult, setRosterResult] = useState<RosterUploadResultData | null>(null);
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -75,7 +92,8 @@ export default function ManageUsers() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.student_id && user.student_id.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -146,6 +164,24 @@ export default function ManageUsers() {
     setCreateMustChangePassword(true);
   };
 
+  // CSV upload
+  const handleCSVUpload = () => {
+    if (isUploadingCSV) return;
+    setIsUploadingCSV(true);
+    importCSVAdmin(
+      (result) => {
+        setIsUploadingCSV(false);
+        setRosterResult(result);
+        loadData();
+      },
+      (error) => {
+        setIsUploadingCSV(false);
+        setUploadError(error instanceof Error ? error.message : String(error));
+      },
+      () => setIsUploadingCSV(false)
+    );
+  };
+
   // Edit user
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
@@ -185,6 +221,7 @@ export default function ManageUsers() {
   // Delete user
   const handleDeleteClick = (user: User) => {
     setSelectedUser(user);
+    setDeleteErrorMessage('');
     setShowDeleteDialog(true);
   };
 
@@ -196,11 +233,10 @@ export default function ManageUsers() {
       setSuccessMessage(`User ${selectedUser.name} deleted successfully`);
       setShowDeleteDialog(false);
       setSelectedUser(null);
+      setDeleteErrorMessage('');
       await loadData();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to delete user');
-      setShowDeleteDialog(false);
-      setSelectedUser(null);
+      setDeleteErrorMessage(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
 
@@ -227,9 +263,14 @@ export default function ManageUsers() {
 
   return (
     <div className="ManageUsers">
-      <div className="ManageUsers-Header">
+    <div className="ManageUsers-Header">
         <h1>User Management</h1>
-        <Button onClick={() => setShowCreateModal(true)}>Create New User</Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button onClick={handleCSVUpload} disabled={isUploadingCSV}>
+            {isUploadingCSV ? 'Uploading CSV...' : 'Upload CSV'}
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>Create New User</Button>
+        </div>
       </div>
 
       {successMessage && <StatusMessage type="success">{successMessage}</StatusMessage>}
@@ -238,7 +279,7 @@ export default function ManageUsers() {
       <div className="ManageUsers-Filters">
         <div className="ManageUsers-SearchBox">
           <Textbox
-            placeholder="Search by name or email..."
+            placeholder="Search by name, email, or student ID..."
             value={searchTerm}
             onInput={setSearchTerm}
           />
@@ -438,7 +479,30 @@ export default function ManageUsers() {
           onCancel={() => {
             setShowDeleteDialog(false);
             setSelectedUser(null);
+            setDeleteErrorMessage('');
           }}
+          error={deleteErrorMessage}
+        />
+      )}
+
+      {/* CSV Upload Result Modal */}
+      {rosterResult && (
+        <RosterUploadResult
+          enrolledCount={0}
+          createdCount={rosterResult.created_count}
+          existingCount={rosterResult.existing_count}
+          newStudents={rosterResult.new_students}
+          existingStudents={rosterResult.existing_students}
+          onClose={() => setRosterResult(null)}
+        />
+      )}
+
+      {/* CSV Upload Error Modal */}
+      {uploadError && (
+        <ErrorModal
+          title="CSV Upload Error"
+          message={uploadError}
+          onClose={() => setUploadError(null)}
         />
       )}
     </div>
