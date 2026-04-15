@@ -1,5 +1,11 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/Qs_OeS3S)
 # Peer Evaluation App
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey?logo=flask)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ## What is This?
 
@@ -57,8 +63,8 @@ docker compose up --build -d
 **Stop the app:**
 
 ```bash
-docker-compose down         # Stop services
-docker-compose down -v      # Stop and remove database data
+docker compose down         # Stop services
+docker compose down -v      # Stop and remove database data
 ```
 
 **For detailed setup and local development** (without Docker), see [Getting Started Guide](docs/GETTING_STARTED.md).
@@ -77,14 +83,20 @@ docker-compose down -v      # Stop and remove database data
 
 - ✅ JWT-based authentication with HTTPOnly cookies
 - ✅ Role-based authorization (Student, Teacher, Admin)
-- ✅ RESTful API with Flask backend
-- ✅ React + TypeScript frontend with Vite
+- ✅ RESTful API with Flask backend (84 endpoints across 14 blueprints)
+- ✅ React + TypeScript frontend with Vite (25+ routes)
 - ✅ SQLite (dev) / PostgreSQL (production) support
 - ✅ Course and assignment management
 - ✅ Student roster upload with auto-account creation
-- 🚧 Group creation and management (in progress)
-- 🚧 Rubric-based peer evaluations (in progress)
-- 🚧 Anonymous peer review workflows (planned)
+- ✅ Group creation and management
+- ✅ Rubric creation and evaluation criteria
+- ✅ Peer review submission and feedback workflows
+- ✅ Gradebook with grade policies and overrides
+- ✅ Student file submission and download
+- ✅ Enrollment request and approval system
+- ✅ Course archival and visibility controls
+- ✅ Password management and profile pictures
+- ✅ Docker Compose deployment (PostgreSQL + Flask + React)
 
 ## Prerequisites
 
@@ -167,7 +179,7 @@ We welcome contributions! Please read:
 
 ## 📄 License
 
-This project is for educational purposes as part of COSC 470 at Okanagan College.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -180,22 +192,3 @@ This project is for educational purposes as part of COSC 470 at Okanagan College
 
 **Still stuck?** Check existing GitHub Issues or create a new one.
 
-## Important Notes
-
-- Frontend uses HTTPOnly cookies for JWT token storage
-- Backend tests use in-memory SQLite database
-- Default role for public registration is 'student'
-- Teachers and admins must be created by existing admins
-- **PRODUCTION SECURITY**: See [Production Deployment Guide](docs/dev-guidelines/PRODUCTION_DEPLOYMENT.md) for required security configuration before deploying to production
-
-## Contributing
-
-1. Create a feature branch from `dev` ([follow guidelines](docs/dev-guidelines/dev-ops.md))
-2. Make your changes
-3. Write/update tests
-4. Update documentation
-5. Submit a pull request to `dev`
-
-## License
-
-See [LICENSE](LICENSE) file for details.

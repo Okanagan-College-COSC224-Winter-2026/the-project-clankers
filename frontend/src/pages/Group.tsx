@@ -230,7 +230,6 @@ export default function Group() {
 
                               if (memObj)
                                 localGroup[selectedGroup].push(memObj);
-                              else console.log("no unassigned users");
 
                               setMemberTable(localMember);
                               setGroupTable(localGroup);
@@ -288,7 +287,6 @@ export default function Group() {
                                     memObj.groupID = -1;
 
                                     if (memObj) localMember[-1].push(memObj);
-                                    else console.log("shouldn't happen?");
 
                                     setMemberTable(localMember);
                                     setGroupTable(localGroup);

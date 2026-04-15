@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -10,9 +10,10 @@ import AssignmentCard from '../components/AssignmentCard'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import { listAssignments, listClasses, createAssignment } from '../util/api'
+import { parseUTC } from '../util/dates'
 
 const toDatetimeLocal = (iso: string): string => {
-  const d = new Date(iso);
+  const d = parseUTC(iso);
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
@@ -45,14 +46,23 @@ export default function ClassHome() {
   const [peerReviewStartDate, setPeerReviewStartDate] = useState('')
   const [peerReviewDueDate, setPeerReviewDueDate] = useState('')
 
-  useEffect(() => {
-    ;(async () => {
+  const fetchAssignments = useCallback(async () => {
       const resp = await listAssignments(String(id))
       const classes = await listClasses()
       const currentClass = classes.find((c: { id: number }) => c.id === Number(id))
       setAssignments(resp)
       setClassName(currentClass?.name || null)
-    })()  }, [id])
+  }, [id])
+
+  useEffect(() => {
+    fetchAssignments()
+  }, [fetchAssignments])
+
+  useEffect(() => {
+    const handleFocus = () => fetchAssignments();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchAssignments]);
 
   const tryCreateAssignment = async () => {
     try {

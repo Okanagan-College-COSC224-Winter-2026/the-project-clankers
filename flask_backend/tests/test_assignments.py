@@ -42,7 +42,7 @@ def test_teacher_can_create_assignment(test_client, make_admin):
     assert assignment_response.json["msg"] == "Assignment created"
     assert assignment_response.json["assignment"]["name"] == "Essay 1"
     assert assignment_response.json["assignment"]["rubric_text"] == "Quality of writing"
-    assert assignment_response.json["assignment"]["due_date"] == "2025-12-31T23:59:59"
+    assert assignment_response.json["assignment"]["due_date"] == "2025-12-31T23:59:59+00:00"
 
 
 def test_create_assignment_missing_fields(test_client, make_admin):
@@ -209,7 +209,7 @@ def test_teacher_can_edit_assignment_before_due_date(test_client, make_admin):
     assert edit_response.json["msg"] == "Assignment updated"
     assert edit_response.json["assignment"]["name"] == "Updated Lab Report 1"
     assert edit_response.json["assignment"]["rubric_text"] == "Thoroughness"
-    assert edit_response.json["assignment"]["due_date"] == "2027-11-30T23:59:59"
+    assert edit_response.json["assignment"]["due_date"] == "2027-11-30T23:59:59+00:00"
 
 def test_teacher_can_edit_assignment_after_due_date(test_client, make_admin):
     """
@@ -882,7 +882,7 @@ def test_instructor_full_assignment_management_workflow(test_client, make_admin)
     details = details_response.json
     assert details["name"] == "Final Project"
     assert details["rubric_text"] == "Creativity and execution"
-    assert details["due_date"] == "2026-06-30T23:59:59"
+    assert details["due_date"] == "2026-06-30T23:59:59+00:00"
     assert "rubrics" in details
     assert "review_count" in details
     assert "group_count" in details
@@ -906,7 +906,7 @@ def test_instructor_full_assignment_management_workflow(test_client, make_admin)
     updated_details = verify_response.json
     assert updated_details["name"] == "Final Project (Updated)"
     assert updated_details["rubric_text"] == "Creativity, execution, and presentation"
-    assert updated_details["due_date"] == "2026-07-15T23:59:59"
+    assert updated_details["due_date"] == "2026-07-15T23:59:59+00:00"
     
     # Step 5: DELETE assignment
     delete_response = test_client.delete(f"/assignment/delete_assignment/{assignment_id}")
@@ -1022,7 +1022,7 @@ def test_edit_assignment_partial_update(test_client, make_admin):
     details = test_client.get(f"/assignment/details/{assignment_id}").json
     assert details["name"] == "Updated Name Only"
     assert details["rubric_text"] == "Original Rubric"  # Unchanged
-    assert details["due_date"] == "2026-12-31T23:59:59"  # Unchanged
+    assert details["due_date"] == "2026-12-31T23:59:59+00:00"  # Unchanged
 
 
 def test_assignment_list_contains_all_assignments(test_client, make_admin):

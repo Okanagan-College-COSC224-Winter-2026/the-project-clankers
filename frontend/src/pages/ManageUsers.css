@@ -30,17 +30,16 @@
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
+  align-items: center;
 }
 
 .ManageUsers-SearchBox {
-  flex: 2;
+  flex: 1;
   min-width: 200px;
 }
 
 .ManageUsers-RoleFilter {
-  flex: 1;
-  min-width: 150px;
-  max-width: 200px;
+  flex: none;
 }
 
 .ManageUsers-Empty {
@@ -160,7 +159,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 40;
   animation: modalFadeIn 0.2s ease;
 }
 

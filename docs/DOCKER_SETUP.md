@@ -10,7 +10,7 @@ Before you start, you need to have Docker installed on your Windows machine:
 
 1. **Download and Install Docker Desktop for Windows**
    - Go to: https://www.docker.com/products/docker-desktop
-   - Download "Docker Desktop for Windoes"
+   - Download "Docker Desktop for Windows"
    - Run the installer and follow the setup wizard
    - Make sure to enable WSL 2 backend when prompted
 
@@ -30,7 +30,7 @@ Before you start, you need to have Docker installed on your Windows machine:
 ### Step 1: Navigate to Project Directory
 
 ```powershell
-cd C:\Users\ethan\projects\the-project-clankers
+cd path/to/the-project-clankers
 ```
 
 ### Step 2: Start All Services

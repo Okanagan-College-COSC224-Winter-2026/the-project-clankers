@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { BookOpen, BarChart2, ClipboardList, Search, ShieldCheck } from 'lucide-react'
+import { parseUTC } from '../util/dates'
 
 import TabNavigation from '../components/TabNavigation'
 import { Badge } from '../components/ui/badge'
@@ -299,7 +300,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
     ]
     const rows = assignments.map((a) => [
       a.assignment_name,
-      a.due_date ? new Date(a.due_date).toLocaleDateString() : '—',
+      a.due_date ? parseUTC(a.due_date).toLocaleDateString() : '—',
       a.submission_status,
       `${a.peer_evaluation.completed}/${a.peer_evaluation.expected}`,
       a.computed_grade != null ? a.computed_grade.toFixed(1) : 'Pending',
@@ -562,7 +563,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                             </button>
                           </td>
                           <td className="p-3 text-slate-500 text-xs">
-                            {a.due_date ? new Date(a.due_date).toLocaleDateString() : '—'}
+                            {a.due_date ? parseUTC(a.due_date).toLocaleDateString() : '—'}
                           </td>
                           <td className="p-3 text-slate-700">{a.submitted_count}</td>
                           <td className="p-3 text-slate-700">{a.late_count}</td>
@@ -609,7 +610,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                                 <CardTitle className="text-base">{assignment.name}</CardTitle>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                   {submittedCount} of {total} {entityType} submitted
-                                  {assignment.due_date && ` · Due: ${new Date(assignment.due_date).toLocaleDateString()}`}
+                                  {assignment.due_date && ` · Due: ${parseUTC(assignment.due_date).toLocaleDateString()}`}
                                 </p>
                               </div>
                               <span className="text-sm text-muted-foreground">{isExpanded ? '\u25BC' : '\u25B6'}</span>
@@ -889,7 +890,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                           </Link>
                         </td>
                         <td className="p-2 text-xs text-slate-500">
-                          {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : '—'}
+                          {assignment.due_date ? parseUTC(assignment.due_date).toLocaleDateString() : '—'}
                         </td>
                         <td className="p-2">
                           <Badge className={`ring-1 ${submissionBadgeClass(assignment.submission_status)}`}>
@@ -958,7 +959,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                         </CardTitle>
                         {assignment.due_date && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Due: {new Date(assignment.due_date).toLocaleDateString()}
+                            Due: {parseUTC(assignment.due_date).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -998,7 +999,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
                               <span className="text-xs text-slate-700">{sub.filename}</span>
                               <div className="flex items-center gap-3">
                                 <span className="text-xs text-muted-foreground">
-                                  {new Date(sub.submitted_at).toLocaleString()}
+                                  {parseUTC(sub.submitted_at).toLocaleString()}
                                 </span>
                                 <button
                                   className="text-xs text-blue-600 hover:underline"
@@ -1068,7 +1069,7 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
             </DialogTitle>
             <DialogDescription>
               {selectedAssignmentDetail
-                ? `Due: ${selectedAssignmentDetail.assignment.due_date ? new Date(selectedAssignmentDetail.assignment.due_date).toLocaleDateString() : 'No due date'}`
+                ? `Due: ${selectedAssignmentDetail.assignment.due_date ? parseUTC(selectedAssignmentDetail.assignment.due_date).toLocaleDateString() : 'No due date'}`
                 : 'Loading...'}
             </DialogDescription>
           </DialogHeader>

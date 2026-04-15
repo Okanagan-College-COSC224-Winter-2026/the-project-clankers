@@ -1,5 +1,6 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
 import { uploadStudentSubmission, editStudentSubmission, deleteStudentSubmission, getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, getCurrentUserProfile, listClasses } from "../util/api";
+import { parseUTC } from "../util/dates";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
@@ -276,8 +277,8 @@ export default function StudentSubmissionUpload({
       return { text: "Submitted", colorClass: "text-blue-500", bgClass: "bg-blue-500/10" };
     }
 
-    const dueDate = new Date(assignment.due_date);
-    const submissionDate = new Date(submittedAt);
+    const dueDate = parseUTC(assignment.due_date);
+    const submissionDate = parseUTC(submittedAt);
 
     if (submissionDate <= dueDate) {
       return { text: "On Time", colorClass: "text-green-500", bgClass: "bg-green-500/10" };
@@ -287,7 +288,7 @@ export default function StudentSubmissionUpload({
   };
 
   const formatSubmissionTime = (submittedAt: string): string => {
-    const date = new Date(submittedAt);
+    const date = parseUTC(submittedAt);
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',

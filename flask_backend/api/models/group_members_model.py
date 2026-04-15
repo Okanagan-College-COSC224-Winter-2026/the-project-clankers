@@ -27,7 +27,7 @@ class Group_Members(db.Model):
     @classmethod
     def get(cls, userID, groupID):
         """Get group member by userID and groupID"""
-        return cls.query.get((int(userID), int(groupID)))
+        return db.session.get(cls, (int(userID), int(groupID)))
 
     @classmethod
     def create_group_member(cls, userID, groupID):

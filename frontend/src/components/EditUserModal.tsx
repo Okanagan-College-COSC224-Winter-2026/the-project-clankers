@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import Textbox from './Textbox';
-import Dropdown from './Dropdown';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
 import StatusMessage from './StatusMessage';
 import './EditUserModal.css';
 
@@ -136,15 +143,21 @@ export default function EditUserModal({
                 </span>
               </div>
             ) : (
-              <Dropdown
-                value={role}
-                onInput={(value) => setRole(value as 'student' | 'teacher' | 'admin')}
-                options={[
-                  { value: 'student', label: 'Student' },
-                  { value: 'teacher', label: 'Teacher' },
-                  { value: 'admin', label: 'Admin' },
-                ]}
-              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-full">
+                  {[{ value: 'student', label: 'Student' }, { value: 'teacher', label: 'Teacher' }, { value: 'admin', label: 'Admin' }].map((opt) => (
+                    <DropdownMenuItem key={opt.value} onClick={() => setRole(opt.value as 'student' | 'teacher' | 'admin')}>
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>

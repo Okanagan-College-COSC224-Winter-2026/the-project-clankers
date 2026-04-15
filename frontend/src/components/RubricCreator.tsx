@@ -100,8 +100,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                     }
                 }
             } catch {
-                console.log('No existing rubric found, will create new one');
-                // No rubric exists yet, that's okay, user can create one
+                // No rubric exists yet, user can create one
             } finally {
                 setIsLoading(false);
             }

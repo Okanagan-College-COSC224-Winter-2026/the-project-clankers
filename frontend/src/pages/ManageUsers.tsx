@@ -10,7 +10,14 @@ import {
 } from '../util/api';
 import Button from '../components/Button';
 import Textbox from '../components/Textbox';
-import Dropdown from '../components/Dropdown';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { Button as ShadcnButton } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
 import Pagination from '../components/Pagination';
 import EditUserModal from '../components/EditUserModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
@@ -285,16 +292,21 @@ export default function ManageUsers() {
           />
         </div>
         <div className="ManageUsers-RoleFilter">
-          <Dropdown
-            value={roleFilter}
-            onInput={setRoleFilter}
-            options={[
-              { value: 'all', label: 'All Roles' },
-              { value: 'student', label: 'Student' },
-              { value: 'teacher', label: 'Teacher' },
-              { value: 'admin', label: 'Admin' },
-            ]}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <ShadcnButton variant="outline" size="sm" className="w-full justify-between">
+                {roleFilter === 'all' ? 'All Roles' : roleFilter.charAt(0).toUpperCase() + roleFilter.slice(1)}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </ShadcnButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {[{ value: 'all', label: 'All Roles' }, { value: 'student', label: 'Student' }, { value: 'teacher', label: 'Teacher' }, { value: 'admin', label: 'Admin' }].map((opt) => (
+                <DropdownMenuItem key={opt.value} onClick={() => setRoleFilter(opt.value)}>
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -406,15 +418,21 @@ export default function ManageUsers() {
 
               <div className="Modal-Field">
                 <label>Role</label>
-                <Dropdown
-                  value={createRole}
-                  onInput={setCreateRole}
-                  options={[
-                    { value: 'student', label: 'Student' },
-                    { value: 'teacher', label: 'Teacher' },
-                    { value: 'admin', label: 'Admin' },
-                  ]}
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <ShadcnButton variant="outline" className="w-full justify-between">
+                      {createRole.charAt(0).toUpperCase() + createRole.slice(1)}
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </ShadcnButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-full">
+                    {[{ value: 'student', label: 'Student' }, { value: 'teacher', label: 'Teacher' }, { value: 'admin', label: 'Admin' }].map((opt) => (
+                      <DropdownMenuItem key={opt.value} onClick={() => setCreateRole(opt.value)}>
+                        {opt.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div className="Modal-Field">

@@ -9,95 +9,180 @@ left to right direction
 
 package "Actors" {
 class User {
-  +id: Integer
-  +name: String
-  +email: String
-  +hash_pass: String
-  +role: String <<student|teacher|admin>>
+  +id: Integer <<PK>>
+  +student_id: String(50) <<unique, nullable>>
+  +name: String(255)
+  +email: String(255) <<unique>>
+  +hash_pass: String(255)
+  +role: String(50) <<student|teacher|admin>>
+  +must_change_password: Boolean
+  +profile_picture_url: String(500)
 }
 }
 
 package "Courses" {
 class Course {
-  +id: Integer
-  +teacherID: Integer
-  +name: String
+  +id: Integer <<PK>>
+  +teacherID: Integer <<FK User>>
+  +name: String(255)
+  +is_archived: Boolean
 }
 
 class Assignment {
-  +id: Integer
-  +courseID: Integer
-  +name: String
-  +rubric_text: String
-  +due_date: DateTime (nullable)
+  +id: Integer <<PK>>
+  +courseID: Integer <<FK Course>>
+  +name: String(255)
+  +rubric_text: String(255)
+  +description: Text
+  +start_date: DateTime
+  +due_date: DateTime
+  +submission_type: String(20)
+  +internal_review: Boolean
+  +external_review: Boolean
+  +anonymous_review: Boolean
+  +peer_review_start_date: DateTime
+  +peer_review_due_date: DateTime
+  +attachment_filename: String(255)
+  +attachment_path: String(500)
+}
+
+class AssignmentFile {
+  +id: Integer <<PK>>
+  +assignment_id: Integer <<FK Assignment>>
+  +filename: String(255)
+  +file_path: String(500)
+  +uploaded_at: DateTime
+  +uploaded_by: Integer <<FK User>>
 }
 
 class CourseGroup {
-  +id: Integer
-  +name: String
-  +assignmentID: Integer
-}
-}
-
-package "Work" {
-class Submission {
-  +id: Integer
-  +path: String
-  +studentID: Integer
-  +assignmentID: Integer
-}
-
-class Group_Members {
-  +userID: Integer
-  +groupID: Integer
-  +assignmentID: Integer
+  +id: Integer <<PK>>
+  +name: String(255)
+  +courseID: Integer <<FK Course>>
 }
 
 class User_Course {
-  +userID: Integer
-  +courseID: Integer
+  +userID: Integer <<PK, FK User>>
+  +courseID: Integer <<PK, FK Course>>
+  +hidden_from_view: Boolean
 }
 
+class Group_Members {
+  +userID: Integer <<PK, FK User>>
+  +groupID: Integer <<PK, FK CourseGroup>>
+}
+}
+
+package "Enrollment" {
+class EnrollmentRequest {
+  +id: Integer <<PK>>
+  +studentID: Integer <<FK User>>
+  +courseID: Integer <<FK Course>>
+  +status: String(50) <<pending|approved|rejected>>
+  +created_at: DateTime
+  +resolved_at: DateTime
+  +teacher_notes: Text
+}
+
+class Notification {
+  +id: Integer <<PK>>
+  +userID: Integer <<FK User>>
+  +type: String(50)
+  +related_id: Integer
+  +message: Text
+  +is_read: Boolean
+  +created_at: DateTime
+}
+}
+
+package "Submissions" {
+class Submission {
+  +id: Integer <<PK>>
+  +path: String(255)
+  +studentID: Integer <<FK User>>
+  +assignmentID: Integer <<FK Assignment>>
+}
+
+class StudentSubmission {
+  +id: Integer <<PK>>
+  +assignment_id: Integer <<FK Assignment>>
+  +student_id: Integer <<FK User>>
+  +filename: String(255)
+  +file_path: String(500)
+  +submission_text: Text
+  +submitted_at: DateTime
+}
+}
+
+package "Reviews" {
 class Review {
-  +id: Integer
-  +assignmentID: Integer
-  +reviewerID: Integer
-  +revieweeID: Integer
+  +id: Integer <<PK>>
+  +assignmentID: Integer <<FK Assignment>>
+  +reviewerID: Integer <<FK User>>
+  +revieweeID: Integer <<FK User>>
+  +reviewee_type: String(10)
+  +reviewer_type: String(10)
 }
 
 class Criterion {
-  +id: Integer
-  +reviewID: Integer
-  +criterionRowID: Integer
+  +id: Integer <<PK>>
+  +reviewID: Integer <<FK Review>>
+  +criterionRowID: Integer <<FK CriteriaDescription>>
   +grade: Integer
-  +comments: String
+  +comments: String(255)
 }
 }
 
 package "Rubrics" {
 class Rubric {
-  +id: Integer
-  +assignmentID: Integer
-  +canComment: Boolean <<default TRUE>>
+  +id: Integer <<PK>>
+  +assignmentID: Integer <<FK Assignment>>
+  +canComment: Boolean
 }
 
 class CriteriaDescription {
-  +id: Integer
-  +rubricID: Integer
-  +question: String
+  +id: Integer <<PK>>
+  +rubricID: Integer <<FK Rubric>>
+  +question: String(255)
   +scoreMax: Integer
-  +hasScore: Boolean <<default TRUE>>
+  +hasScore: Boolean
+  +description: Text
+  +criteria_type: String(50)
+  +allow_comments: Boolean
 }
 }
 
-' Hidden layout hints to keep columns separated
-User -[hidden]-> Course
-Course -[hidden]-> Assignment
-Assignment -[hidden]-> Submission
-Submission -[hidden]-> Review
-Review -[hidden]-> Rubric
-Rubric -[hidden]-> CriteriaDescription
-User_Course -[hidden]- Group_Members
+package "Gradebook" {
+class CourseGradePolicy {
+  +courseID: Integer <<PK, FK Course>>
+  +late_penalty_percent: Float
+  +incomplete_evaluation_penalty_percent: Float
+  +updated_by: Integer <<FK User>>
+  +updated_at: DateTime
+}
+
+class GradeOverride {
+  +id: Integer <<PK>>
+  +assignmentID: Integer <<FK Assignment>>
+  +studentID: Integer <<FK User>>
+  +teacherID: Integer <<FK User>>
+  +override_grade: Float
+  +late_penalty_percent: Float
+  +incomplete_review_penalty_percent: Float
+  +notes: String(500)
+  +updated_at: DateTime
+}
+
+class CourseTotalOverride {
+  +id: Integer <<PK>>
+  +courseID: Integer <<FK Course>>
+  +studentID: Integer <<FK User>>
+  +override_total: Float
+  +reason: String(500)
+  +updated_by: Integer <<FK User>>
+  +updated_at: DateTime
+}
+}
 
 ' Teaching & enrollment relationships
 User "1" --> "0..*" Course : teaches
@@ -106,16 +191,18 @@ Course "1" o-- "0..*" User_Course : student links
 
 ' Course & assignment structure
 Course "1" --> "0..*" Assignment : assignments
-Assignment "1" --> "0..*" CourseGroup : groups
+Course "1" --> "0..*" CourseGroup : groups
+Assignment "1" --> "0..*" AssignmentFile : files
 
-' Group membership bridge
+' Group membership
 CourseGroup "1" o-- "0..*" Group_Members : members
 User "1" o-- "0..*" Group_Members : memberships
-Assignment "1" o-- "0..*" Group_Members : context
 
 ' Submissions
 User "1" --> "0..*" Submission : submissions
 Assignment "1" --> "0..*" Submission : collects
+User "1" --> "0..*" StudentSubmission : student submissions
+Assignment "1" --> "0..*" StudentSubmission : collects
 
 ' Peer review flow
 Assignment "1" --> "0..*" Review : reviews
@@ -127,5 +214,15 @@ Review "1" --> "0..*" Criterion : criteria
 Assignment "1" --> "0..*" Rubric : rubrics
 Rubric "1" --> "0..*" CriteriaDescription : questions
 CriteriaDescription "1" --> "0..*" Criterion : responses
+
+' Enrollment requests
+User "1" --> "0..*" EnrollmentRequest : requests
+Course "1" --> "0..*" EnrollmentRequest : requests
+User "1" --> "0..*" Notification : notifications
+
+' Gradebook
+Course "1" --> "0..1" CourseGradePolicy : policy
+Assignment "1" --> "0..*" GradeOverride : overrides
+Course "1" --> "0..*" CourseTotalOverride : total overrides
 
 @enduml

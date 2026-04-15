@@ -26,8 +26,5 @@ class DeploymentConfig(Config):
 class TestingConfig(Config):
     """Configurations for Testing, with a separate test database."""
 
-    import pudb
-
-    pudb.set_trace()  # XXX BREAKPOINT
     TESTING = True
     DEBUG = True

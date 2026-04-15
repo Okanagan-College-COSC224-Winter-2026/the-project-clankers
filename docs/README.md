@@ -37,8 +37,7 @@ If you already know the stack and want quick references:
 
 ### API & Architecture
 
-- **[dev-guidelines/ENDPOINT_SUMMARY.md](dev-guidelines/ENDPOINT_SUMMARY.md)** — All API endpoints with request/response formats (Flask backend)
-- **[dev-guidelines/endpoints.json](dev-guidelines/endpoints.json)** — Legacy Node.js API spec (reference only, DO NOT use for Flask implementation)
+- **[dev-guidelines/ENDPOINT_SUMMARY.md](dev-guidelines/ENDPOINT_SUMMARY.md)** — All 84 API endpoints with request/response formats
 - **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** — System architecture, workflows, data flow diagrams
 - **[schema/project-architecture.md](schema/project-architecture.md)** — Detailed architecture documentation
 
@@ -46,7 +45,6 @@ If you already know the stack and want quick references:
 
 - **[schema/database-schema.md](schema/database-schema.md)** — Complete database schema with table definitions and relationships
 - **[schema/database-schema.puml](schema/database-schema.puml)** — PlantUML diagram of database structure
-- **[schema/schema.puml](schema/schema.puml)** — System schema diagram
 
 ### Testing
 
@@ -153,7 +151,6 @@ Key files:
 | [schema/database-schema.md](schema/database-schema.md) | Database tables and relationships | When working on models |
 | [schema/project-architecture.md](schema/project-architecture.md) | Detailed architecture docs | Deep dive into design |
 | [schema/database-schema.puml](schema/database-schema.puml) | Database diagram (PlantUML) | Visual learners |
-| [schema/schema.puml](schema/schema.puml) | System schema diagram | Visual system overview |
 
 ### Deployment
 
@@ -168,7 +165,6 @@ Key files:
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
 | [user_stories.md](user_stories.md) | Feature requirements (24 user stories) | Sprint planning |
-| [weekly_meeting_logs/](weekly_meeting_logs/) | Meeting notes and decisions | Context on decisions |
 
 ---
 
@@ -324,5 +320,5 @@ This documentation is part of the Peer Evaluation App project. See [../LICENSE](
 
 ---
 
-**Last Updated:** 2025-01-11  
+**Last Updated:** April 14, 2026  
 **Maintained By:** COSC470 Development Team

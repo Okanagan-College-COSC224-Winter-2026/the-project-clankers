@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { parseUTC } from '../util/dates'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -894,7 +895,7 @@ export default function ClassMembers() {
                               {req.student?.student_id && ` | ID: ${req.student.student_id}`}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Requested {new Date(req.created_at).toLocaleDateString()}
+                              Requested {parseUTC(req.created_at).toLocaleDateString()}
                             </p>
                           </div>
                           {rejectingId === req.id ? (

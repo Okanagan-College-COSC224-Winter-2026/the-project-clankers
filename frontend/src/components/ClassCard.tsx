@@ -3,6 +3,7 @@ import { ReactNode } from 'react'
 import { Users, AlertCircle, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { isTeacher } from '@/util/login'
+import { parseUTC } from '@/util/dates'
 
 interface Props {
   image: string
@@ -23,7 +24,7 @@ export default function ClassCard(props: Props) {
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'No upcoming deadlines'
     try {
-      const date = new Date(dateString)
+      const date = parseUTC(dateString)
       return date.toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric',
