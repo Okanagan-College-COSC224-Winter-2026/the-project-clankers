@@ -19,7 +19,6 @@ from .controllers import (
     rubric_controller,
     student_submission_controller,
     group_controller,
-    legacy_group_controller,
 )
 from .models.db import db, ma
 
@@ -169,6 +168,5 @@ def create_app(test_config=None):
     app.register_blueprint(student_submission_controller.bp)
     app.register_blueprint(gradebook_controller.bp)
     app.register_blueprint(group_controller.bp)
-    app.register_blueprint(legacy_group_controller.bp)  # Legacy endpoints for backward compatibility
 
     return app
