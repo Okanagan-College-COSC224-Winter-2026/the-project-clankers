@@ -758,57 +758,6 @@ export const getAssignmentsByClass = async (classId: number) => {
 }
 
 
-export const listStuGroup = async (assignmentId : number, studentId : number) => {
-  const resp = await fetch(`${BASE_URL}/list_stu_groups/`+ assignmentId + "/" + studentId, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-   },
-    credentials: 'include',
-  })
-
-  maybeHandleExpire(resp);
-
-
-  if (!resp.ok) {
-    throw new Error(`Response status: ${resp.status}`);
-  }
-
-  return await resp.json()
-} 
-
-export const listGroups = async (assignmentId : number) => {
-  const resp = await fetch(`${BASE_URL}/list_all_groups/` + assignmentId, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-   },
-    credentials: 'include',
-  })
-  maybeHandleExpire(resp);
-
-
-  if (!resp.ok) {
-    throw new Error(`Response status: ${resp.status}`);
-  }
-  
-  return await resp.json()
-} 
-
-export const listUnassignedGroups = async (assignmentId : number) => {
-  const resp = await fetch(`${BASE_URL}/list_ua_groups/` + assignmentId, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-   },
-    credentials: 'include',
-  })
-
-  maybeHandleExpire(resp);
-
-  return await resp.json()
-}
-
 export const listCourseMembers = async (classId: string) => {
   const resp = await fetch(`${BASE_URL}/class/members`, {
     method: 'POST',
@@ -884,15 +833,12 @@ export const getMyGroup = async (courseId: number): Promise<{ groupId: number | 
   return await resp.json()
 } 
 
-
-
-
-export const listGroupMembers = async (assignmentId : number, groupID: number) => {
-  const resp = await fetch(`${BASE_URL}/list_group_members/` + assignmentId + '/' + groupID, {
+export const getUnassignedStudents = async (courseId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/members/unassigned`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-   },
+    },
     credentials: 'include',
   })
 
@@ -901,9 +847,83 @@ export const listGroupMembers = async (assignmentId : number, groupID: number) =
   if (!resp.ok) {
     throw new Error(`Response status: ${resp.status}`);
   }
-  
+
   return await resp.json()
-} 
+}
+
+export const createCourseGroup = async (courseId: number, name: string) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
+  return await resp.json()
+}
+
+export const deleteCourseGroup = async (courseId: number, groupId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups/${groupId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
+  return await resp.json()
+}
+
+export const addGroupMember = async (courseId: number, groupId: number, userID: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups/${groupId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ userID }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
+  return await resp.json()
+}
+
+export const removeGroupMember = async (courseId: number, groupId: number, userId: number) => {
+  const resp = await fetch(`${BASE_URL}/classes/${courseId}/groups/${groupId}/members/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  })
+
+  maybeHandleExpire(resp);
+
+  if (!resp.ok) {
+    throw new Error(`Response status: ${resp.status}`);
+  }
+
+  return await resp.json()
+}
 
 export const getUserId = async () => {
   const resp = await fetch(`${BASE_URL}/user_id`, {
@@ -922,21 +942,6 @@ export const getUserId = async () => {
   
   return await resp.json()
 } 
-
-export const saveGroups = async (groupID: number, userID: number, assignmentID : number) =>{
-  await fetch(`${BASE_URL}/save_groups`, {
-    method: 'POST',
-    body: JSON.stringify({
-      groupID,
-      userID,
-      assignmentID
-    }),
-    headers: {
-      'Content-Type': 'application/json',
-   },
-    credentials: 'include',
-  })
-}
 
 export const getCriteria = async (rubricID: number) => {
   const resp = await fetch(`${BASE_URL}/criteria?rubricID=${rubricID}`, {
@@ -1142,19 +1147,6 @@ export const deleteAssignment = async (assignmentId: number) => {
   return await response.json();
 }
 
-export const deleteGroup = async (groupID: number) => {
-  await fetch(`${BASE_URL}/delete_group`, {
-    method: 'POST',
-    body: JSON.stringify({
-      groupID,
-    }),
-    headers: {
-      'Content-Type': 'application/json',
-   },
-    credentials: 'include',
-  })
-}
-
 export const createReview = async (assignmentID: number, reviewerID: number, revieweeID: number, reviewerType: string = 'user', revieweeType: string = 'user') => {
   const response = await fetch(`${BASE_URL}/create_review`, {
     method: 'POST',
@@ -1289,44 +1281,6 @@ export const getStudentReviewSummary = async (
   }
   return await resp.json();
 };
-
-export const getNextGroupID = async(assignmentID: number)=> {
-  const response = await fetch(`${BASE_URL}/next_groupid?assignmentID=${assignmentID}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include'
-  })
-
-  maybeHandleExpire(response);
-
-  if (!response.ok) {
-      throw new Error(`Response status: ${response.status}`);
-  }
-
-  return await response.json();
-}
-
-export const createGroup = async(assignmentID: number, name: string, id: number) =>{
-  const response = await fetch(`${BASE_URL}/create_group`,{
-    method:"POST",
-    body: JSON.stringify({
-      assignmentID, name, id
-    }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include'
-  })
-  maybeHandleExpire(response);
-
-  if (!response.ok) {
-      throw new Error(`Response status: ${response.status}`);
-  }
-
-  return await response.json();
-}
 
 // Admin - Create Teacher Account
 export const createTeacherAccount = async (name: string, email: string, password: string) => {

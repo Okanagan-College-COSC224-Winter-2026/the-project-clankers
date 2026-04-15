@@ -22,7 +22,6 @@ import rehypeSanitize from "rehype-sanitize";
 import {
   getAssignmentDetails,
   getStudentSubmissions,
-  listStuGroup,
   getCurrentUserProfile,
   downloadStudentSubmission,
   getMyGroup,

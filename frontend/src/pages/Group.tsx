@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
-  createGroup,
-  getNextGroupID,
   getUserId,
-  listCourseMembers,
-  listGroupMembers,
-  listGroups,
-  listStuGroup,
-  listUnassignedGroups,
-  saveGroups,
-  deleteGroup,
+  getCourseGroups,
+  getGroupMembers,
+  getMyGroup,
+  getUnassignedStudents,
+  createCourseGroup,
+  deleteCourseGroup,
+  addGroupMember,
+  removeGroupMember,
   getAssignmentDetails,
   listClasses,
 } from "../util/api";
@@ -19,6 +18,19 @@ import StatusMessage from "../components/StatusMessage";
 import { isTeacher } from "../util/login";
 import Textbox from "../components/Textbox";
 import { ChevronRight } from "lucide-react";
+
+interface GroupMember {
+  id: number;
+  name: string;
+  email: string;
+  originalGroupId?: number;
+}
+
+interface GroupData {
+  id: number;
+  name: string;
+  members: GroupMember[];
+}
 
 function fisherYates<T>(array: T[]): T[] {
   let m = array.length, t, i;
@@ -36,128 +48,101 @@ function fisherYates<T>(array: T[]): T[] {
 
 export default function Group() {
   const { id } = useParams();
-  const [classMembers, setclassMembers] = useState<User[]>([]);
-  const [stuGroup, setStuGroup] = useState<User[]>([]);
-  const [groups, setGroups] = useState<CourseGroup[]>([]);
-  const [groupTable, setGroupTable] = useState<GroupTable>({});
+  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [unassigned, setUnassigned] = useState<GroupMember[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<number>(-1);
-  const [memberTable, setMemberTable] = useState<GroupTable>({});
   const [groupName, setGroupName] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState<'error' | 'success'>('error');
   const [assignmentName, setAssignmentName] = useState<string>("");
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseName, setCourseName] = useState<string>("");
-
-  const nameFromId = (id: number) => {
-    return classMembers.find((mem) => mem.id === id)?.name || 'N/A';
-  };
+  const [stuGroup, setStuGroup] = useState<User[]>([]);
+  const [saving, setSaving] = useState(false);
+  const isCreating = useRef(false);
 
   const randomize = () => {
-    // remove every member from every group, save them
-    const members = []
-
-    for (const group of Object.values(groupTable)) {
-      for (const member of group) {
-        const n = { ...member }
-        n.groupID = -1
-
-        members.push(n)
+    // Collect all members from all groups + unassigned
+    const allMembers: GroupMember[] = [];
+    for (const group of groups) {
+      for (const member of group.members) {
+        allMembers.push({ ...member });
       }
     }
-
-    // Also grab the members from the unassigned table
-    if (memberTable[-1]) {
-      for (const member of memberTable[-1]) {
-        const n = { ...member }
-        n.groupID = -1
-
-        members.push(n)
-      }
+    for (const member of unassigned) {
+      allMembers.push({ ...member });
     }
 
-    const membersPerGroup = members.length / Object.keys(groupTable).length
-    const gIds = Object.keys(groupTable)
-    // Shuffle the array, then sequentially add them to groups
-    const shuffled = fisherYates(members)
-    const newTable: GroupTable = {}
+    if (groups.length === 0) return;
 
-    let i = 0
-    for (const group of gIds) {
-      for (let j = 0; j < membersPerGroup; j++) {
-        const g = Number(group)
-        const member = shuffled[i]
-        i++
+    const shuffled = fisherYates([...allMembers]);
+    const membersPerGroup = Math.floor(shuffled.length / groups.length);
+    const newGroups = groups.map(g => ({ ...g, members: [] as GroupMember[] }));
 
-        // This will make a false entry if the amount of total people is uneven
-        if (!member) break
-
-        const n = { ...member }
-        n.groupID = Number(group)
-
-        newTable[g] = newTable[g] || []
-        newTable[g].push(n)
+    let i = 0;
+    for (const group of newGroups) {
+      for (let j = 0; j < membersPerGroup && i < shuffled.length; j++) {
+        group.members.push(shuffled[i++]);
       }
     }
+    // Distribute remaining members
+    let groupIdx = 0;
+    while (i < shuffled.length) {
+      newGroups[groupIdx % newGroups.length].members.push(shuffled[i++]);
+      groupIdx++;
+    }
 
-    setGroupTable(newTable)
-    setMemberTable({})
-  }
+    setGroups(newGroups);
+    setUnassigned([]);
+  };
 
   useEffect(() => {
     (async () => {
-      // Fetch assignment name
+      // Fetch assignment details to get courseId
+      let cId: number | null = null;
       try {
         const assignmentData = await getAssignmentDetails(Number(id));
-        if (assignmentData && assignmentData.name) {
-          setAssignmentName(assignmentData.name);
-        }
-        if (assignmentData && assignmentData.courseID) {
-          setCourseId(assignmentData.courseID);
+        if (assignmentData?.name) setAssignmentName(assignmentData.name);
+        if (assignmentData?.courseID) {
+          cId = assignmentData.courseID;
+          setCourseId(cId);
           const classes = await listClasses();
-          const cls = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+          const cls = classes.find((c: { id: number }) => c.id === cId);
           if (cls) setCourseName(cls.name);
         }
       } catch (error) {
         console.error('Error fetching assignment details:', error);
+        return;
       }
 
-      const classMembers = await listCourseMembers(String(id));
-      setclassMembers(classMembers);
-      const groups = await listGroups(Number(id));
-      setGroups(groups);
-      const ua = await listUnassignedGroups(Number(id));
-      const stuIdResponse = await getUserId();
-      const stus = await listStuGroup(Number(id), stuIdResponse.id);
-      setStuGroup(stus);
+      if (!cId) return;
 
-      const groupMembers: {
-        [key: number]: GroupTableValue[];
-      } = {};
-      for (const g of groups) {
-        const members = await listGroupMembers(Number(id), g.id);
-        groupMembers[g.id] = members;
-      }
+      if (isTeacher()) {
+        // Teacher: load all groups, members, and unassigned
+        const courseGroups = await getCourseGroups(cId);
+        const groupsWithMembers: GroupData[] = [];
+        for (const g of courseGroups) {
+          const members: User[] = await getGroupMembers(cId, g.id);
+          groupsWithMembers.push({
+            id: g.id,
+            name: g.name,
+            members: members.map(m => ({ id: m.id, name: m.name, email: m.email, originalGroupId: g.id })),
+          });
+        }
+        setGroups(groupsWithMembers);
 
-      const grLocal: GroupTable = {};
-      //build a table of group names and students
-      for (const gr of groups) {
-        grLocal[gr.id] = [];
-        for (const stu of groupMembers[gr.id]) {
-          if (stu.groupID === gr.id) {
-            grLocal[gr.id].push(stu);
-          }
+        const ua: User[] = await getUnassignedStudents(cId);
+        setUnassigned(ua.map(u => ({ id: u.id, name: u.name, email: u.email })));
+      } else {
+        // Student: load my group members
+        const myGroup = await getMyGroup(cId);
+        if (myGroup.groupId) {
+          const members: User[] = await getGroupMembers(cId, myGroup.groupId);
+          // Exclude self from display
+          const stuIdResponse = await getUserId();
+          setStuGroup(members.filter(m => m.id !== stuIdResponse.id));
         }
       }
-      setGroupTable(grLocal);
-
-      //build a table for unassigned students
-      const memLocal: GroupTable = {};
-      memLocal[-1] = [];
-      for (const stu of ua) {
-        memLocal[-1].push(stu);
-      }
-      setMemberTable(memLocal);
     })();
   }, [id]);
 
@@ -202,129 +187,118 @@ export default function Group() {
           <>
             <div className="flex gap-6 mb-6">
               <table className="border-collapse w-full max-w-md border border-border rounded-lg overflow-hidden">
+                <thead>
                 <tr>
                   <th className="bg-muted px-4 py-3 text-left font-semibold text-foreground">Unassigned</th>
                 </tr>
-                {memberTable[-1]
-                  ? memberTable[-1].map((ua) => {
-                      return (
-                        <tr className="border-t border-border">
-                          <span className="inline-block px-4 py-2 text-foreground">{nameFromId(ua.userID)}</span>
-                          <button
-                            className="ml-2 px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                            onClick={() => {
-                              // These need to be deep copies, or it won't update properly
-                              const localMember = { ...memberTable };
-                              const localGroup = { ...groupTable };
-                              const memObj = localMember[-1].find(
-                                (mem) => ua.userID == mem.userID
-                              );
-
-                              if (memObj == undefined || selectedGroup == -1)
-                                return;
-
-                              localMember[-1] = localMember[-1].filter(
-                                (g) => memObj?.userID != g.userID
-                              );
-                              memObj.groupID = selectedGroup;
-
-                              if (memObj)
-                                localGroup[selectedGroup].push(memObj);
-
-                              setMemberTable(localMember);
-                              setGroupTable(localGroup);
-                            }}
-                          >
-                            Move
-                          </button>
-                        </tr>
-                      );
-                    })
-                  : null}
+                </thead>
+                <tbody>
+                {unassigned.map((ua) => (
+                  <tr key={ua.id} className="border-t border-border">
+                    <td>
+                      <span className="inline-block px-4 py-2 text-foreground">{ua.name}</span>
+                      <button
+                        className="ml-2 px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                        onClick={() => {
+                          if (selectedGroup === -1) return;
+                          setUnassigned(prev => prev.filter(m => m.id !== ua.id));
+                          setGroups(prev => prev.map(g =>
+                            g.id === selectedGroup
+                              ? { ...g, members: [...g.members, { ...ua }] }
+                              : g
+                          ));
+                        }}
+                      >
+                        Move
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                </tbody>
               </table>
 
               <table className="border-collapse w-full max-w-md border border-border rounded-lg overflow-hidden">
+                <thead>
                 <tr>
                   <th className="bg-muted px-4 py-3 text-left font-semibold text-foreground">Groups</th>
                 </tr>
-                {Object.keys(groupTable).map((gId) => {
-                  return (
-                    <>
-                      <tr
-                        className={`cursor-pointer px-4 py-2 flex items-center gap-2 border-t border-border hover:bg-accent transition-colors ${
-                          Number(gId) == selectedGroup ? "bg-accent" : ""
-                        }`}
-                        onClick={() => setSelectedGroup(Number(gId))}
-                      >
-                        <div className="w-4 h-4 flex items-center justify-center">
+                </thead>
+                <tbody>
+                {groups.map((group) => (
+                  <React.Fragment key={group.id}>
+                    <tr
+                      className={`cursor-pointer px-4 py-2 flex items-center gap-2 border-t border-border hover:bg-accent transition-colors ${
+                        group.id === selectedGroup ? "bg-accent" : ""
+                      }`}
+                      onClick={() => setSelectedGroup(group.id)}
+                    >
+                      <td className="w-full">
+                        <div className="flex items-center gap-2 px-4 py-2">
                           <img src="/icons/arrow.svg" alt="arrow" className="w-3 h-3" />
+                          {group.name}
                         </div>
-                        {groups.find((gr) => gr.id === Number(gId))?.name}
-                      </tr>
+                      </td>
+                    </tr>
 
-                      {selectedGroup !== -1 && selectedGroup == Number(gId)
-                        ? groupTable[selectedGroup].map((stu) => {
-                            return (
-                              <tr className="border-t border-border bg-muted/50">
-                                <span className="inline-block px-4 py-2 pl-8 text-foreground">
-                                  {nameFromId(stu.userID)}
-                                </span>
-                                <button
-                                  className="ml-2 px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                                  onClick={() => {
-                                    // These need to be deep copies, or it won't update properly
-                                    const localMember = { ...memberTable };
-                                    const localGroup = { ...groupTable };
-                                    const memObj = localGroup[
-                                      selectedGroup
-                                    ].find((mem) => stu.userID == mem.userID);
-
-                                    if (memObj == undefined) return;
-
-                                    localGroup[selectedGroup] = localGroup[
-                                      selectedGroup
-                                    ].filter((g) => memObj?.userID != g.userID);
-                                    memObj.groupID = -1;
-
-                                    if (memObj) localMember[-1].push(memObj);
-
-                                    setMemberTable(localMember);
-                                    setGroupTable(localGroup);
-                                  }}
-                                >
-                                  Move
-                                </button>
-                              </tr>
-                            );
-                          })
-                        : null}
-                    </>
-                  );
-                })}
+                    {selectedGroup === group.id &&
+                      group.members.map((stu) => (
+                        <tr key={stu.id} className="border-t border-border bg-muted/50">
+                          <td>
+                            <span className="inline-block px-4 py-2 pl-8 text-foreground">
+                              {stu.name}
+                            </span>
+                            <button
+                              className="ml-2 px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                              onClick={() => {
+                                setGroups(prev => prev.map(g =>
+                                  g.id === group.id
+                                    ? { ...g, members: g.members.filter(m => m.id !== stu.id) }
+                                    : g
+                                ));
+                                setUnassigned(prev => [...prev, { ...stu, originalGroupId: group.id }]);
+                              }}
+                            >
+                              Move
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </React.Fragment>
+                ))}
+                </tbody>
               </table>
             </div>
             <div className="flex gap-3 mb-4">
             <button
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-              onClick={() => {
-                const groupMems = Object.values(groupTable);
-                const uaMems = Object.values(memberTable);
-                for (const group of groupMems) {
-                  for (const mem of group) {
-                    saveGroups(mem.groupID, mem.userID, mem.assignmentID);
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50"
+              disabled={saving}
+              onClick={async () => {
+                if (!courseId) return;
+                setSaving(true);
+                try {
+                  // Add all members to their assigned groups (backend auto-removes from old group)
+                  for (const group of groups) {
+                    for (const member of group.members) {
+                      await addGroupMember(courseId, group.id, member.id);
+                    }
                   }
-                }
-                for (const group of uaMems) {
-                  for (const mem of group) {
-                    saveGroups(mem.groupID, mem.userID, mem.assignmentID);
+                  // Remove unassigned members from their original groups
+                  for (const member of unassigned) {
+                    if (member.originalGroupId) {
+                      await removeGroupMember(courseId, member.originalGroupId, member.id);
+                    }
                   }
+                  setStatusType('success');
+                  setStatusMessage('Changes saved!');
+                } catch {
+                  setStatusType('error');
+                  setStatusMessage('Failed to save changes');
+                } finally {
+                  setSaving(false);
                 }
-
-                setStatusType('success');
-                setStatusMessage('Changes saved!');
               }}
             >
-              Confirm Changes
+              {saving ? 'Saving...' : 'Confirm Changes'}
             </button>
 
             <button
@@ -335,14 +309,22 @@ export default function Group() {
             </button>
             <button
               className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors font-medium"
-              onClick={() => {
-                if (selectedGroup == -1) return;
-                const localGroup = { ...groupTable}
-                delete localGroup[selectedGroup];
-                setGroupTable(localGroup);
-                deleteGroup(selectedGroup);
-                setStatusType('success');
-                setStatusMessage('Group deleted!');
+              onClick={async () => {
+                if (selectedGroup === -1 || !courseId) return;
+                const group = groups.find(g => g.id === selectedGroup);
+                if (!group) return;
+                try {
+                  await deleteCourseGroup(courseId, selectedGroup);
+                  // Move group members to unassigned
+                  setUnassigned(prev => [...prev, ...group.members]);
+                  setGroups(prev => prev.filter(g => g.id !== selectedGroup));
+                  setSelectedGroup(-1);
+                  setStatusType('success');
+                  setStatusMessage('Group deleted!');
+                } catch {
+                  setStatusType('error');
+                  setStatusMessage('Failed to delete group');
+                }
               }}>
               Delete Selected Group
               </button>
@@ -351,9 +333,21 @@ export default function Group() {
             <div className="flex gap-3 items-center">
               <button
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-                onClick={() =>{
-                  const nextGid = Number(getNextGroupID) + 1 ;
-                  createGroup(Number(id), groupName, Number(nextGid))
+                onClick={async () => {
+                  if (!courseId || !groupName.trim() || isCreating.current) return;
+                  isCreating.current = true;
+                  try {
+                    const newGroup = await createCourseGroup(courseId, groupName.trim());
+                    setGroups(prev => [...prev, { id: newGroup.id, name: newGroup.name, members: [] }]);
+                    setGroupName('');
+                    setStatusType('success');
+                    setStatusMessage('Group created!');
+                  } catch {
+                    setStatusType('error');
+                    setStatusMessage('Failed to create group');
+                  } finally {
+                    isCreating.current = false;
+                  }
                 }}
                 >
                   Create New Group

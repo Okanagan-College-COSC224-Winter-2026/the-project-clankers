@@ -12,7 +12,6 @@ import { Loader2, Paperclip, FileText, Eye, Download, ChevronDown, MessageSquare
 import {
   getAssignmentDetails,
   getUserId,
-  listStuGroup,
   getReviewTargets,
   createReview,
   getReview,
