@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { parseUTC } from "../util/dates";
 import { getStudentSubmissions, downloadStudentSubmission, getAssignmentDetails, listCourseMembers, getCourseGroups, getGroupMembers, getAssignmentGradebook } from "../util/api";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -90,7 +91,7 @@ export default function TeacherSubmissionView({
       // Fetch assignment details to get class ID, due date, and submission type
       const assignmentData = await getAssignmentDetails(assignmentId);
       const classId = assignmentData.courseID || assignmentData.course?.id;
-      const dueDate = assignmentData.due_date ? new Date(assignmentData.due_date) : null;
+      const dueDate = assignmentData.due_date ? parseUTC(assignmentData.due_date) : null;
       const submissionType = assignmentData.submission_type || 'individual';
 
       if (!classId) {
@@ -350,7 +351,7 @@ export default function TeacherSubmissionView({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
+    const date = parseUTC(dateString);
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',

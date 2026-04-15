@@ -117,7 +117,7 @@
 
 ## Test Coverage Added
 
-### `flask_backend/tests/test_us5_us20_gradebook.py` (16 new tests)
+### `flask_backend/tests/test_gradebook.py` (16 new tests)
 
 | Test | US | What it verifies |
 |------|----|-----------------|
@@ -139,7 +139,7 @@
 | `test_my_grade_denied_for_unenrolled_student` | US20 | Unenrolled student cannot access `/my-grade` (403/404) |
 | `test_my_grade_with_course_total_override` | US20 | Course-total override reflected in `/my-grade`; `source="override"` |
 
-### `flask_backend/tests/test_us30_enrollment_management.py` (20 new tests)
+### `flask_backend/tests/test_enrollment_management.py` (20 new tests)
 
 | Test | Pathway | What it verifies |
 |------|---------|-----------------|

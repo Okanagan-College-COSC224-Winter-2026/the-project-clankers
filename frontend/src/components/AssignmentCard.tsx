@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { FileText } from 'lucide-react'
 import { getStudentSubmissions, listCourseMembers } from '../util/api'
 import { isTeacher } from '../util/login'
+import { parseUTC } from '../util/dates'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -41,7 +42,7 @@ export default function AssignmentCard(props: Props) {
           if (allStudentsSubmitted) {
             setStatus('Complete')
           } else if (props.dueDate) {
-            const isPastDue = new Date(props.dueDate) < new Date()
+            const isPastDue = parseUTC(props.dueDate) < new Date()
             setStatus(isPastDue ? 'Overdue' : 'In Progress')
           } else {
             setStatus('In Progress')
@@ -50,15 +51,15 @@ export default function AssignmentCard(props: Props) {
           if (submissionsData.length > 0) {
             const submission = submissionsData[0]
             if (props.dueDate) {
-              const submittedAt = new Date(submission.submitted_at)
-              const dueDate = new Date(props.dueDate)
+              const submittedAt = parseUTC(submission.submitted_at)
+              const dueDate = parseUTC(props.dueDate)
               setStatus(submittedAt <= dueDate ? 'Submitted' : 'Submitted Late')
             } else {
               setStatus('Submitted')
             }
           } else {
             if (props.dueDate) {
-              const isPastDue = new Date(props.dueDate) < new Date()
+              const isPastDue = parseUTC(props.dueDate) < new Date()
               setStatus(isPastDue ? 'Overdue' : null)
             } else {
               setStatus(null)
@@ -68,7 +69,7 @@ export default function AssignmentCard(props: Props) {
       } catch (error) {
         console.error('Error calculating assignment status:', error)
         if (props.dueDate) {
-          const isPastDue = new Date(props.dueDate) < new Date()
+          const isPastDue = parseUTC(props.dueDate) < new Date()
           setStatus(isPastDue ? 'Overdue' : 'In Progress')
         } else {
           setStatus('In Progress')
@@ -91,7 +92,7 @@ export default function AssignmentCard(props: Props) {
   const getBadgeText = () => {
     if (isLoading) return 'Loading...'
     if (status) return status
-    return props.dueDate ? `Due: ${new Date(props.dueDate).toLocaleDateString()}` : ''
+    return props.dueDate ? `Due: ${parseUTC(props.dueDate).toLocaleDateString()}` : ''
   }
 
   return (

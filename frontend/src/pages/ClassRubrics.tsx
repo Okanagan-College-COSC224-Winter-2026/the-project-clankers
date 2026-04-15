@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import TabNavigation from "../components/TabNavigation";
 import { useEffect, useState, useCallback } from "react";
 import { listAssignments, listClasses } from "../util/api";
+import { parseUTC } from "../util/dates";
 import RubricCreator from "../components/RubricCreator";
 import Button from "../components/Button";
 import { isTeacher } from "../util/login";
@@ -145,7 +146,7 @@ export default function ClassRubrics() {
                 <h3 className="flex-1 text-sm text-foreground">{assignment.name}</h3>
                 {assignment.due_date && (
                   <span className="flex-shrink-0 text-xs text-muted-foreground">
-                    Due: {new Date(assignment.due_date).toLocaleDateString()}
+                    Due: {parseUTC(assignment.due_date).toLocaleDateString()}
                   </span>
                 )}
               </div>

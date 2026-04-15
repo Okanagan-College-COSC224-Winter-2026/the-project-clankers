@@ -1,3 +1,4 @@
+from datetime import timezone
 from marshmallow import fields, validate, pre_dump
 
 from .assignment_model import Assignment
@@ -113,21 +114,32 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True  # Include courseID for assignment → course navigation
         sqla_session = db.session
+        datetimeformat = "iso"
 
     course = fields.Nested(CourseListSchema, dump_only=True, allow_none=True)
     description = fields.Str(allow_none=True)
+    start_date = fields.DateTime(format="iso", allow_none=True)
+    due_date = fields.DateTime(format="iso", allow_none=True)
+    peer_review_start_date = fields.DateTime(format="iso", allow_none=True)
+    peer_review_due_date = fields.DateTime(format="iso", allow_none=True)
 
     @pre_dump
     def ensure_course_loaded(self, obj, **kwargs):
-        """Ensure course is properly loaded before serialization"""
+        """Ensure course is properly loaded and datetimes are UTC-aware before serialization"""
         if obj and hasattr(obj, 'course'):
-            # Force load the course relationship if it hasn't been loaded yet
             try:
-                # Access the course to trigger lazy loading
                 _ = obj.course
             except Exception:
-                # If course can't be loaded, set it to None so serialization doesn't fail
                 obj.course = None
+
+        # Ensure datetime fields have UTC timezone so serialized ISO strings include '+00:00'.
+        # SQLite can strip timezone info, producing naive datetimes that the frontend
+        # would misinterpret as local time.
+        for attr in ('start_date', 'due_date', 'peer_review_start_date', 'peer_review_due_date'):
+            dt = getattr(obj, attr, None)
+            if dt is not None and dt.tzinfo is None:
+                setattr(obj, attr, dt.replace(tzinfo=timezone.utc))
+
         return obj
 
 

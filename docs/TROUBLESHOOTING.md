@@ -125,46 +125,28 @@ ERROR: Could not find a version that satisfies the requirement <package>
 flask: command not found
 ```
 
-**Common Cause:** The `FLASK_APP` environment variable is not set for the current terminal session, or the virtual environment is not activated.
+**Common Cause:** The virtual environment is not activated, or you're not in the `flask_backend/` directory.
 
-**Solution 1 - Set FLASK_APP environment variable:**
-```bash
-# macOS/Linux (bash/zsh):
-cd flask_backend
-export FLASK_APP=api
-flask run
-
-# Windows (PowerShell):
-cd flask_backend
-$env:FLASK_APP = "api"
-flask run
-
-# Windows (Command Prompt):
-cd flask_backend
-set FLASK_APP=api
-flask run
-```
-
-**Solution 2 - Ensure virtual environment is activated:**
+**Solution 1 - Ensure virtual environment is activated:**
 ```bash
 # macOS/Linux:
-source venv/bin/activate
+cd flask_backend
+source .venv/bin/activate
+flask run
 
 # Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
-
-# Then set FLASK_APP and run
+cd flask_backend
+.\.venv\Scripts\Activate.ps1
+flask run
 ```
 
-**Solution 3 - Reinstall if flask is missing:**
+**Solution 2 - Reinstall if flask is missing:**
 ```bash
 cd flask_backend
 pip install -e .
 ```
 
-**Pro Tip:** You need to set `FLASK_APP=api` in every new terminal session. To avoid this, you can:
-- Use `flask --app api run` instead of setting the variable
-- Or add `export FLASK_APP=api` to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+> **Note:** The `.flaskenv` file automatically sets `FLASK_APP=api`, so you don't need to export it manually. Just make sure you run commands from the `flask_backend/` directory.
 
 ### Port 5000 Already in Use
 

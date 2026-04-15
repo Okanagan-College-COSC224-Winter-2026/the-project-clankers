@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAssignmentFiles, downloadAssignmentFile } from "../util/api";
+import { parseUTC } from "../util/dates";
 
 interface AssignmentFile {
   id: number;
@@ -91,7 +92,7 @@ export default function AssignmentFileDisplay({
               <span className="text-2xl">📄</span>
               <span className="text-base text-gray-800 font-medium flex-1">{file.filename}</span>
               <span className="text-sm text-gray-500 ml-auto pr-4">
-                {new Date(file.uploaded_at).toLocaleDateString()}
+                {parseUTC(file.uploaded_at).toLocaleDateString()}
               </span>
             </div>
             <button

@@ -39,13 +39,13 @@ cd Peer-Evaluation-App-V1
 
 **Windows (PowerShell):**
 ```powershell
-.\flask_backend\setup.ps1
+.\flask_backend\scripts\setup.ps1
 ```
 
 
 **macOS/Linux:**
 ```bash
-./flask_backend/setup.sh
+./flask_backend/scripts/setup.sh
 ```
 
 
@@ -73,7 +73,6 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
 pip install -r requirements-dev.txt
-$env:FLASK_APP = "api"       # Required for all flask CLI commands in this session
 flask init_db
 flask add_users
 flask run                     # Start the server
@@ -86,13 +85,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 pip install -r requirements-dev.txt
-export FLASK_APP=api
 flask init_db
 flask add_users
 flask run                     # Start the server
 ```
 
-> **Heads up:** Every new terminal session needs the `FLASK_APP=api` environment variable before running `flask` commands. On PowerShell you can re-run `$env:FLASK_APP = "api"`, and on macOS/Linux run `export FLASK_APP=api` (or add it to your shell profile for persistence).
+> **Note:** The `.flaskenv` file in the `flask_backend/` directory automatically sets `FLASK_APP=api`, so you can run `flask` commands without manually exporting the variable. Just make sure you run commands from the `flask_backend/` directory.
 
 **What this does:**
 - Creates isolated Python environment
@@ -225,9 +223,9 @@ To stop the servers:
 |-------|-----------|
 | Port 5000 already in use | Stop other processes using port 5000, or change Flask port with `flask run --port 5001` |
 | Port 3000 already in use | Stop other processes or see [frontend README](../frontend/README.md) for port configuration |
-| `flask: command not found` | Make sure Python venv is activated and `export FLASK_APP=api` has been run to set environment variable|
+| `flask: command not found` | Make sure Python venv is activated and you're in the `flask_backend/` directory |
 | Import errors | Re-run `pip install -e .` in flask_backend with venv activated |
-| Database errors | Reset the database with `cd flask_backend` then `.\reset-db.ps1` (Windows) or `./reset-db.sh` (Mac/Linux) |
+| Database errors | Reset the database with `cd flask_backend` then `.\scripts\reset-db.ps1` (Windows) or `./scripts/reset-db.sh` (Mac/Linux) |
 
 **For more detailed troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
@@ -240,13 +238,13 @@ To stop the servers:
 **Windows (PowerShell):**
 ```powershell
 cd flask_backend
-.\reset-db.ps1
+.\scripts\reset-db.ps1
 ```
 
 **macOS/Linux:**
 ```bash
 cd flask_backend
-./reset-db.sh
+./scripts/reset-db.sh
 ```
 
 The reset script will:
@@ -269,7 +267,6 @@ Perfect for testing or when you need a clean slate!
    ```bash
    cd flask_backend
    source .venv/bin/activate  # or .\.venv\Scripts\Activate.ps1 on Windows
-   export FLASK_APP=api       # or $env:FLASK_APP = "api" on Windows
    flask run
    ```
 
@@ -285,8 +282,8 @@ Perfect for testing or when you need a clean slate!
 
 ## 💡 Pro Tips
 
-- **One-command setup and start**: Use `.\flask_backend\setup.ps1` (Windows) or `./flask_backend/setup.sh` (macOS/Linux) from project root for complete backend setup and server start
-- **Quick database reset**: Use `cd flask_backend` then `.\reset-db.ps1` (Windows) or `./reset-db.sh` (Mac/Linux) to wipe and recreate the database
+- **One-command setup and start**: Use `.\flask_backend\scripts\setup.ps1` (Windows) or `./flask_backend/scripts/setup.sh` (macOS/Linux) from project root for complete backend setup and server start
+- **Quick database reset**: Use `cd flask_backend` then `.\scripts\reset-db.ps1` (Windows) or `./scripts/reset-db.sh` (Mac/Linux) to wipe and recreate the database
 - **Safe to rerun setup**: The setup script won't delete your database if it exists - it's safe to run anytime
 - **Backend hot-reload**: Flask runs in debug mode by default, so code changes reload automatically
 - **Frontend hot-reload**: Vite provides instant HMR (Hot Module Replacement)

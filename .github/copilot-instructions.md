@@ -2,31 +2,30 @@
 
 These notes help AI agents be productive quickly in this repo. Keep edits small, lean on existing tests, and don't touch secrets.
 
-## Big picture — dual backend architecture
-**Important**: This repo has TWO separate backends in transition:
-1. **`flask_backend/`** (Python Flask) — Active backend, use this for new work
-   - JWT auth via HTTPOnly cookies (Flask-JWT-Extended)
-   - SQLAlchemy ORM + Marshmallow schemas
-   - Dev DB: SQLite (instance/app.sqlite), Prod: PostgreSQL
-2. **`backend/`** (Node.js/Fastify + Sequelize) — Legacy/reference implementation
-   - MariaDB backend (via docker-compose)
-   - Do NOT modify unless explicitly requested
+## Big picture — architecture
+**`flask_backend/`** (Python Flask) — The backend
+- JWT auth via HTTPOnly cookies (Flask-JWT-Extended)
+- SQLAlchemy ORM + Marshmallow schemas
+- 14 blueprints, 84 endpoints
+- Dev DB: SQLite (instance/app.sqlite), Prod: PostgreSQL
 
-**`frontend/`** (React + TypeScript + Vite) talks to Flask backend at `http://localhost:5000` (dev) via `frontend/src/util/api.ts` (BASE_URL constant).
+**`frontend/`** (React + TypeScript + Vite) — The frontend
+- Talks to Flask backend at `http://localhost:5000` (dev) via `frontend/src/util/api.ts` (BASE_URL constant)
+- 25+ protected routes with role-based access
 
 ## Role-based access control (RBAC)
 System uses three roles (`student`, `teacher`, `admin`) stored in `User.role` field:
-- **Students**: Can register via `/auth/register`, view own profile, submit work (planned)
-- **Teachers**: All student perms + create courses/assignments (planned), view any user profile
+- **Students**: Register via `/auth/register`, view profile, submit work, peer review, view grades
+- **Teachers**: All student perms + create courses/assignments, manage rosters/groups, create rubrics, view gradebook
 - **Admins**: All perms + user management via `/admin/*` endpoints, cannot self-delete/demote
 
-Key files: `flask_backend/api/models/users_model.py` (role validation + helper methods `is_teacher()`, `is_admin()`, `has_role(*roles)`), `flask_backend/api/controllers/auth_controller.py` (decorators: `jwt_role_required`, `jwt_admin_required`, `jwt_teacher_required`).
+Key files: `flask_backend/api/models/user_model.py` (role validation + helper methods `is_teacher()`, `is_admin()`, `has_role(*roles)`), `flask_backend/api/controllers/auth_controller.py` (decorators: `jwt_role_required`, `jwt_admin_required`, `jwt_teacher_required`).
 
-## Files to know (Flask backend only)
+## Files to know
 - Entry point: `flask_backend/api/__init__.py` (Flask app factory, CORS, JWT cookie config, blueprint registration)
-- Controllers: `flask_backend/api/controllers/{auth_controller.py,user_controller.py,admin_controller.py,class_controller.py}`
-- Models: `flask_backend/api/models/{db.py,users_model.py}` — more models planned per `docs/schema/`
-- Tests (truth): `flask_backend/tests/{conftest.py,test_login.py,test_user.py,test_model.py}` — pytest with in-memory SQLite
+- Controllers (14): `flask_backend/api/controllers/` — auth, user, admin, class, enrollment, assignment, student_submission, review, rubric, gradebook, group, legacy_group, fake_api
+- Models (21): `flask_backend/api/models/` — User, Course, Assignment, AssignmentFile, CourseGroup, GroupMembers, Review, Criterion, Rubric, CriteriaDescription, StudentSubmission, Submission, EnrollmentRequest, Notification, UserCourse, CourseGradePolicy, GradeOverride, CourseTotalOverride
+- Tests (18 files): `flask_backend/tests/` — pytest with in-memory SQLite
 - CLI: `flask_backend/api/cli/database.py` — commands: `flask init_db`, `flask add_users`, `flask create_admin`, `flask drop_db`
 - Frontend contract: `frontend/src/util/api.ts` (all fetch calls include `credentials: 'include'` for cookies), `frontend/src/util/login.ts` (role helpers: `getUserRole()`, `isAdmin()`, `isTeacher()`)
 
@@ -34,19 +33,19 @@ Key files: `flask_backend/api/models/users_model.py` (role validation + helper m
 **Windows (PowerShell):**
 ```powershell
 cd flask_backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -e .
 pip install -r requirements-dev.txt
 flask init_db              # Create database
 flask add_users            # Add sample users (student, teacher, admin)
-flask --app api run        # Start server on http://localhost:5000
+flask run                  # Start server on http://localhost:5000
 ```
 **macOS/Linux:**
 ```bash
 cd flask_backend
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 pip install -r requirements-dev.txt
 flask init_db
@@ -64,9 +63,8 @@ npm run dev                # http://localhost:3000 (strict port, fails if busy)
 
 **Docker (entire stack):**
 ```bash
-docker-compose up          # Starts mariadb (port 33123), legacy backend (8081), frontend (3000)
+docker-compose up --build   # Starts PostgreSQL (5432), Flask backend (5000), React frontend (80)
 ```
-Note: Docker uses the legacy Node backend at port 8081, not Flask at 5000. For local dev, run Flask + frontend separately.
 
 ## Auth pattern (HTTPOnly cookies + JWT)
 **Critical security change (see `docs/HTTPONLY_COOKIES_MIGRATION.md`):**
@@ -102,10 +100,9 @@ const response = await fetch(`${BASE_URL}/auth/login`, {
 - **Config hierarchy:** Defaults in `api/__init__.py`, overrides in `api/config.py` (not committed), env vars for secrets
 
 ## Known gaps and integration points
-- **Endpoints.json vs reality:** `docs/dev-guidelines/endpoints.json` is a legacy Node API spec (for reference only). Many routes (`/classes`, `/create_*`, groups, rubrics) exist in Node `backend/src/routes/` but NOT in Flask. When implementing missing endpoints, use Flask patterns (blueprints + Marshmallow) and add tests.
-- **Database schema mismatch:** Flask has minimal models (User, Class). Full schema in `docs/schema/database-schema.md` includes Group, Assignment, Review, Criteria — implement as needed.
-- **Frontend assumes Node backend shape:** Some frontend code may expect responses matching Node routes. Check `endpoints.json` for field names when implementing Flask equivalents.
-- **Port confusion:** Frontend `BASE_URL` points to 5000 (Flask), but Docker runs Node backend on 8081. Adjust per deployment.
+- **Endpoints.json vs reality:** `docs/dev-guidelines/endpoints.json` is a legacy API spec (for reference only). The Flask backend has 84 endpoints across 14 blueprints — check the actual controllers for current routes.
+- **Database schema:** Flask has 21 models covering User, Course, Assignment, Group, Review, Rubric, Gradebook, Enrollment, and more. See `docs/schema/database-schema.md` for the full schema.
+- **Frontend routes:** 25+ protected routes covering class management, assignments, groups, rubrics, peer reviews, gradebook, and admin features.
 
 ## Quick reference
 **Add a new Flask route:**
@@ -126,10 +123,3 @@ sqlite3 flask_backend/instance/app.sqlite
 .tables
 SELECT id, name, email, role FROM User;
 ```
-
-**Migrate legacy Node endpoint to Flask:**
-1. Read `backend/src/routes/your_route.ts` for logic
-2. Translate Sequelize queries to SQLAlchemy (e.g., `User.findOne()` → `User.query.filter_by().first()`)
-3. Match response shape from `endpoints.json` using Marshmallow schema
-4. Add test covering Node behavior
-5. Update frontend if response differs

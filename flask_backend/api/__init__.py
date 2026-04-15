@@ -12,7 +12,6 @@ from .controllers import (
     auth_controller,
     class_controller,
     enrollment_controller,
-    fake_api_controller,
     gradebook_controller,
     user_controller,
     assignment_controller,
@@ -171,6 +170,5 @@ def create_app(test_config=None):
     app.register_blueprint(gradebook_controller.bp)
     app.register_blueprint(group_controller.bp)
     app.register_blueprint(legacy_group_controller.bp)  # Legacy endpoints for backward compatibility
-    app.register_blueprint(fake_api_controller.fake)
 
     return app

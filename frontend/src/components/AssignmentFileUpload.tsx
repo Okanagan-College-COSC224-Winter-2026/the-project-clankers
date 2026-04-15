@@ -1,5 +1,6 @@
 import { useState, useRef, DragEvent, ChangeEvent, useEffect } from "react";
 import { uploadAssignmentFile, deleteAssignmentFile, getAssignmentFiles, downloadAssignmentFile } from "../util/api";
+import { parseUTC } from "../util/dates";
 
 interface AssignmentFile {
   id: number;
@@ -173,7 +174,7 @@ export default function AssignmentFileUpload({
                 <span className="text-2xl">📄</span>
                 <span className="text-base font-medium text-gray-800 flex-1">{file.filename}</span>
                 <span>
-                  {new Date(file.uploaded_at).toLocaleDateString()}
+                  {parseUTC(file.uploaded_at).toLocaleDateString()}
                 </span>
               </div>
               <div className="flex gap-2">

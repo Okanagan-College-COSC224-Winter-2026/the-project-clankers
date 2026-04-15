@@ -10,13 +10,30 @@ import { Badge } from "./ui/badge";
 import StatusMessage from "./StatusMessage";
 import ConfirmDialog from "./ConfirmDialog";
 import { MessageSquare, BarChart2, Trash2 } from "lucide-react";
+import { parseUTC } from "../util/dates";
 
 const toDatetimeLocal = (iso: string): string => {
-  const d = new Date(iso);
+  const d = parseUTC(iso);
   const pad = (n: number) => n.toString().padStart(2, '0');
-  const offset = d.getTimezoneOffset() * 60000;
-  const localDate = new Date(d.getTime() - offset);
-  return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const defaultStartDate = (): string => {
+  return toDatetimeLocal(new Date().toISOString());
+};
+
+const defaultDueDate = (): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  d.setHours(23, 59, 0, 0);
+  return toDatetimeLocal(d.toISOString());
+};
+
+const oneWeekAfter = (datetimeLocal: string): string => {
+  const d = new Date(datetimeLocal);
+  d.setDate(d.getDate() + 7);
+  d.setHours(23, 59, 0, 0);
+  return toDatetimeLocal(d.toISOString());
 };
 
 interface AssignmentSettingsProps {
@@ -150,40 +167,19 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
       };
 
       if (editedStartDate) {
-        // Parse datetime-local as local time (format: YYYY-MM-DDTHH:mm)
-        const parts = editedStartDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
-        if (parts) {
-          const [, year, month, day, hours, minutes] = parts.map(Number);
-          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
-          updateData.start_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
-        }
+        updateData.start_date = new Date(editedStartDate).toISOString();
       }
 
       if (editedDueDate) {
-        const parts = editedDueDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
-        if (parts) {
-          const [, year, month, day, hours, minutes] = parts.map(Number);
-          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
-          updateData.due_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
-        }
+        updateData.due_date = new Date(editedDueDate).toISOString();
       }
 
       if (editedPeerReviewStartDate) {
-        const parts = editedPeerReviewStartDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
-        if (parts) {
-          const [, year, month, day, hours, minutes] = parts.map(Number);
-          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
-          updateData.peer_review_start_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
-        }
+        updateData.peer_review_start_date = new Date(editedPeerReviewStartDate).toISOString();
       }
 
       if (editedPeerReviewDueDate) {
-        const parts = editedPeerReviewDueDate.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
-        if (parts) {
-          const [, year, month, day, hours, minutes] = parts.map(Number);
-          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
-          updateData.peer_review_due_date = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
-        }
+        updateData.peer_review_due_date = new Date(editedPeerReviewDueDate).toISOString();
       }
 
       const response = await editAssignment(assignmentId, updateData);
@@ -326,7 +322,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Not set</span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedStartDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedStartDate(defaultStartDate())}>Set</Button>
                       </div>
                     )}
                   </div>
@@ -345,7 +341,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Not set</span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedDueDate(toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedDueDate(defaultDueDate())}>Set</Button>
                       </div>
                     )}
                   </div>
@@ -368,7 +364,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Not set</span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewStartDate(editedDueDate || toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewStartDate(editedDueDate || defaultDueDate())}>Set</Button>
                       </div>
                     )}
                   </div>
@@ -388,7 +384,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Not set</span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewDueDate(editedPeerReviewStartDate || editedDueDate || toDatetimeLocal(new Date().toISOString()))}>Set</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditedPeerReviewDueDate(editedPeerReviewStartDate ? oneWeekAfter(editedPeerReviewStartDate) : editedDueDate ? oneWeekAfter(editedDueDate) : defaultDueDate())}>Set</Button>
                       </div>
                     )}
                   </div>
@@ -439,18 +435,14 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                 {assignment.description && (
                   <div className="flex items-start justify-between py-2 border-b border-slate-100 gap-4">
                     <span className="text-sm font-medium text-muted-foreground shrink-0">Description</span>
-                    <span className="text-sm text-right">
-                      {assignment.description.length > 200
-                        ? assignment.description.substring(0, 200) + '...'
-                        : assignment.description}
-                    </span>
+                    <span className="text-sm text-right">{assignment.description}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between py-2 border-b border-slate-100">
                   <span className="text-sm font-medium text-muted-foreground">Start Date</span>
                   <span className="text-sm">
                     {assignment.start_date
-                      ? new Date(assignment.start_date).toLocaleString()
+                      ? parseUTC(assignment.start_date).toLocaleString()
                       : "Not set"}
                   </span>
                 </div>
@@ -458,7 +450,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                   <span className="text-sm font-medium text-muted-foreground">Due Date</span>
                   <span className="text-sm">
                     {assignment.due_date
-                      ? new Date(assignment.due_date).toLocaleString()
+                      ? parseUTC(assignment.due_date).toLocaleString()
                       : "Not set"}
                   </span>
                 </div>
@@ -466,7 +458,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                   <span className="text-sm font-medium text-muted-foreground">Peer Review Start</span>
                   <span className="text-sm">
                     {assignment.peer_review_start_date
-                      ? new Date(assignment.peer_review_start_date).toLocaleString()
+                      ? parseUTC(assignment.peer_review_start_date).toLocaleString()
                       : "Not set"}
                   </span>
                 </div>
@@ -474,7 +466,7 @@ export default function AssignmentSettings({ assignmentId }: AssignmentSettingsP
                   <span className="text-sm font-medium text-muted-foreground">Peer Review Due</span>
                   <span className="text-sm">
                     {assignment.peer_review_due_date
-                      ? new Date(assignment.peer_review_due_date).toLocaleString()
+                      ? parseUTC(assignment.peer_review_due_date).toLocaleString()
                       : "Not set"}
                   </span>
                 </div>

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
+import { parseUTC } from "../util/dates";
 import { Settings, FileStack, Upload, ChevronRight, ClipboardList } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import TabNavigation from "../components/TabNavigation";
@@ -66,31 +67,20 @@ export default function Assignment() {
   const isPeerReviewsTab = location.pathname.includes('/peer-reviews');
 
   // Fetch assignment details to get the name
-  useEffect(() => {
-    (async () => {
+  const fetchAssignment = useCallback(async () => {
       try {
         // Get current user info
         const userProfile = await getCurrentUserProfile();
         setCurrentUserId(userProfile.id);
 
         const assignmentData = await getAssignmentDetails(Number(id));
-        if (assignmentData && assignmentData.name) {
-          setAssignmentName(assignmentData.name);
-        }
-        if (assignmentData && assignmentData.description) {
-          setAssignmentDescription(assignmentData.description);
-        }
-        if (assignmentData && assignmentData.start_date) {
-          setStartDate(assignmentData.start_date);
-        }
-        if (assignmentData && assignmentData.due_date) {
-          setDueDate(assignmentData.due_date);
-        }
-        if (assignmentData && assignmentData.internal_review) {
-          setInternalReview(assignmentData.internal_review);
-        }
-        if (assignmentData && assignmentData.external_review) {
-          setExternalReview(assignmentData.external_review);
+        if (assignmentData) {
+          setAssignmentName(assignmentData.name || "");
+          setAssignmentDescription(assignmentData.description || null);
+          setStartDate(assignmentData.start_date || null);
+          setDueDate(assignmentData.due_date || null);
+          setInternalReview(assignmentData.internal_review || false);
+          setExternalReview(assignmentData.external_review || false);
         }
         if (assignmentData && assignmentData.courseID) {
           setCourseId(assignmentData.courseID);
@@ -123,8 +113,17 @@ export default function Assignment() {
       } catch (error) {
         console.error('Error fetching assignment details:', error);
       }
-    })();
   }, [id]);
+
+  useEffect(() => {
+    fetchAssignment();
+  }, [fetchAssignment]);
+
+  useEffect(() => {
+    const handleFocus = () => fetchAssignment();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchAssignment]);
 
 
   const handleCriterionSelect = (row: number, column: number) => {
@@ -163,8 +162,7 @@ export default function Assignment() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
-    // Backend sends ISO 8601 format with timezone (e.g., 2026-04-04T00:25:42.609771+00:00)
-    const localDate = new Date(dateString);
+    const localDate = parseUTC(dateString);
 
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
@@ -179,8 +177,7 @@ export default function Assignment() {
 
   const calculateTimeRemaining = (dueDate: string | null) => {
     if (!dueDate) return "N/A";
-    // Backend sends ISO 8601 format with timezone
-    const due = new Date(dueDate);
+    const due = parseUTC(dueDate);
     const now = new Date();
     const diff = due.getTime() - now.getTime();
 

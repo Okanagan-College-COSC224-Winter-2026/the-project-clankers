@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { parseUTC } from "../util/dates";
 import {
   Loader2,
   GraduationCap,
@@ -431,7 +432,7 @@ export default function StudentGrades() {
                                     <tr key={a.assignment_id} className="hover:bg-muted/30 transition-colors">
                                       <td className="py-2.5 pr-4 font-medium">{a.assignment_name}</td>
                                       <td className="py-2.5 pr-4 text-muted-foreground text-xs">
-                                        {a.due_date ? new Date(a.due_date).toLocaleDateString() : "—"}
+                                        {a.due_date ? parseUTC(a.due_date).toLocaleDateString() : "—"}
                                       </td>
                                       <td className="py-2.5 pr-4">
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(a.submission_status ?? "")}`}>

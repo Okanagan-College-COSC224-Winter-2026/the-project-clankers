@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import ClassCard from "../components/ClassCard";
 import { browseAllClasses, listAssignments, requestEnrollment, listClasses } from "../util/api";
 import { isStudent } from "../util/login";
@@ -8,6 +9,7 @@ import { isStudent } from "../util/login";
 interface Course {
   id: number;
   name: string;
+  teacher_name?: string;
 }
 
 interface CourseWithAssignments extends Course {
@@ -22,6 +24,7 @@ export default function Browse() {
   const [error, setError] = useState<string | null>(null);
   const [enrollingCourseId, setEnrollingCourseId] = useState<number | null>(null);
   const [enrollMsg, setEnrollMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     ;(async () => {
@@ -92,8 +95,21 @@ export default function Browse() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex h-16 flex-col justify-center border-b bg-background px-6">
-        <h2 className="text-xl font-semibold leading-tight">Browse Courses</h2>
-        <span className="text-xs text-muted-foreground leading-tight">Browse all available courses and request to join</span>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold leading-tight">Browse Courses</h2>
+            <span className="text-xs text-muted-foreground leading-tight">Browse all available courses and request to join</span>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search courses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-8 w-48 pl-8 text-sm"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 p-6">
@@ -118,7 +134,9 @@ export default function Browse() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {courses.map((course) => {
+            {courses
+              .filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || (c.teacher_name && c.teacher_name.toLowerCase().includes(searchTerm.toLowerCase())))
+              .map((course) => {
               const isEnrolled = enrolledCourseIds.has(course.id);
               const isEnrolling = enrollingCourseId === course.id;
               return (
@@ -126,7 +144,7 @@ export default function Browse() {
                   key={course.id}
                   image="https://crc.losrios.edu//shared/img/social-1200-630/programs/general-science-social.jpg"
                   name={course.name}
-                  subtitle={`${course.assignmentCount || 0} assignments`}
+                  subtitle={course.teacher_name ? `${course.teacher_name} · ${course.assignmentCount || 0} assignments` : `${course.assignmentCount || 0} assignments`}
                   onclick={isEnrolled ? () => { window.location.href = `/classes/${course.id}/home`; } : undefined}
                   action={
                     isStudent() ? (

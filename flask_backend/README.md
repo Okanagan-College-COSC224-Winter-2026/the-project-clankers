@@ -98,27 +98,19 @@ pip3 --version
    pip install -r requirements-dev.txt
    ```
 
-5. **Set the environment variable:**
-
-   ```powershell
-   $env:FLASK_APP = "api"
-   ```
-
-   *Optional:* run `setx FLASK_APP "api"` if you want a persistent value outside the current PowerShell session.
-
-6. **Initialize the database:**
+5. **Initialize the database:**
 
    ```powershell
    flask init_db
    ```
 
-7. **Add sample users:**
+6. **Add sample users:**
 
    ```powershell
    flask add_users
    ```
 
-8. **Add sample courses and assignments:**
+7. **Add sample courses and assignments:**
 
    ```powershell
    flask add_sample_courses
@@ -130,7 +122,7 @@ pip3 --version
    flask create_admin
    ```
 
-9. **Run the development server:**
+8. **Run the development server:**
 
    ```powershell
    flask run
@@ -165,26 +157,20 @@ The API will be available at [http://localhost:5000](http://localhost:5000)
    pip install -r requirements-dev.txt
    ```
 
-5. **Set the environment variable:**
-
-   ```bash
-   export FLASK_APP=api
-   ```
-
-6. **Initialize the database:**
+5. **Initialize the database:**
 
    ```bash
    flask init_db
    ```
 
-7. **Add sample users:**
+6. **Add sample users:**
 
    ```bash
    flask add_users
    ```
-8. **Add sample courses and assignments:**
+7. **Add sample courses and assignments:**
 
-   ```powershell
+   ```bash
    flask add_sample_courses
    ```
 
@@ -194,7 +180,7 @@ The API will be available at [http://localhost:5000](http://localhost:5000)
    flask create_admin
    ```
 
-9. **Run the development server:**
+8. **Run the development server:**
 
    ```bash
    flask run

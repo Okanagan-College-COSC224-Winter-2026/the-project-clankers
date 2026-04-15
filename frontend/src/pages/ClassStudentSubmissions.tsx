@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { parseUTC } from "../util/dates";
 import TabNavigation from "../components/TabNavigation";
 import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
@@ -124,8 +125,8 @@ export default function ClassStudentSubmissions() {
       return "Submitted";
     }
 
-    const submittedAt = new Date(submission.submitted_at);
-    const due = new Date(dueDate);
+    const submittedAt = parseUTC(submission.submitted_at);
+    const due = parseUTC(dueDate);
 
     if (submittedAt <= due) {
       return "Submitted";
@@ -218,7 +219,7 @@ export default function ClassStudentSubmissions() {
                   groupId: group.id,
                   groupName: group.name,
                   status,
-                  grade: undefined, // TODO: Add when grade field is available
+                  grade: undefined,
                   submission: consolidatedSubmission
                 };
               });
@@ -301,7 +302,7 @@ export default function ClassStudentSubmissions() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return parseUTC(dateString).toLocaleString();
   };
 
   const handleRosterUpload = () => {

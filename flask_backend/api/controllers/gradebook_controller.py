@@ -173,6 +173,24 @@ def _assignment_context(assignment):
     return criteria_ids, criteria_map
 
 
+def _submitted_on_time(assignment, student_id, group_id=None):
+    """Check if a student (or their group) submitted before the assignment due date."""
+    submission = _latest_submission_for_student(assignment.id, student_id, assignment, group_id)
+    status = _submission_status(assignment, submission)
+    return status == "submitted"
+
+
+def _group_submitted_on_time(assignment, group_id):
+    """Check if any member of a group submitted before the assignment due date."""
+    members = Group_Members.query.filter_by(groupID=group_id).all()
+    for member in members:
+        submission = _latest_submission_for_student(assignment.id, member.userID, assignment, group_id)
+        status = _submission_status(assignment, submission)
+        if status == "submitted":
+            return True
+    return False
+
+
 def _student_peer_completion(assignment, student, class_students, group_id, criteria_ids):
     expected = 0
     completed = 0
@@ -182,6 +200,11 @@ def _student_peer_completion(assignment, student, class_students, group_id, crit
             m.userID
             for m in Group_Members.query.filter_by(groupID=group_id).all()
             if m.userID != student.id
+        ]
+        # Only expect reviews of teammates who submitted on time
+        teammate_ids = [
+            tid for tid in teammate_ids
+            if _submitted_on_time(assignment, tid, group_id)
         ]
         expected += len(teammate_ids)
         reviews = Review.query.filter_by(
@@ -197,6 +220,11 @@ def _student_peer_completion(assignment, student, class_students, group_id, crit
             if group_id:
                 all_group_ids = [group.id for group in CourseGroup.query.filter_by(courseID=assignment.courseID).all()]
                 expected_targets = [gid for gid in all_group_ids if gid != group_id]
+                # Only expect reviews of groups that submitted on time
+                expected_targets = [
+                    gid for gid in expected_targets
+                    if _group_submitted_on_time(assignment, gid)
+                ]
                 expected += len(expected_targets)
                 group_reviews = Review.query.filter_by(
                     assignmentID=assignment.id,
@@ -212,6 +240,11 @@ def _student_peer_completion(assignment, student, class_students, group_id, crit
         else:
             student_ids = [s.id for s in class_students]
             expected_targets = [sid for sid in student_ids if sid != student.id]
+            # Only expect reviews of students who submitted on time
+            expected_targets = [
+                sid for sid in expected_targets
+                if _submitted_on_time(assignment, sid)
+            ]
             expected += len(expected_targets)
             user_reviews = Review.query.filter_by(
                 assignmentID=assignment.id,

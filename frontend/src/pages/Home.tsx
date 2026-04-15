@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Users, Loader2, Archive, Eye } from 'lucide-react'
+import { Plus, Users, Loader2, Archive, Eye, Search } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import ClassCard from '../components/ClassCard'
 import { listClasses, listAssignments, getArchivedClasses, unarchiveClass, getMyCourseGrade, hideClass, getHiddenClasses, unhideClass } from '../util/api'
 import { isTeacher, isAdmin } from '../util/login'
@@ -31,6 +32,7 @@ export default function Home() {
   const [showHiddenModal, setShowHiddenModal] = useState(false)
   const [hiddenClasses, setHiddenClasses] = useState<any[]>([])
   const [loadingHidden, setLoadingHidden] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const fetchCourses = async () => {
     try {
@@ -210,7 +212,16 @@ export default function Home() {
     <div className="flex flex-1 flex-col">
       <div className="flex h-16 items-center justify-between border-b bg-background px-6">
         <h2 className="text-xl font-semibold">Dashboard</h2>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search courses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-8 w-48 pl-8 text-sm"
+            />
+          </div>
           {!isTeacher() && !isAdmin() && (
             <Button onClick={handleOpenHidden} variant="outline" size="sm">
               <Eye className="mr-2 h-4 w-4" />
@@ -228,7 +239,9 @@ export default function Home() {
       <div className="flex-1 p-6">
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {courses.length === 0 && !isTeacher() ? (
+        {(() => {
+          const filtered = courses.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+          return filtered.length === 0 && !isTeacher() ? (
           <Card className="col-span-full">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="mb-4 h-12 w-12 text-muted-foreground" />
@@ -239,7 +252,7 @@ export default function Home() {
             </CardContent>
           </Card>
         ) : (
-          courses.map((course) => {
+          filtered.map((course) => {
             const assignmentText = `${course.assignmentCount || 0} assignments`
 
             return (
@@ -283,7 +296,8 @@ export default function Home() {
               />
             )
           })
-        )}
+        )
+        })()}
 
         {isTeacher() && (
           <Card

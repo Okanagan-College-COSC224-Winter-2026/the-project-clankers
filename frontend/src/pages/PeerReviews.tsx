@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { parseUTC } from "../util/dates";
 import Button from "../components/Button";
 import { Button as ShadcnButton } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -201,9 +202,7 @@ function PeerReviewModal({
 
   const loadTargetSubmissions = async (targetId: number, targetType: 'user' | 'group') => {
     try {
-      console.log(`[DEBUG] Loading submissions for target ${targetId} (type: ${targetType})`);
       const submissions = await getPeerReviewSubmissions(assignmentId, targetId, targetType);
-      console.log(`[DEBUG] Received ${submissions.length} submissions:`, submissions);
       setTargetSubmissions(submissions);
     } catch (error) {
       console.error('[ERROR] Error loading target submissions:', error);
@@ -232,15 +231,6 @@ function PeerReviewModal({
         }
 
         // Create the review
-        console.log('Creating review:', {
-          assignmentId,
-          reviewerID: reviewerId,
-          revieweeID: selectedTarget.id,
-          targetName: selectedTarget.name,
-          targetType: selectedTarget.type,
-          reviewerType,
-          revieweeType
-        });
         const reviewResponse = await createReview(assignmentId, reviewerId, selectedTarget.id, reviewerType, revieweeType);
         if (!reviewResponse.ok) {
           const errorData = await reviewResponse.json();
@@ -282,13 +272,11 @@ function PeerReviewModal({
           // Only submit for criteria that should be visible in this review type
           if (filterCriteriaByType([criterion], selectedTarget.type).length > 0) {
             if (criterion.id) {
-              console.log(`Submitting criterion ${i}: grade=${finalGrades[i]}, comment="${finalComments[i] || ''}"`);
               await createCriterion(reviewId, criterion.id!, finalGrades[i] !== null ? finalGrades[i] : 0, finalComments[i] || "");
             }
           }
         }
 
-        console.log('Review submitted successfully');
         // Reset and close
         setSelectedTarget(null);
         setGrades(new Array(criteria.length).fill(0));
@@ -607,7 +595,7 @@ export default function PeerReviews() {
 
   // Helper function to format date/time with user's timezone
   const formatDateWithTime = (dateString: string): string => {
-    const date = new Date(dateString);
+    const date = parseUTC(dateString);
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -623,8 +611,8 @@ export default function PeerReviews() {
     if (!assignment) return { available: true };
 
     const now = new Date();
-    const startDate = assignment.peer_review_start_date ? new Date(assignment.peer_review_start_date) : null;
-    const dueDate = assignment.peer_review_due_date ? new Date(assignment.peer_review_due_date) : null;
+    const startDate = assignment.peer_review_start_date ? parseUTC(assignment.peer_review_start_date) : null;
+    const dueDate = assignment.peer_review_due_date ? parseUTC(assignment.peer_review_due_date) : null;
 
     // If no start date, check if past due date
     if (!startDate && dueDate && now > dueDate) {
@@ -712,21 +700,10 @@ export default function PeerReviews() {
         reviewType: review.type
       });
 
-      console.log('Fetching my comments with params:', {
-        assignmentID: id,
-        reviewerID: reviewerId,
-        revieweeID: review.revieweeId,
-        revieweeType,
-        reviewerType,
-        reviewType: review.type
-      });
-
       const reviewResponse = await fetch(`http://localhost:5000/review?${params}`, {
         credentials: 'include'
       });
       const reviewData = await reviewResponse.json();
-
-      console.log('My review data:', reviewData);
 
       setSelectedReviewComments({
         reviewId: reviewerId,
@@ -766,21 +743,10 @@ export default function PeerReviews() {
         reviewType: review.type
       });
 
-      console.log('Fetching comments with params:', {
-        assignmentID: id,
-        reviewerID: review.reviewerId,
-        revieweeID: revieweeId,
-        revieweeType,
-        reviewerType,
-        reviewType: review.type
-      });
-
       const reviewResponse = await fetch(`http://localhost:5000/review?${params}`, {
         credentials: 'include'
       });
       const reviewData = await reviewResponse.json();
-
-      console.log('Review data:', reviewData);
 
       setSelectedReviewComments({
         reviewId: review.reviewerId,
@@ -893,7 +859,7 @@ export default function PeerReviews() {
               </div>
               {assignment.due_date && (
                 <p className="text-sm text-muted-foreground">
-                  Due: {new Date(assignment.due_date).toLocaleDateString()}
+                  Due: {parseUTC(assignment.due_date).toLocaleDateString()}
                 </p>
               )}
               {assignment.peer_review_start_date && (

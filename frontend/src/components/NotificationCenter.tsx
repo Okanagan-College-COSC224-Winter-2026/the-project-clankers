@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { getEnrollmentRequests, approveEnrollmentRequest, rejectEnrollmentRequest } from '../util/api'
+import { parseUTC } from '../util/dates'
 
 interface EnrollmentRequest {
   id: number
@@ -190,7 +191,7 @@ export default function NotificationCenter({ isOpen, onClose, onRequestUpdated }
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Email: {request.student.email}</p>
                   <p className="text-xs text-gray-500">
-                    Requested: {new Date(request.created_at).toLocaleDateString()}
+                    Requested: {parseUTC(request.created_at).toLocaleDateString()}
                   </p>
                   {request.teacher_notes && (
                     <p className="text-sm text-gray-600 mt-2 italic">Notes: {request.teacher_notes}</p>

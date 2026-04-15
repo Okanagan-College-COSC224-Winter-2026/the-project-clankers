@@ -155,7 +155,6 @@ export const tryLogin = async (email: string, password: string) => {
     
     // Store user info (but not token - that's in httponly cookie now)
     localStorage.setItem('user', JSON.stringify(json));
-    //console.log("Logged in:", json);
 
     return json;
   } catch (error) {
@@ -210,7 +209,6 @@ export const createClass = async (name: string) => {
 }
 
 export const listClasses = async () => {
-  // TODO get session info and whatnot
   const resp = await fetch(`${BASE_URL}/class/classes`, {
     method: 'GET',
     credentials: 'include'  // Include cookies (JWT token)

@@ -28,10 +28,6 @@ def create_class():
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    existing_class = Course.get_by_name_teacher(class_name, user.id)
-    if existing_class:
-        return jsonify({"msg": "You already have a class with this name"}), 400
-
     new_class = Course(teacherID=user.id, name=class_name)
     Course.create_course(new_class)
     return jsonify({"msg": "Class created", "class": {"id": new_class.id}}), 201
@@ -46,7 +42,7 @@ def get_classes():
     if not user:
         return jsonify({"msg": "User not found"}), 404
     classes = Course.get_all_courses()
-    return jsonify([{"id": c.id, "name": c.name} for c in classes]), 200
+    return jsonify([{"id": c.id, "name": c.name, "teacher_name": c.teacher.name if c.teacher else None} for c in classes]), 200
 
 
 @bp.route("/classes", methods=["GET"])
@@ -145,9 +141,6 @@ def csv_to_list(csv_text):
     rows: List[Dict[str, str]] = []
     errors: List[str] = []
     
-    print(f"DEBUG: CSV text length: {len(csv_text) if csv_text else 0}")
-    print(f"DEBUG: CSV text preview: {csv_text[:200] if csv_text else 'None'}")
-    
     if not csv_text or not csv_text.strip():
         return rows, ["CSV text empty"]
     
@@ -158,7 +151,6 @@ def csv_to_list(csv_text):
         return rows, [f"Failed to read CSV: {e}"]
     
     headers = {h.strip() for h in reader.fieldnames or []}
-    print(f"DEBUG: Parsed headers: {headers}")
     missing = REQUIRED_HEADERS - headers
     if missing:
         errors.append(
@@ -184,8 +176,6 @@ def csv_to_list(csv_text):
             "email": normalized["email"]
         })
     
-    print(f"DEBUG: Parsed {len(rows)} rows")
-    print(f"DEBUG: Errors: {errors}")
     return rows, errors
 
 def generate_temporary_password(length=10):
@@ -417,11 +407,6 @@ def update_class():
     user = User.get_by_email(email)
     if course.teacherID != user.id and not user.is_admin():
         return jsonify({"msg": "You are not authorized to update this class"}), 403
-
-    # Check if another class with the same name already exists for this teacher
-    existing_class = Course.get_by_name_teacher(new_name.strip(), course.teacherID)
-    if existing_class and existing_class.id != class_id:
-        return jsonify({"msg": "You already have a class with this name"}), 400
 
     # Update the class name
     course.name = new_name.strip()
