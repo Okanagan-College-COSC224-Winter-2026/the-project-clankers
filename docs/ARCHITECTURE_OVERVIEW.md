@@ -218,7 +218,13 @@ Teacher views:
 │  │  ├── /user  (profile management)      │  │
 │  │  ├── /class (course management)       │  │
 │  │  ├── /assignment (CRUD operations)    │  │
-│  │  └── /admin (user administration)     │  │
+│  │  ├── /admin (user administration)     │  │
+│  │  ├── /enrollments (enrollment flows)  │  │
+│  │  ├── /submissions (file uploads)      │  │
+│  │  ├── /groups (group management)       │  │
+│  │  ├── /rubric (rubric creation)        │  │
+│  │  ├── /review (peer reviews)           │  │
+│  │  └── /gradebook (grades & policies)   │  │
 │  └─────────────────┬──────────────────────┘  │
 │                    │                          │
 │  ┌─────────────────▼──────────────────────┐  │
@@ -232,10 +238,14 @@ Teacher views:
 │  │  Data Access Layer (SQLAlchemy ORM)   │  │
 │  │  ├── User Model                       │  │
 │  │  ├── Course Model                     │  │
-│  │  ├── Assignment Model                 │  │
-│  │  ├── Group Models                     │  │
-│  │  ├── Rubric/Criterion Models          │  │
-│  │  └── Review Model                     │  │
+│  │  ├── Assignment & AssignmentFile      │  │
+│  │  ├── CourseGroup & GroupMembers       │  │
+│  │  ├── Rubric & CriteriaDescription    │  │
+│  │  ├── Review & Criterion              │  │
+│  │  ├── StudentSubmission & Submission   │  │
+│  │  ├── Gradebook & GradeOverride       │  │
+│  │  ├── EnrollmentRequest               │  │
+│  │  └── Notification & UserCourse       │  │
 │  └─────────────────┬──────────────────────┘  │
 └────────────────────┼────────────────────────┘
                      │ SQL Queries
@@ -372,17 +382,25 @@ See [database-schema.md](schema/database-schema.md) for complete details.
 
 ---
 
-## Future Enhancements
+## Current Implementation Status
 
-Current implementation supports core workflows. Planned features:
+The application supports the following core workflows:
 
-- **Advanced Analytics**: Teacher dashboards with visualization
-- **Notification System**: Email alerts for deadlines and reviews
-- **File Uploads**: Support PDF/document submissions
-- **Rubric Templates**: Reusable evaluation criteria
-- **Peer Assignment Algorithms**: Automated fair distribution
-- **Grade Calculation**: Weighted scoring formulas
-- **Mobile Responsive UI**: Improved mobile experience
+- **Authentication & User Management**: Registration, login/logout, password management, profile pictures, role-based access control
+- **Course Management**: Create/archive/hide courses, enrollment requests, roster CSV upload
+- **Assignment Management**: Create/edit/delete assignments, file attachments, due dates
+- **Group Management**: Create groups per course, assign/remove members, view unassigned students
+- **Rubric System**: Create rubrics with multiple criteria and scoring descriptions
+- **Peer Reviews**: Submit reviews, view received/submitted reviews, review targets per assignment
+- **Student Submissions**: File upload/download for assignments
+- **Gradebook**: Grade policies, grade overrides, course total overrides, student grade views
+- **Notification System**: Enrollment request notifications
+
+### Planned Enhancements
+
+- Advanced analytics dashboards with visualization
+- Automated peer review assignment algorithms
+- Mobile responsive UI improvements
 
 See [user_stories.md](user_stories.md) for complete feature roadmap.
 

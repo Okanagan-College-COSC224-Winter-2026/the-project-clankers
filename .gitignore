@@ -18,7 +18,6 @@ lerna-debug.log*
 # Builds and caches
 dist/
 build/
-lib/
 .cache/
 .tmp/
 .temp/
@@ -113,3 +112,5 @@ docker-compose.override.yml
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+/flask_backend/instance/uploads/assignments/submissions
+/flask_backend/instance/uploads/profile_pictures

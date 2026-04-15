@@ -1,0 +1,341 @@
+# Roster Upload Feature - User Guide
+
+## For Teachers
+
+### How to Upload a Student Roster
+
+1. **Navigate to your class** in the application
+2. **Click "Add Students via CSV"** button in the class header
+3. **Select your CSV file** from the file picker
+4. **Wait for upload** to complete
+
+### After Upload Success
+
+You'll see a modal displaying:
+
+- **Summary**: Number of students enrolled and newly created
+- **Temporary Passwords Table**: Shows each new student's credentials
+  - Student ID
+  - Email address  
+  - Temporary password (unique, 10 characters)
+
+### What You Can Do with the Passwords
+
+#### Option 1: Copy All
+- Click **"Copy All"** button
+- Paste into email, LMS, or document
+- Format: `email - Password: temp_password` (one per line)
+
+#### Option 2: Download CSV
+- Click **"Download CSV"** button
+- Saves file: `student-credentials-YYYY-MM-DD.csv`
+- Contains: Student ID, Email, Temporary Password
+- Use for your records or bulk email
+
+#### Option 3: Manual Distribution
+- Copy individual passwords from the table
+- Send to students via your preferred method
+
+### ⚠️ Important Security Notes
+
+1. **Passwords are shown only once** - Save them immediately!
+2. **Students must change password** on first login (enforced by system)
+3. **Keep credentials secure** - Don't share via unsecured channels
+4. **Close modal carefully** - Once closed, passwords cannot be retrieved
+
+### CSV Format Required
+
+Your roster CSV must have exactly these headers:
+
+```csv
+id,name,email
+300111222,Alice Johnson,alice@university.edu
+300111223,Bob Wilson,bob@university.edu
+```
+
+- **id**: Student's institutional ID (unique)
+- **name**: Full name
+- **email**: Email address (must be valid format)
+
+### What Happens During Upload
+
+1. **Existing students** (by ID or email) are enrolled without creating new accounts
+2. **New students** get:
+   - Account created automatically
+   - Unique temporary password generated
+   - Enrolled in your course
+   - `must_change_password` flag set
+3. **Duplicates** are skipped (won't re-enroll)
+
+### Validation Rules
+
+The system enforces strict validation to maintain data integrity:
+
+1. **Unique Student IDs within CSV**: Each student ID in your upload must be unique
+   - ❌ Not allowed: Two rows with the same student ID
+   - ✅ Each student ID appears only once in the CSV
+
+2. **Student ID Cannot Be Reassigned**: Once a student ID is assigned to an email, it cannot be changed
+   - ❌ Not allowed: `300325777,Billy Guy,billyguy@gmail.com` then later `300325778,Billy Guy,billyguy@gmail.com`
+   - ✅ Student ID stays with the same email address permanently
+
+3. **Email Cannot Have Multiple Student IDs**: An email address can only be associated with one student ID
+   - If you try to upload the same email with a different student ID, you'll get a validation error
+   - This prevents accidental overwrites or data conflicts
+
+4. **Student ID Cannot Be Reused**: A student ID assigned to one student cannot be used by another
+   - ❌ Not allowed: `300111111,Alice,alice@example.com` and `300111111,Bob,bob@example.com`
+   - ✅ Each person gets their own unique student ID
+
+---
+
+## For Students
+
+### How to Log In (After Roster Upload)
+
+1. **Receive credentials** from your teacher:
+   - Email address
+   - Temporary password (10-character random code)
+
+2. **Go to the login page**
+
+3. **Enter your credentials**:
+   - Email: `your.email@university.edu`
+   - Password: (temporary password from teacher)
+
+4. **System detects first login** and automatically prompts you to create a new password
+
+5. **Create your new password**:
+   - Enter your temporary password again (for verification)
+   - Choose a new secure password
+   - Confirm your new password
+   - Click "Change Password"
+
+6. **You're all set!** You can now log in with your new password
+
+### First Login Security
+
+- Your temporary password is unique, random, and cryptographically secure
+- The system **requires** you to change your password on first login
+- Your new password should be strong and memorable
+- Never share your password with anyone
+- Keep your credentials secure
+
+---
+
+## Technical Details
+
+### Password Generation
+- **Algorithm**: Python `secrets` module (cryptographically secure)
+- **Length**: 10 characters
+- **Character set**: `a-z`, `A-Z`, `0-9`
+- **Uniqueness**: Practically guaranteed by cryptographic randomness
+
+### Example Generated Passwords
+```
+kJ8mN2pQ4r
+xT7vW9yZ1a
+aB3d5F7g9H
+```
+
+### Security Features
+- ✅ Passwords are hashed before storage (pbkdf2:sha256)
+- ✅ Transmitted over HTTPS only
+- ✅ Never logged or stored in plaintext
+- ✅ Displayed to teacher only once
+- ✅ Must be changed by student after first login
+
+---
+
+## Troubleshooting
+
+### Upload Failed - Invalid CSV Format
+
+**Error Message**: "Invalid CSV format. The first line must contain the headers: id, name, email"
+
+**Cause**: Your CSV file doesn't have the required headers in the first row.
+
+**Solution**:
+1. Open your CSV file in a text editor or spreadsheet program
+2. Make sure the **first line** contains exactly: `id,name,email`
+3. Check for common issues:
+   - ❌ Wrong headers: `student_id,full_name,contact_email` (must be exact matches)
+   - ❌ Partial matches don't work: `contact_email` will NOT match `email`
+   - ❌ Missing header: `id,name` (missing email)
+   - ❌ Extra spaces in data rows are OK, but headers must be exact
+   - ✅ Correct format: `id,name,email` (case-insensitive)
+4. Headers are case-insensitive: `ID,Name,Email` works too
+5. Save and try uploading again
+
+**Example of Correct Format**:
+```csv
+id,name,email
+300111222,Alice Johnson,alice@university.edu
+300111223,Bob Wilson,bob@university.edu
+```
+
+### Upload Failed - Empty File
+
+**Error Message**: "CSV file must contain at least one student record after the header row."
+
+**Solution**: Add at least one student row after the header line.
+
+### Upload Failed - Invalid Email Format
+
+**Error Message**: "Invalid email format: 'notanemail'" (the invalid email is shown in quotes)
+
+**Cause**: One or more email addresses in your CSV don't follow the standard email format (name@domain.extension).
+
+**Solution**:
+1. Check each email address in your CSV file
+2. Ensure all emails have the format: `username@domain.tld`
+3. Common issues:
+   - ❌ Missing @ symbol: `notanemail`
+   - ❌ Missing domain extension: `user@domain`
+   - ❌ Missing domain: `@domain.com`
+   - ✅ Correct format: `user@university.edu`
+4. Fix the invalid email and try uploading again
+
+### Upload Failed - Other Issues
+
+- **Check CSV format**: Must have `id,name,email` headers (exact spelling, all lowercase)
+- **Verify emails**: Must be valid format (name@domain.tld)
+- **Check authorization**: Only course teacher can upload roster
+- **File encoding**: Save CSV as UTF-8 if special characters cause issues
+
+### Student Can't Log In
+- **Verify credentials**: Check for typos in email/password
+- **Check for whitespace**: Remove any extra spaces before or after email (common when copy-pasting)
+- **Case sensitivity**: Passwords are case-sensitive
+- **Account exists**: Student should be in course Members list
+
+### No Passwords Shown
+- **New students only**: Only newly created accounts get temporary passwords
+- **Already exists**: If student was previously registered, no new password generated
+- **Check "Students Already Enrolled" section**: Existing students appear in separate table below
+
+### All Students Show as "Already Enrolled"
+- **This is expected behavior** if you've uploaded the same roster before
+- **No changes made**: Modal will show "No changes made - all students were already enrolled in this course"
+- **View existing students**: You can see the list of already-enrolled students in the table
+- **To add new students**: Add additional rows to your CSV with new student information
+
+### Duplicate Student ID Error
+
+**Error Message**: "Duplicate student IDs found in CSV: 300111111. Each student ID must be unique."
+
+**Cause**: Your CSV file contains the same student ID for multiple students within the same upload.
+
+**Solution**:
+1. Open your CSV file and check the `id` column
+2. Each student ID must be unique - no duplicates allowed
+3. Verify your institutional roster export didn't include duplicate entries
+4. Fix any duplicate IDs and try uploading again
+
+---
+
+**Error Message**: "Student ID 300111111 is already assigned to alice@example.com. Cannot use the same student ID for bob@example.com."
+
+**Cause**: You're trying to upload a student with a student ID that's already assigned to a different student.
+
+**Solution**:
+1. Check if the student already exists in the system with a different email
+2. If this is the same person, use their existing email address
+3. If these are different people, one of the student IDs is incorrect - verify with your institutional records
+4. Student IDs are permanent and cannot be reassigned to different people
+
+---
+
+**Error Message**: "Email billyguy@gmail.com is already registered with student ID 300325777. Cannot assign different student ID 300325778 to the same email."
+
+**Cause**: You're trying to upload a student with an email address that already exists in the system, but with a different student ID than what's currently assigned.
+
+**Solution**:
+1. **Check your CSV file**: Look for rows with the same email address but different student IDs
+2. **Verify the correct student ID**: Contact your institutional records to confirm the correct student ID for this student
+3. **Use the existing student ID**: If the student is already in the system, use their existing student ID in your CSV
+4. **Example of the problem**:
+   ```csv
+   id,name,email
+   300325777,Billy Guy,billyguy@gmail.com  ← First upload (creates account)
+   300325778,Billy Guy,billyguy@gmail.com  ← Second upload (ERROR! Different ID, same email)
+   ```
+5. **Correct approach**: Use the same student ID consistently
+   ```csv
+   id,name,email
+   300325777,Billy Guy,billyguy@gmail.com  ← Always use the same ID for this email
+   ```
+
+**Why This Matters**: Student IDs and emails are both unique identifiers. Once paired, they cannot be changed to prevent data conflicts and maintain academic record integrity.
+
+---
+
+## Demo Workflow
+
+### Teacher Side
+```
+1. Click "Add Students via CSV"
+2. Select file: roster.csv
+3. Modal appears:
+   ✅ 3 students enrolled in course
+   🆕 2 new student accounts created
+   
+   [Copy All] [Download CSV]
+   
+   | Student ID | Email                  | Temporary Password |
+   |------------|------------------------|-------------------|
+   | 300111222  | alice@university.edu   | kJ8mN2pQ4r       |
+   | 300111223  | bob@university.edu     | xT7vW9yZ1a       |
+
+4. Download CSV or copy credentials
+5. Distribute to students via email/LMS
+```
+
+### Student Side
+```
+1. Receive email from teacher:
+   "Your login credentials:
+    Email: alice@university.edu
+    Temporary Password: kJ8mN2pQ4r"
+
+2. Go to login page
+
+3. Enter email and temporary password
+
+4. System automatically detects first login and redirects to password change page
+
+5. Enter temporary password again (current password)
+
+6. Create new password and confirm it
+
+7. Click "Change Password"
+
+8. Successfully logged in with new password ✓
+```
+
+---
+
+## Best Practices
+
+### For Teachers
+- ✅ Upload roster before semester starts
+- ✅ Download CSV backup of credentials
+- ✅ Send credentials via secure channel (LMS, encrypted email)
+- ✅ Remind students to change password after first login
+- ✅ Test with small batch first
+
+### For Administrators
+- ✅ Provide teachers with CSV template
+- ✅ Ensure institutional IDs are unique
+- ✅ Document password policy for students
+- ✅ Consider integrating email delivery (future enhancement)
+
+---
+
+## Future Enhancements
+
+Coming soon:
+- 📧 Automated email delivery to students
+-  Roster update/edit capabilities
+- 🗑️ Bulk student removal
+- 📝 Roster upload history/audit log

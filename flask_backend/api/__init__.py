@@ -1,5 +1,6 @@
 import functools
 import os
+from datetime import timedelta
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -10,9 +11,14 @@ from .controllers import (
     admin_controller,
     auth_controller,
     class_controller,
-    fake_api_controller,
+    enrollment_controller,
+    gradebook_controller,
     user_controller,
     assignment_controller,
+    review_controller,
+    rubric_controller,
+    student_submission_controller,
+    group_controller,
 )
 from .models.db import db, ma
 
@@ -38,6 +44,9 @@ def create_app(test_config=None):
             )
 
     # Default configuration
+    # Default to a longer access token lifetime for local development.
+    jwt_access_expires_minutes = int(os.environ.get("JWT_ACCESS_EXPIRES_MINUTES", "480"))
+
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev"),
         # A local sqlite database stored in the instance folder for development
@@ -46,7 +55,8 @@ def create_app(test_config=None):
             "DATABASE_URL", "sqlite:///" + os.path.join(app.instance_path, "app.sqlite")
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret"),
+        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret-key-that-is-at-least-32-bytes"),
+        JWT_ACCESS_TOKEN_EXPIRES=timedelta(minutes=jwt_access_expires_minutes),
         # JWT Cookie settings - secure defaults for production, permissive for development
         JWT_TOKEN_LOCATION=["cookies"],
         JWT_COOKIE_SECURE=is_production,  # True in production (HTTPS required)
@@ -56,6 +66,12 @@ def create_app(test_config=None):
         ),  # Strict in production for maximum security
         JWT_ACCESS_COOKIE_PATH="/",
         JWT_COOKIE_DOMAIN=os.environ.get("JWT_COOKIE_DOMAIN", None),
+        # File upload configuration
+        MAX_CONTENT_LENGTH=50 * 1024 * 1024,  # 50MB max file size
+        UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "profile_pictures"),
+        ASSIGNMENT_UPLOAD_FOLDER=os.path.join(app.instance_path, "uploads", "assignments"),
+        ALLOWED_EXTENSIONS={"png", "jpg", "jpeg", "gif", "webp"},
+        ALLOWED_DOCUMENT_EXTENSIONS={"pdf", "docx", "txt", "zip"},
     )
 
     if test_config is None:
@@ -68,6 +84,18 @@ def create_app(test_config=None):
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
+    except OSError:
+        pass
+
+    # ensure the upload folder exists
+    try:
+        os.makedirs(app.config["UPLOAD_FOLDER"])
+    except OSError:
+        pass
+
+    # ensure the assignment upload folder exists
+    try:
+        os.makedirs(app.config["ASSIGNMENT_UPLOAD_FOLDER"])
     except OSError:
         pass
 
@@ -98,15 +126,47 @@ def create_app(test_config=None):
     def hello():
         return {"message": "Hello, World!"}
 
+    # Error handlers to ensure JSON responses
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        return jsonify({"msg": "File too large. Maximum size is 5MB."}), 413
+
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        return jsonify({"msg": "Internal server error"}), 500
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({"msg": "Resource not found"}), 404
+
     # Initialize CLI commands
     init_app(app)
+
+    # Set Content Security Policy headers to allow external images
+    @app.after_request
+    def set_csp_header(response):
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "img-src 'self' https:; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "font-src 'self' data:; "
+            "connect-src 'self' https:;"
+        )
+        return response
 
     # Register blueprints
     app.register_blueprint(auth_controller.bp)
     app.register_blueprint(user_controller.bp)
     app.register_blueprint(admin_controller.bp)
     app.register_blueprint(class_controller.bp)
+    app.register_blueprint(enrollment_controller.bp)
+    app.register_blueprint(enrollment_controller.notification_bp)
     app.register_blueprint(assignment_controller.bp)
-    app.register_blueprint(fake_api_controller.fake)
+    app.register_blueprint(review_controller.bp)
+    app.register_blueprint(rubric_controller.bp)
+    app.register_blueprint(student_submission_controller.bp)
+    app.register_blueprint(gradebook_controller.bp)
+    app.register_blueprint(group_controller.bp)
 
     return app

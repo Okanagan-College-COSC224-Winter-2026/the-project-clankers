@@ -20,7 +20,8 @@ dependencies = [
     'flask-marshmallow',
     'marshmallow-sqlalchemy',
     'flask-jwt-extended',
-    'flask-cors'
+    'flask-cors',
+    'python-dotenv',
 ]
 
 

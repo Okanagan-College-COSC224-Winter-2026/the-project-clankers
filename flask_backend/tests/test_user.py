@@ -175,3 +175,108 @@ def test_delete_own_user(test_client):
     # Verify user is deleted by trying to get info
     verify_response = test_client.get("/user/")
     assert verify_response.status_code == 404
+
+
+def test_upload_profile_picture(test_client):
+    """
+    GIVEN a logged-in user
+    WHEN POST /user/profile-picture is called with a valid image file
+    THEN the profile picture should be uploaded and the user updated
+    """
+    # Register and login
+    test_client.post(
+        "/auth/register",
+        data=json.dumps({"name": "testuser", "password": "123456", "email": "test@example.com"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "test@example.com", "password": "123456"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Create a fake image file
+    import io
+    data = {
+        'file': (io.BytesIO(b"fake image data"), 'test.png', 'image/png')
+    }
+
+    # Upload profile picture
+    response = test_client.post(
+        "/user/profile-picture",
+        data=data,
+        content_type='multipart/form-data'
+    )
+
+    assert response.status_code == 200
+    assert response.json["msg"] == "Profile picture uploaded successfully"
+    assert "profile_picture_url" in response.json
+    assert response.json["profile_picture_url"].endswith(".png")
+
+    # Verify the profile was updated
+    profile_response = test_client.get("/user/")
+    assert profile_response.status_code == 200
+    assert profile_response.json["profile_picture_url"] is not None
+
+
+def test_upload_profile_picture_no_file(test_client):
+    """
+    GIVEN a logged-in user
+    WHEN POST /user/profile-picture is called without a file
+    THEN it should return 400
+    """
+    # Register and login
+    test_client.post(
+        "/auth/register",
+        data=json.dumps({"name": "testuser", "password": "123456", "email": "test@example.com"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "test@example.com", "password": "123456"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Upload without file
+    response = test_client.post("/user/profile-picture")
+
+    assert response.status_code == 400
+    assert "No file" in response.json["msg"]
+
+
+def test_upload_profile_picture_invalid_type(test_client):
+    """
+    GIVEN a logged-in user
+    WHEN POST /user/profile-picture is called with an invalid file type
+    THEN it should return 400
+    """
+    # Register and login
+    test_client.post(
+        "/auth/register",
+        data=json.dumps({"name": "testuser", "password": "123456", "email": "test@example.com"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "test@example.com", "password": "123456"}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    # Create a fake text file
+    import io
+    data = {
+        'file': (io.BytesIO(b"not an image"), 'test.txt', 'text/plain')
+    }
+
+    # Upload invalid file
+    response = test_client.post(
+        "/user/profile-picture",
+        data=data,
+        content_type='multipart/form-data'
+    )
+
+    assert response.status_code == 400
+    assert "Invalid file type" in response.json["msg"]

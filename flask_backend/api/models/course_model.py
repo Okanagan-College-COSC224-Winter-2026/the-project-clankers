@@ -15,6 +15,7 @@ class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     teacherID = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=True)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
     # relationships
     teacher = db.relationship("User", back_populates="teaching_courses", foreign_keys=[teacherID])
@@ -35,6 +36,9 @@ class Course(db.Model):
         back_populates="courses",
         lazy="selectin",
         overlaps="user_courses",
+    )
+    groups = db.relationship(
+        "CourseGroup", back_populates="course", cascade="all, delete-orphan", lazy="dynamic"
     )
 
     def __init__(self, teacherID, name):
@@ -63,13 +67,13 @@ class Course(db.Model):
 
     @classmethod
     def get_all_courses(cls):
-        """Get all courses"""
-        return cls.query.all()
+        """Get all non-archived courses"""
+        return cls.query.filter_by(is_archived=False).all()
 
     @classmethod
     def get_courses_by_teacher(cls, teacher_id):
-        """Get all courses taught by a specific teacher"""
-        return cls.query.filter_by(teacherID=teacher_id).all()
+        """Get all non-archived courses taught by a specific teacher"""
+        return cls.query.filter_by(teacherID=teacher_id, is_archived=False).all()
 
     @classmethod
     def get_by_name(cls, name):
@@ -92,7 +96,70 @@ class Course(db.Model):
         """Update course in the database"""
         db.session.commit()
 
+    def archive(self):
+        """Archive course (hide from teacher dashboard without deleting data)"""
+        self.is_archived = True
+        db.session.commit()
+
     def delete(self):
         """Delete course from the database"""
         db.session.delete(self)
         db.session.commit()
+
+    def get_student_count(self):
+        """Get the number of students enrolled in this course"""
+        from .user_course_model import User_Course
+        return User_Course.query.filter_by(courseID=self.id).count()
+
+    def get_next_due_date(self):
+        """Get the earliest upcoming assignment due date for this course"""
+        from datetime import datetime, timezone
+        from sqlalchemy import func
+        from .assignment_model import Assignment
+        
+        # Get the earliest future due date, or latest past if no future dates
+        now = datetime.now(timezone.utc)
+        
+        # Query for next future due date
+        next_future = db.session.query(
+            func.min(Assignment.due_date)
+        ).filter(
+            Assignment.courseID == self.id,
+            Assignment.due_date.isnot(None),
+            Assignment.due_date > now
+        ).scalar()
+        
+        if next_future:
+            return next_future
+        
+        # If no future dates, get the latest past date
+        latest_past = db.session.query(
+            func.max(Assignment.due_date)
+        ).filter(
+            Assignment.courseID == self.id,
+            Assignment.due_date.isnot(None)
+        ).scalar()
+        
+        return latest_past
+
+    def get_pending_reviews_count(self):
+        """Get the count of incomplete peer reviews for this course"""
+        from sqlalchemy import func
+        from .criterion_model import Criterion
+        from .assignment_model import Assignment
+        from .review_model import Review
+        
+        # A review is incomplete if it has criteria with NULL grades
+        # Get all reviews for assignments in this course
+        incomplete_reviews = db.session.query(
+            func.count(db.distinct(Criterion.reviewID))
+        ).join(
+            Review, Criterion.reviewID == Review.id
+        ).join(
+            Assignment, Review.assignmentID == Assignment.id
+        ).filter(
+            Assignment.courseID == self.id,
+            Criterion.grade.is_(None)  # Incomplete: grade not set
+        ).scalar()
+        
+        return incomplete_reviews or 0

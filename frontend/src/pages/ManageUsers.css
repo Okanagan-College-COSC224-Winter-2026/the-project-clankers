@@ -1,0 +1,330 @@
+.ManageUsers {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ManageUsers-Loading {
+  text-align: center;
+  padding: 4rem;
+  font-size: 1.1rem;
+  color: var(--text-secondary, #666);
+}
+
+.ManageUsers-Header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.ManageUsers-Header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--text-primary, #1f2937);
+}
+
+.ManageUsers-Filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  align-items: center;
+}
+
+.ManageUsers-SearchBox {
+  flex: 1;
+  min-width: 200px;
+}
+
+.ManageUsers-RoleFilter {
+  flex: none;
+}
+
+.ManageUsers-Empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-secondary, #6b7280);
+  width: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ManageUsers-Empty p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ManageUsers-List {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* User Card */
+.UserCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--background-primary, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  transition: box-shadow 0.2s;
+}
+
+.UserCard:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.UserCard-Avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--border-color, #e5e7eb);
+}
+
+.UserCard-Info {
+  flex: 1;
+  min-width: 0;
+}
+
+.UserCard-Name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary, #1f2937);
+  margin-bottom: 0.25rem;
+}
+
+.UserCard-Email {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.UserCard-StudentId {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+  margin-top: 0.125rem;
+}
+
+.UserCard-Role {
+  flex-shrink: 0;
+}
+
+.RoleBadge {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.RoleBadge-Admin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.RoleBadge-Teacher {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.RoleBadge-Student {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.UserCard-Actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Modal Styles (for Create User Modal) */
+.Modal-Overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  animation: modalFadeIn 0.2s ease;
+}
+
+.Modal-Card {
+  background: var(--background-primary, #fff);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: modalSlideUp 0.25s ease;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.Modal-Header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.Modal-Header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary, #1f2937);
+}
+
+.Modal-CloseButton {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.Modal-CloseButton:hover {
+  background: var(--background-secondary, #f3f4f6);
+}
+
+.Modal-Body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.Modal-Field {
+  margin-bottom: 1.25rem;
+}
+
+.Modal-Field:last-child {
+  margin-bottom: 0;
+}
+
+.Modal-Field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary, #374151);
+  font-size: 0.875rem;
+}
+
+.Modal-Actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  background: var(--background-secondary, #f9fafb);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ManageUsers {
+    padding: 1rem;
+  }
+
+  .ManageUsers-Header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .ManageUsers-Filters {
+    flex-direction: column;
+  }
+
+  .ManageUsers-SearchBox,
+  .ManageUsers-RoleFilter {
+    max-width: 100%;
+  }
+
+  .UserCard {
+    flex-wrap: wrap;
+    padding: 1rem;
+  }
+
+  .UserCard-Avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .UserCard-Info {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .UserCard-Role {
+    order: 3;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .UserCard-Actions {
+    order: 4;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .UserCard-Actions .Button {
+    flex: 1;
+  }
+
+  .Modal-Card {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .Modal-Header,
+  .Modal-Body,
+  .Modal-Actions {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ManageUsers-Header h1 {
+    font-size: 1.5rem;
+  }
+
+  .UserCard-Name {
+    font-size: 0.9rem;
+  }
+
+  .UserCard-Email {
+    font-size: 0.8rem;
+  }
+}

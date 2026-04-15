@@ -42,7 +42,7 @@ def test_teacher_can_create_assignment(test_client, make_admin):
     assert assignment_response.json["msg"] == "Assignment created"
     assert assignment_response.json["assignment"]["name"] == "Essay 1"
     assert assignment_response.json["assignment"]["rubric_text"] == "Quality of writing"
-    assert assignment_response.json["assignment"]["due_date"] == "2025-12-31T23:59:59"
+    assert assignment_response.json["assignment"]["due_date"] == "2025-12-31T23:59:59+00:00"
 
 
 def test_create_assignment_missing_fields(test_client, make_admin):
@@ -187,7 +187,7 @@ def test_teacher_can_edit_assignment_before_due_date(test_client, make_admin):
                 "courseID": class_id,
                 "name": "Lab Report 1",
                 "rubric": "Completeness",
-                "due_date": datetime.datetime(2025, 12, 31, 23, 59, 59).isoformat(),
+                "due_date": datetime.datetime(2027, 12, 31, 23, 59, 59).isoformat(),
             }
         ),
         headers={"Content-Type": "application/json"},
@@ -200,7 +200,7 @@ def test_teacher_can_edit_assignment_before_due_date(test_client, make_admin):
             {
                 "name": "Updated Lab Report 1",
                 "rubric": "Thoroughness",
-                "due_date": datetime.datetime(2025, 11, 30, 23, 59, 59).isoformat(),
+                "due_date": datetime.datetime(2027, 11, 30, 23, 59, 59).isoformat(),
             }
         ),
         headers={"Content-Type": "application/json"},
@@ -209,13 +209,13 @@ def test_teacher_can_edit_assignment_before_due_date(test_client, make_admin):
     assert edit_response.json["msg"] == "Assignment updated"
     assert edit_response.json["assignment"]["name"] == "Updated Lab Report 1"
     assert edit_response.json["assignment"]["rubric_text"] == "Thoroughness"
-    assert edit_response.json["assignment"]["due_date"] == "2025-11-30T23:59:59"
+    assert edit_response.json["assignment"]["due_date"] == "2027-11-30T23:59:59+00:00"
 
-def test_teacher_cannot_edit_assignment_after_due_date(test_client, make_admin):
+def test_teacher_can_edit_assignment_after_due_date(test_client, make_admin):
     """
     GIVEN a teacher user
     WHEN they try to edit an assignment after its due date
-    THEN the API should return a 400 error
+    THEN the API should allow the edit
     """
     # Use make_admin fixture to create a teacher user
     make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
@@ -257,8 +257,8 @@ def test_teacher_cannot_edit_assignment_after_due_date(test_client, make_admin):
         ),
         headers={"Content-Type": "application/json"},
     )
-    assert edit_response.status_code == 400
-    assert edit_response.json["msg"] == "Assignment cannot be modified after its due date"
+    assert edit_response.status_code == 200
+    assert edit_response.json["assignment"]["name"] == "Updated Painting 1"
 
 def test_non_assigned_teacher_cannot_edit_assignment(test_client, make_admin):
     """
@@ -410,7 +410,7 @@ def test_delete_assignment_after_due_date(test_client, make_admin):
     """
     GIVEN a teacher user
     WHEN they try to delete an assignment after its due date
-    THEN the API should return a 400 error
+    THEN the API should allow the deletion
     """
     # Use make_admin fixture to create a teacher user
     make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
@@ -446,8 +446,8 @@ def test_delete_assignment_after_due_date(test_client, make_admin):
         f"/assignment/delete_assignment/{assignment_id}",
         headers={"Content-Type": "application/json"},
     )
-    assert delete_response.status_code == 400
-    assert delete_response.json["msg"] == "Assignment cannot be deleted after its due date"
+    assert delete_response.status_code == 200
+    assert delete_response.json["msg"] == "Assignment deleted"
 
 def test_non_assigned_teacher_cannot_delete_assignment(test_client, make_admin):
     """
@@ -633,3 +633,624 @@ def test_unauthenticated_user_cannot_get_assignments(test_client):
     # Attempt to retrieve assignments for a class without logging in
     assignments = test_client.get(f"/assignment/1")
     assert assignments.status_code == 401
+
+
+# Test cases for get_assignment_details endpoint
+def test_teacher_can_get_assignment_details(test_client, make_admin):
+    """
+    GIVEN a teacher user
+    WHEN they request detailed information for an assignment they created
+    THEN the API should return assignment details including peer review settings
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    # Create a class and assignment
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Physics 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Lab Report",
+            "rubric": "Scientific method",
+            "due_date": datetime.datetime(2025, 12, 31, 23, 59, 59).isoformat()
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Get assignment details
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    
+    assert details_response.status_code == 200
+    details = details_response.json
+    assert details["id"] == assignment_id
+    assert details["name"] == "Lab Report"
+    assert details["rubric_text"] == "Scientific method"
+    assert "rubrics" in details
+    assert "review_count" in details
+    assert "group_count" in details
+
+
+def test_student_can_get_assignment_details_if_enrolled(test_client, make_admin, enroll_user_in_course):
+    """
+    GIVEN a student user enrolled in a class
+    WHEN they request details for an assignment in that class
+    THEN the API should return assignment details (without teacher-only fields)
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    
+    # Create student user directly
+    from api.models import User
+    from werkzeug.security import generate_password_hash
+    student = User(
+        name="studentuser",
+        email="student@example.com",
+        hash_pass=generate_password_hash("student"),
+        role="student"
+    )
+    from api.models.db import db
+    db.session.add(student)
+    db.session.commit()
+    
+    # Teacher creates class and assignment
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Chemistry 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Enroll student
+    enroll_user_in_course(student.id, class_id)
+    
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Experiment 1",
+            "rubric": "Lab technique"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Student logs in and gets assignment details
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "student@example.com", "password": "student"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    
+    assert details_response.status_code == 200
+    details = details_response.json
+    assert details["id"] == assignment_id
+    assert details["name"] == "Experiment 1"
+    assert "rubrics" in details
+
+
+def test_unenrolled_student_cannot_get_assignment_details(test_client, make_admin):
+    """
+    GIVEN a student user NOT enrolled in a class
+    WHEN they request details for an assignment in that class
+    THEN the API should return a 403 error
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    
+    # Create student user directly
+    from api.models import User
+    from werkzeug.security import generate_password_hash
+    student = User(
+        name="studentuser",
+        email="student@example.com",
+        hash_pass=generate_password_hash("student"),
+        role="student"
+    )
+    from api.models.db import db
+    db.session.add(student)
+    db.session.commit()
+    
+    # Teacher creates class and assignment
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Biology 101"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Essay 1",
+            "rubric": "Analysis"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Student logs in (but is NOT enrolled)
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "student@example.com", "password": "student"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    
+    assert details_response.status_code == 403
+    assert details_response.json["msg"] == "Unauthorized: You do not have access to this assignment"
+
+
+def test_get_nonexistent_assignment_details(test_client, make_admin):
+    """
+    GIVEN a teacher user
+    WHEN they request details for a non-existent assignment
+    THEN the API should return a 404 error
+    """
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    details_response = test_client.get("/assignment/details/999")
+    
+    assert details_response.status_code == 404
+    assert details_response.json["msg"] == "Assignment not found"
+
+
+def test_unauthenticated_user_cannot_get_assignment_details(test_client):
+    """
+    GIVEN an unauthenticated user
+    WHEN they request assignment details
+    THEN the API should return a 401 error
+    """
+    details_response = test_client.get("/assignment/details/1")
+    assert details_response.status_code == 401
+
+
+# ============================================================================
+# US9 & 11 Test Cases: Complete Instructor Workflow & View Peer Review Settings
+# ============================================================================
+
+def test_instructor_full_assignment_management_workflow(test_client, make_admin):
+    """
+    INTEGRATION TEST: Complete instructor workflow
+    GIVEN a teacher user
+    WHEN they create, view, edit, and delete an assignment
+    THEN all operations succeed with proper data persistence
+    """
+    # Setup: Create teacher and login
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    # Create a class
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Integration Test Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Step 1: CREATE assignment
+    create_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Final Project",
+            "rubric": "Creativity and execution",
+            "due_date": datetime.datetime(2026, 6, 30, 23, 59, 59).isoformat()
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assert create_response.status_code == 201
+    assignment_id = create_response.json["assignment"]["id"]
+    
+    # Step 2: VIEW assignment details
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    assert details_response.status_code == 200
+    details = details_response.json
+    assert details["name"] == "Final Project"
+    assert details["rubric_text"] == "Creativity and execution"
+    assert details["due_date"] == "2026-06-30T23:59:59+00:00"
+    assert "rubrics" in details
+    assert "review_count" in details
+    assert "group_count" in details
+    
+    # Step 3: EDIT assignment
+    edit_response = test_client.patch(
+        f"/assignment/edit_assignment/{assignment_id}",
+        data=json.dumps({
+            "name": "Final Project (Updated)",
+            "rubric": "Creativity, execution, and presentation",
+            "due_date": datetime.datetime(2026, 7, 15, 23, 59, 59).isoformat()
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assert edit_response.status_code == 200
+    assert edit_response.json["assignment"]["name"] == "Final Project (Updated)"
+    
+    # Step 4: VERIFY changes persisted
+    verify_response = test_client.get(f"/assignment/details/{assignment_id}")
+    assert verify_response.status_code == 200
+    updated_details = verify_response.json
+    assert updated_details["name"] == "Final Project (Updated)"
+    assert updated_details["rubric_text"] == "Creativity, execution, and presentation"
+    assert updated_details["due_date"] == "2026-07-15T23:59:59+00:00"
+    
+    # Step 5: DELETE assignment
+    delete_response = test_client.delete(f"/assignment/delete_assignment/{assignment_id}")
+    assert delete_response.status_code == 200
+    assert delete_response.json["msg"] == "Assignment deleted"
+    
+    # Step 6: VERIFY assignment no longer exists
+    final_check = test_client.get(f"/assignment/details/{assignment_id}")
+    assert final_check.status_code == 404
+
+
+def test_assignment_details_includes_rubrics_for_peer_review(test_client, make_admin):
+    """
+    USER STORY AC #2: View peer review settings
+    GIVEN a teacher who created an assignment with rubrics
+    WHEN they view assignment details
+    THEN peer review settings (rubrics) are included
+    """
+    # Setup
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Test Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Create assignment
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Peer Review Assignment",
+            "rubric": "Peer evaluation criteria"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Create rubrics for this assignment
+    from api.models import Rubric
+    from api.models.db import db
+    rubric1 = Rubric(assignmentID=assignment_id, canComment=True)
+    rubric2 = Rubric(assignmentID=assignment_id, canComment=False)
+    db.session.add(rubric1)
+    db.session.add(rubric2)
+    db.session.commit()
+    
+    # Get assignment details
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    assert details_response.status_code == 200
+    
+    details = details_response.json
+    assert "rubrics" in details
+    assert len(details["rubrics"]) == 2
+    
+    # Verify rubric data
+    rubrics = details["rubrics"]
+    assert any(r["canComment"] == True for r in rubrics)
+    assert any(r["canComment"] == False for r in rubrics)
+
+
+def test_edit_assignment_partial_update(test_client, make_admin):
+    """
+    USER STORY AC #3: Edit assignment
+    GIVEN a teacher wants to update only specific fields
+    WHEN they edit an assignment with partial data
+    THEN only specified fields are updated
+    """
+    # Setup
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Test Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Create assignment
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Original Name",
+            "rubric": "Original Rubric",
+            "due_date": datetime.datetime(2026, 12, 31, 23, 59, 59).isoformat()
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Edit only the name
+    edit_response = test_client.patch(
+        f"/assignment/edit_assignment/{assignment_id}",
+        data=json.dumps({"name": "Updated Name Only"}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert edit_response.status_code == 200
+    
+    # Verify only name changed
+    details = test_client.get(f"/assignment/details/{assignment_id}").json
+    assert details["name"] == "Updated Name Only"
+    assert details["rubric_text"] == "Original Rubric"  # Unchanged
+    assert details["due_date"] == "2026-12-31T23:59:59+00:00"  # Unchanged
+
+
+def test_assignment_list_contains_all_assignments(test_client, make_admin):
+    """
+    USER STORY AC #1: View all assignments for a class
+    GIVEN a class with multiple assignments
+    WHEN teacher requests assignment list
+    THEN all assignments are returned
+    """
+    # Setup
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Multi-Assignment Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Create multiple assignments
+    assignment_names = ["Assignment 1", "Assignment 2", "Assignment 3"]
+    for name in assignment_names:
+        test_client.post(
+            "/assignment/create_assignment",
+            data=json.dumps({
+                "courseID": class_id,
+                "name": name,
+                "rubric": f"Rubric for {name}"
+            }),
+            headers={"Content-Type": "application/json"},
+        )
+    
+    # Get all assignments
+    list_response = test_client.get(f"/assignment/{class_id}")
+    assert list_response.status_code == 200
+    
+    assignments = list_response.json
+    assert len(assignments) == 3
+    
+    # Verify all assignments are present
+    returned_names = [a["name"] for a in assignments]
+    for name in assignment_names:
+        assert name in returned_names
+
+
+def test_assignment_statistics_for_teacher(test_client, make_admin):
+    """
+    USER STORY AC #2: View assignment details with statistics
+    GIVEN a teacher viewing assignment details
+    WHEN the assignment has reviews and groups
+    THEN statistics (review_count, group_count) are included
+    """
+    # Setup
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Stats Test Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Create assignment
+    assignment_response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Stats Assignment",
+            "rubric": "Test rubric"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment_id = assignment_response.json["assignment"]["id"]
+    
+    # Create some test data (groups and reviews)
+    from api.models import CourseGroup, Review, User
+    from werkzeug.security import generate_password_hash
+    from api.models.db import db
+    
+    # Create students
+    student1 = User(name="Student 1", email="student1@test.com", hash_pass=generate_password_hash("pass"), role="student")
+    student2 = User(name="Student 2", email="student2@test.com", hash_pass=generate_password_hash("pass"), role="student")
+    db.session.add(student1)
+    db.session.add(student2)
+    db.session.commit()
+    
+    # Create groups
+    group1 = CourseGroup(courseID=class_id, name="Group 1")
+    group2 = CourseGroup(courseID=class_id, name="Group 2")
+    db.session.add(group1)
+    db.session.add(group2)
+    db.session.commit()
+    
+    # Create reviews
+    review1 = Review(assignmentID=assignment_id, reviewerID=student1.id, revieweeID=student2.id)
+    review2 = Review(assignmentID=assignment_id, reviewerID=student2.id, revieweeID=student1.id)
+    db.session.add(review1)
+    db.session.add(review2)
+    db.session.commit()
+    
+    # Get assignment details
+    details_response = test_client.get(f"/assignment/details/{assignment_id}")
+    assert details_response.status_code == 200
+    
+    details = details_response.json
+    assert "review_count" in details
+    assert "group_count" in details
+    assert details["review_count"] == 2
+    assert details["group_count"] == 2
+
+
+def test_delete_assignment_removes_from_list(test_client, make_admin):
+    """
+    USER STORY AC #3: Delete assignment
+    GIVEN a teacher deletes an assignment
+    WHEN they view the assignment list
+    THEN the deleted assignment no longer appears
+    """
+    # Setup
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    class_response = test_client.post(
+        "/class/create_class",
+        data=json.dumps({"name": "Delete Test Class"}),
+        headers={"Content-Type": "application/json"},
+    )
+    class_id = class_response.json["class"]["id"]
+    
+    # Create two assignments
+    assignment1 = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Keep This",
+            "rubric": "Keep"
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    assignment2 = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({
+            "courseID": class_id,
+            "name": "Delete This",
+            "rubric": "Delete",
+            "due_date": datetime.datetime(2026, 12, 31, 23, 59, 59).isoformat()
+        }),
+        headers={"Content-Type": "application/json"},
+    )
+    assignment2_id = assignment2.json["assignment"]["id"]
+    
+    # Verify both exist
+    list_before = test_client.get(f"/assignment/{class_id}").json
+    assert len(list_before) == 2
+    
+    # Delete one assignment
+    delete_response = test_client.delete(f"/assignment/delete_assignment/{assignment2_id}")
+    assert delete_response.status_code == 200
+    
+    # Verify only one remains
+    list_after = test_client.get(f"/assignment/{class_id}").json
+    assert len(list_after) == 1
+    assert list_after[0]["name"] == "Keep This"
+
+
+def test_error_messages_are_clear_and_specific(test_client, make_admin):
+    """
+    USER STORY AC #4: Clear success/error messages
+    GIVEN various error conditions
+    WHEN operations fail
+    THEN specific, helpful error messages are returned
+    """
+    # Setup
+    make_admin(email="teacher@example.com", password="teacher", name="teacheruser")
+    test_client.post(
+        "/auth/login",
+        data=json.dumps({"email": "teacher@example.com", "password": "teacher"}),
+        headers={"Content-Type": "application/json"},
+    )
+    
+    # Test 1: Missing course ID
+    response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({"name": "Test", "rubric": "Test"}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 400
+    assert "Course ID is required" in response.json["msg"]
+    
+    # Test 2: Missing assignment name
+    response = test_client.post(
+        "/assignment/create_assignment",
+        data=json.dumps({"courseID": 1, "rubric": "Test"}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 400
+    assert "Assignment name is required" in response.json["msg"]
+    
+    # Test 3: Non-existent assignment
+    response = test_client.get("/assignment/details/99999")
+    assert response.status_code == 404
+    assert "Assignment not found" in response.json["msg"]
+    
+    # Test 4: Edit non-existent assignment
+    response = test_client.patch(
+        "/assignment/edit_assignment/99999",
+        data=json.dumps({"name": "Test"}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 404
+    assert "Assignment not found" in response.json["msg"]
+    
+    # Test 5: Delete non-existent assignment
+    response = test_client.delete("/assignment/delete_assignment/99999")
+    assert response.status_code == 404
+    assert "Assignment not found" in response.json["msg"]

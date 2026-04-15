@@ -9,6 +9,8 @@ interface User {
   name: string;
   email: string;
   role: 'student' | 'teacher' | 'admin';
+  student_id?: string;
+  profile_picture_url?: string | null;
 }
 
 interface StudentGroups {
@@ -34,10 +36,14 @@ interface GroupTableValue{
 }
 
 interface Criterion {
+  id?: number;
   rubricID: number;
   question: string;
   scoreMax: number;
   hasScore: boolean;
+  description?: string;
+  criteriaType?: 'internal' | 'external' | 'both';
+  canComment?: boolean;
 }
 
 interface Assignment {
@@ -45,7 +51,13 @@ interface Assignment {
   name: string;
   courseID: number;
   rubric?: string;
+  start_date?: string;
   due_date?: string;
+  peer_review_start_date?: string;
+  peer_review_due_date?: string;
+  submission_type?: 'individual' | 'group';
+  internal_review?: boolean;
+  external_review?: boolean;
 }
 
 interface CourseWithAssignments extends Course {

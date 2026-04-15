@@ -2,67 +2,78 @@
 
 <!-- markdownlint-disable MD024 -->
 
-## US1 – Student Peer Review Access — **Backlog**
+## US1 – Automated Peer Evaluation — **Backlog**
 
-**As a student, I want to be able to access a set number of assignments assigned by my instructor, so that I can provide feedback on my classmates’ work.**
-
-### Assumptions and Details
-
-- User is signed in with valid credentials  
-- User is enrolled in a class that uses the peer review system  
-- Instructor has created the assignment  
-- Instructor has assigned peer reviews to this student  
-- Review window is currently open  
-
-### Capabilities and Acceptance Criteria
-
-- [ ] Student can view a list of peer assignments to review  
-- [ ] Number of visible assignments matches what was assigned  
-- [ ] Student cannot open unassigned submissions  
-- [ ] Opening an assigned submission shows the content and review interface  
-- [ ] Submitted feedback marks that review as complete  
-- [ ] If the review period has ended, the student cannot submit feedback and is notified  
-
----
-
-## US2 – Group Contribution Evaluation — **Backlog**
-
-**As a student, I want to evaluate my peers' contributions in group projects, so that individual efforts are recognized fairly.**
+**As a student, I want peer evaluations to be automatically assigned to me for all students in my group (including myself), so that I can evaluate every member's contribution without the instructor manually assigning reviews.**
 
 ### Assumptions and Details
 
 - User is signed in with valid credentials  
-- User is part of a group assignment  
-- Instructor has enabled peer evaluation for this project  
-- Review period is active  
+- User is enrolled in a class and assigned to a group  
+- Instructor has created the assignment and enabled peer evaluation  
+- Peer evaluations are automatically generated for every student in the group (including self-evaluation)  
+- Instructor has set a peer evaluation deadline on the assignment  
+- The evaluation scope (own group vs. other groups) is configured by the instructor (see US2)  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Student can see a list of group members  
-- [ ] Student can submit ratings and comments for each group member  
-- [ ] Submitted feedback is stored and visible to the instructor  
-- [ ] Once submitted, an evaluation cannot be edited  
-- [ ] If the review period is closed, submission is blocked  
+- [ ] When an instructor enables peer evaluation on an assignment, reviews are automatically created for every student in the relevant group(s)  
+- [ ] Each student is assigned to evaluate **all** group members, including themselves (self-evaluation)  
+- [ ] Student can view a list of peers they need to evaluate for each assignment  
+- [ ] Opening a peer evaluation shows the peer's submission and the rubric to score against  
+- [ ] Submitting a completed evaluation marks that review as done and triggers a grade update (see US20)  
+- [ ] Students **cannot assign or modify grades directly** — only the instructor can adjust final grades (see US5)  
+- [ ] The peer evaluation deadline is clearly displayed on the assignment  
+- [ ] If the peer evaluation deadline has passed, the student cannot submit and sees a clear notification  
+- [ ] A submission confirmation popup appears before the evaluation is finalized  
 
 ---
 
-## US3 – Anonymous Peer Review Process — **Backlog**
+## US2 – Group Contribution Evaluation (Own Group or Other Groups) — **Backlog**
 
-**As an instructor, I want the peer review process to be fair and anonymous, so that the system promotes collaboration, accountability, and skill development among students.**
+**As a student, I want to evaluate my peers' contributions in group projects — either within my own group or across other groups as configured by the instructor — so that individual efforts are recognized fairly.**
+
+### Assumptions and Details
+
+- User is signed in with valid credentials  
+- User is assigned to a course-level group (see US28)  
+- Instructor has enabled peer evaluation and configured the evaluation scope:  
+  - **Intra-group**: students evaluate members of their own group (including themselves)  
+  - **Inter-group**: students evaluate members of other groups  
+- Review period is active (before the peer evaluation deadline)  
+
+### Capabilities and Acceptance Criteria
+
+- [ ] Student can see a list of peers they must evaluate, based on the instructor's scope setting  
+- [ ] If scope is intra-group, the list contains only the student's own group members (including self)  
+- [ ] If scope is inter-group, the list contains members of other groups  
+- [ ] Student can submit ratings via rubric and optional comments for each peer  
+- [ ] Submitted evaluations are stored and visible to the instructor  
+- [ ] Students **do not assign final grades** — evaluations contribute to a computed score but the instructor has full control (see US5)  
+- [ ] Once submitted, an evaluation cannot be edited by the student  
+- [ ] If the peer evaluation deadline has passed, submission is blocked with a clear message  
+
+---
+
+## US3 – Anonymous / Non-Anonymous Peer Review Option — **Backlog**
+
+**As an instructor, I want to choose whether the peer review process is anonymous or non-anonymous per assignment, so that I can promote honest feedback when needed or open collaboration when appropriate.**
 
 ### Assumptions and Details
 
 - Instructor is signed in  
 - Instructor has at least one class with enrolled students  
-- Peer reviews have been generated and assigned  
-- System supports anonymous display of reviewer and reviewee  
+- Peer reviews have been generated and assigned (see US1)  
+- Assignment has an "anonymous review" toggle in its settings (see US9)  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Students cannot see the names of their reviewers  
-- [ ] Students cannot see the names of the students they reviewed after submission  
-- [ ] Instructor can see who reviewed whom  
+- [ ] Instructor can enable or disable anonymous reviews per assignment via assignment settings  
+- [ ] When anonymous is **enabled**: students cannot see the names of their reviewers, and reviewer identities are hidden in received feedback  
+- [ ] When anonymous is **disabled**: students can see who reviewed them and who they reviewed  
+- [ ] Regardless of the setting, the instructor can always see who reviewed whom  
 - [ ] Instructor can view completion status for all assigned peer reviews  
+- [ ] The anonymity setting is displayed clearly on the assignment so students know before submitting  
 
 ---
 
@@ -84,39 +95,64 @@
 
 ---
 
-## US5 – Student Progress Dashboard — **Backlog**
+## US5 – Grade Book and Student Progress Dashboard — **Backlog**
 
-**As an instructor, I want a comprehensive view of student progress, so that I can effectively assess both individual and group performances.**
+**As an instructor, I want a comprehensive grade book and progress view, so that I can monitor submissions, peer evaluations, and grades — and override grades when needed.**
 
 ### Assumptions and Details
 
 - Instructor is signed in  
 - Students have submitted assignments and/or peer reviews  
 - There is at least one active assignment in the class  
+- Students do not assign final grades — the system computes scores from peer evaluations but the instructor has full authority to adjust  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Instructor can see per-student submission status  
+- [ ] Instructor can see per-student submission status (submitted / submitted late / no submission)  
 - [ ] Instructor can see per-assignment submission status  
-- [ ] Instructor can see per-student review completion status  
+- [ ] Instructor can see per-student peer evaluation completion status  
+- [ ] Instructor can view a grade book showing computed grades per student per assignment  
+- [ ] Instructor can **manually update/override** any student's grade  
+- [ ] Student names in the grade book are clickable hyperlinks  
+- [ ] Clicking a student name shows that student's submission and all peer evaluations they received  
+- [ ] Instructor can apply safeguards or penalties (e.g., late penalty, incomplete evaluation penalty)  
+- [ ] Grade updates are reflected in real time as new evaluations are submitted  
 
 ---
 
-## US6 – System Maintenance and Management — **Complete**
+## US6 – Admin User Management — **In-Progress**
 
-**As an administrator, I want the ability to maintain and manage the system, so that I can ensure it remains stable and updated.**
+**As an administrator, I want a complete Admin User Management feature so I can manage accounts and roles from both the backend API and a frontend dashboard.**
 
 ### Assumptions and Details
 
-- Admin is signed in with admin privileges  
-- System is running  
+- Admin is signed in with admin privileges
+- Role-based access control enforces admin-only actions
+- Backend CRUD endpoints exist and are documented (`/admin/users`, `/admin/users/create`, `/admin/users/<id>/role`, `/admin/users/<id>`)  
+- Frontend will provide an Admin Dashboard UI that uses the backend endpoints and enforces client-side safeguards (no self-delete/demote, confirmations)
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Admin can view all user accounts  
-- [ ] Admin can view system logs  
-- [ ] Admin-only options are not visible to non-admin users  
-- [ ] Admin has access to project files  
+Backend (already implemented)
+- [x] List all user accounts (`GET /admin/users`)
+- [x] Create a new user with any role (`POST /admin/users/create`)
+- [x] Update a user's role (`PUT /admin/users/<id>/role`)
+- [x] Delete a user account (`DELETE /admin/users/<id>`)
+- [x] Prevent admins from deleting or demoting themselves
+- [x] Duplicate-email validation on user creation
+- [x] Admin-only endpoints protected by `@jwt_admin_required`
+
+Frontend (dashboard tasks)
+- [ ] Admin dashboard page listing users (paginated/filterable) with role and status columns
+- [ ] Admin can create users of any role from the dashboard (form validation + server errors surfaced)
+- [ ] Admin can edit a user's name, email, or role inline or via edit form
+- [ ] Admin can deactivate or delete a user from the dashboard, with confirmation and safeguard against self-deletion
+- [ ] Search and filter users by name, email, or role
+- [ ] Admin receives clear success/error feedback on all actions (toasts/status messages)
+
+Notes
+- Keep backend tests as the source of truth; frontend features should call the implemented APIs and reuse existing response shapes.
+- If desired, split frontend tasks into smaller stories (create/edit/delete/search) for tracking in the board.
 
 ---
 
@@ -139,40 +175,70 @@
 
 ---
 
-## US8 – Cross-Platform Accessibility — **In-Progress**
+## US8 – UI Polish, Validation & Cross-Platform Accessibility — **In-Progress**
 
-**As a user, I want to be able to access the system on both desktop and mobile, so that I can use whatever device I have available to me.**
+**As a user, I want a polished, responsive interface with proper input validation so that I can use the application reliably on any device.**
 
 ### Assumptions and Details
 
-- User has valid credentials  
-- User has internet access  
-- Application has a responsive UI  
+- User has valid credentials and internet access  
+- Application uses responsive CSS (flexbox/grid, media queries)  
+- Form validation occurs on both client and server side  
+- Target devices: desktop (1024px+), tablet (768px–1023px), mobile (< 768px)  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] UI renders correctly on common desktop resolutions  
-- [ ] UI renders correctly on common mobile resolutions  
-- [ ] Core actions work on both form factors  
+**Responsiveness & Cross-Platform**
+- [ ] UI renders correctly on common desktop resolutions (1080p, 1440p)  
+- [ ] UI renders correctly on tablet resolutions (iPad, Surface)  
+- [ ] UI renders correctly on common mobile resolutions (iPhone, Android)  
+- [ ] Navigation adapts for smaller screens (e.g., hamburger menu or collapsible sidebar)  
+- [ ] Tables and data-heavy views are scrollable or restructured on mobile  
+- [ ] Core actions (login, view courses, submit reviews) work on all form factors  
+
+**UI Consistency & Polish**
+- [ ] Consistent color scheme, typography, and spacing across all pages  
+- [ ] Buttons, inputs, and interactive elements have clear hover/focus/active states  
+- [ ] Loading states shown during async operations (spinners, skeleton screens)  
+- [ ] Toast notifications for success/error feedback on all user actions  
+- [ ] Modals and dialogs are accessible and dismissible  
+
+**Form Validation**
+- [ ] All required fields show clear validation errors on empty or invalid input  
+- [ ] Email fields validate format before submission  
+- [ ] Password fields enforce minimum strength requirements with visual feedback  
+- [ ] Duplicate-entry errors (e.g., duplicate email, duplicate group name) display user-friendly messages  
+- [ ] Form submissions are disabled while a request is in-flight (prevent double-submit)  
 
 ---
 
-## US9 – Assignment Management Interface — **In-Progress**
+## US9 – Assignment Management Interface — **Complete**     
 
-**As an instructor, I want a simple interface for managing assignments and reviews, so that I can use the system easily and save time.**
+**As an instructor, I want a simple tabbed interface for managing assignments, their settings, and student submissions, so that I can configure peer evaluations and monitor progress from one place.**
 
 ### Assumptions and Details
 
 - Instructor is signed in  
 - Instructor already has at least one class  
 - There are assignments to manage  
+- Tab layout: Home | Members | Groups | Rubric | Submissions | Settings (teacher view)  
+- Student view: Home | Members | Submission  
+- Settings tab contains peer evaluation configuration (anonymity, scope, deadline) per US29
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Instructor can view all assignments for a class in one place  
-- [ ] Instructor can open an assignment and view its peer review settings  
-- [ ] Instructor can edit or delete an assignment from the same interface  
-- [ ] Actions provide clear success or error messages  
+- [x] Assignment page uses a tabbed layout for organizing content  
+- [x] Instructor can view attached files and upload new files (PDF, DOCX, TXT, ZIP) with drag-and-drop  
+- [x] Instructor can view rubric on the Home tab  
+- [x] Instructor can view start date and due date  
+- [x] Submissions tab shows all student submissions with status icons (submitted / late / missing)  
+- [x] Instructor can download submitted files  
+- [x] Late submissions are detected by comparing to due date  
+- [x] Settings tab allows instructor to edit assignment name, rubric text, start date, and due date  
+- [x] Settings tab allows instructor to configure peer evaluation options (see US29)  
+- [x] Instructor can delete the assignment with a confirmation dialog  
+- [x] Edit/delete is blocked after the due date (`can_modify()` check)  
+- [x] Success/error feedback via StatusMessage (toast) on most actions  
 
 ---
 
@@ -193,7 +259,7 @@
 
 ---
 
-## US11 – Rubric Creation — **In-Progress**
+## US11 – Rubric Creation — **Complete**
 
 **As an instructor, I want to be able to create a rubric, so that students have a set of criteria to mark against.**
 
@@ -246,20 +312,28 @@
 
 ---
 
-## US14 – Teacher Dashboard Visibility — **In-Progress**
+## US14 – Teacher Dashboard — **In-Progress**
 
-**As a teacher, I want to see my dashboard so that I can view my teaching-related items.**
+**As a teacher, I want a dashboard that shows all my courses with key metrics, quick actions, and easy navigation, so that I can efficiently manage my classes and monitor student progress at a glance.**
 
 ### Assumptions and Details
 
-- A dashboard exists for teachers  
-- Teacher has at least one teaching-related item  
+- Teacher is signed in with teacher privileges  
+- Teacher may have zero or more courses  
+- Dashboard is the landing page after login (`/home`)  
+- Course data is fetched from `/class/classes` and `/assignment/{classId}`  
+- Dashboard should surface the most actionable information without requiring the teacher to drill into each course  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Given the teacher has accessed the system, when they open the dashboard, the expected widgets appear  
-- [ ] Dashboard reflects real-time data for the teacher’s classes and assignments  
-- [ ] Access to the dashboard respects teacher permissions  
+**Course Cards & Display**
+- [x] Dashboard displays a grid of course cards for all courses owned by the teacher  
+- [x] Each course card shows the course name and assignment count  
+- [x] Clicking a course card navigates to that course's detail page (`/classes/{id}/home`)  
+- [ ] Each course card shows the number of enrolled students  
+- [ ] Each course card shows upcoming due dates or next deadline  
+- [ ] Each course card shows pending peer evaluation count (reviews not yet completed)  
+- [ ] Course cards have distinct visuals or color coding (not all identical placeholder images)
 
 ---
 
@@ -282,18 +356,24 @@
 
 ## US16 – Student Login After Roster Upload — **Complete**
 
-**As a student, I want to log in after my teacher uploads the roster so that I can access the system.**
+## Story
+As a student, I want to log in after my teacher uploads the roster so that I can access the system.
 
-### Assumptions and Details
+## Assumptions and Details
+* The student is included on a roster uploaded by the teacher
+* Student receives temporary password from teacher
+* Logging in is possible with institutional email and temporary password
 
-- Student is included on a roster  
-- Logging in is possible  
+## Acceptance Criteria
+- [x] Given the student is on the roster uploaded by the teacher
+- [x] When the student logs in with their institutional email and temporary password
+- [x] Then the student gains access to the system
+- [x] Student is required to change password on first login
+- [x] Student receives appropriate error message if login fails
+- [x] Student is directed to their dashboard upon successful login
+- [x] Students not on roster cannot log in with roster credentials
 
-### Capabilities and Acceptance Criteria
-
-- [ ] Given the student is on the roster, when they log in, the system authenticates them successfully  
-- [ ] Student gains access to the courses tied to that roster  
-- [ ] Student receives guidance if they are missing from the roster  
+**Implementation:** See [US16_IMPLEMENTATION.md](User_story_implementations/US16_IMPLEMENTATION.md)
 
 ---
 
@@ -316,22 +396,47 @@
 
 ## US18 – Student Registration (Roster-Matched) — **Backlog**
 
-**As a student, I want to register if my email is already part of the course roster so that I can join my course.**
+**As a student, I want to register with my email and be automatically enrolled in any courses where my teacher has already added me to the roster, so that I don't have to manually find and join my courses.**
 
 ### Assumptions and Details
 
-- Student’s email appears in the roster  
-- Registration is possible  
+- Teacher has previously uploaded a CSV roster containing the student's email (see US16)  
+- Roster upload currently creates a student account with a temporary password and `must_change_password = True`  
+- If a student self-registers with an email that already exists (from roster upload), registration currently **fails** with "User already registered"  
+- The system needs to handle two scenarios:  
+  1. **Roster uploaded first**: Student's account already exists — registration should recognize this and let them set their own password  
+  2. **Student registers first**: Account exists but has no enrollment — when the teacher later uploads the roster, the existing account should be enrolled (this path already works)  
+- Enrollment is tracked via the `User_Course` join table  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Given the student’s email is on the roster, when they register, the system links them to the course automatically  
-- [ ] Student receives confirmation of successful registration  
-- [ ] Duplicate registrations are prevented  
+**Registration with Existing Roster Account**
+- [ ] If a student registers with an email that already exists from a roster upload, the system updates the existing account's password instead of rejecting the registration  
+- [ ] After successful registration, `must_change_password` is set to `False` (student chose their own password)  
+- [ ] Student is automatically enrolled in all courses where their email appears on a roster  
+- [ ] Student receives confirmation of registration and is shown which courses they were enrolled in  
+
+**Registration Without Existing Roster Entry**
+- [ ] If the student's email is not on any roster, standard registration proceeds normally (account created, no course enrollment)  
+- [ ] Student can still be enrolled later when a teacher uploads a roster containing their email  
+
+**Duplicate & Edge Case Handling**
+- [ ] Duplicate registrations are prevented — a student cannot register twice with the same email  
+- [ ] If the student already has an active account (not from roster), registration is rejected with a clear message  
+- [ ] Email matching is case-insensitive (e.g., `Alice@school.edu` matches `alice@school.edu` on the roster)  
+
+**Frontend**
+- [ ] Registration form shows a success message indicating auto-enrollment when courses are matched  
+- [ ] If no courses are matched, the success message simply confirms account creation  
+
+**Backend**
+- [ ] `/auth/register` checks for existing roster-created accounts (where `must_change_password = True`) and updates rather than rejects  
+- [ ] `/auth/register` queries `User_Course` or a roster lookup to determine auto-enrollment  
+- [ ] Response includes list of enrolled course names (if any)  
 
 ---
 
-## US19 – Student Access Registered Courses — **In-Progress**
+## US19 – Student Access Registered Courses — **Complete**
 
 **As a student, I want to view courses I am registered for so that I can access course content.**
 
@@ -349,17 +454,20 @@
 
 ## US20 – Student Course Grade on Course Card — **Backlog**
 
-**As a student, I want to see my total grade on each course card so that I know how I am performing.**
+**As a student, I want to see my total grade on each course card — updated automatically as each peer evaluation is completed — so that I always know how I am performing.**
 
 ### Assumptions and Details
 
 - Student has a total grade for the course  
+- Grades are computed from peer evaluation scores  
+- Each completed peer evaluation triggers a grade recalculation for the reviewee  
 
 ### Capabilities and Acceptance Criteria
 
 - [ ] Given the student has a total grade, the course card displays it prominently  
-- [ ] Grade data updates as new scores are recorded  
-- [ ] Course cards indicate when grade data is unavailable  
+- [ ] Grade automatically updates each time a peer evaluation is submitted for the student  
+- [ ] Course cards indicate when grade data is unavailable or pending evaluations  
+- [ ] Grade reflects any instructor overrides applied via the grade book (see US5)  
 
 ---
 
@@ -381,35 +489,47 @@
 
 ## US22 – Student View Team Submissions — **Backlog**
 
-**As a student, I want to see the submitted assignments from my team members so that I can review their work.**
+**As a student, I want to see the submitted assignments from my team members — with clear submission status — so that I can review their work and know who has submitted.**
 
 ### Assumptions and Details
 
-- Student has team members  
-- Team members have submitted assignments  
+- Student has team members (assigned via course-level groups, see US28)  
+- Team members have assignments to submit  
 
 ### Capabilities and Acceptance Criteria
 
 - [ ] Given submitted assignments from team members exist, the student can view them in a single place  
-- [ ] Access is limited to the student’s own team  
-- [ ] Each submission shows status, timestamp, and attachments  
+- [ ] Access is limited to the student's own team  
+- [ ] Each submission shows a clear status: **Submitted**, **Submitted Late**, or **No Submission**  
+- [ ] Submissions display timestamp and attached files  
+- [ ] Student can click a team member's name to view their submission details  
 
 ---
 
-## US23 – Peer Review Team Members — **Backlog**
+## US23 – Peer Review Scope Configuration (Team Members or All Groups) — **Backlog**
 
-**As a student, I want to peer review my team members privately so that I can evaluate their contributions.**
+**As an instructor, I want to configure peer review assignments to allow students to review either their own team members only or all groups in the class, so that I can control the scope of peer evaluations based on the assignment type.**
 
 ### Assumptions and Details
 
-- Student has team members  
-- Peer reviews are allowed  
+- Instructor is signed in with valid credentials  
+- Instructor has created an assignment with peer review enabled  
+- Students are organized into groups within the class  
+- The review scope can be toggled between two modes:
+  - **Team Members Only**: Students review only members of their own group
+  - **All Groups**: Students review members across all groups in the class
+- Review assignments are automatically generated based on the selected scope
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Given the student has team members, they can submit a private review for each member  
-- [ ] Submitted reviews remain hidden from other students  
-- [ ] Instructor can monitor completion of the peer reviews  
+- [ ] Instructor can toggle peer review scope when creating or editing an assignment
+- [ ] When "Team Members Only" is selected, each student is assigned to review only their own group members (including self-evaluation)
+- [ ] When "All Groups" is selected, each student is assigned to review members from all groups in the class
+- [ ] The selected scope is clearly displayed on the assignment details
+- [ ] Students see only the peers they are assigned to review based on the configured scope
+- [ ] Submitted reviews remain private and hidden from other students
+- [ ] Instructor can monitor completion of peer reviews for all students
+- [ ] Changing the scope after reviews have been started warns the instructor and requires confirmation  
 
 ---
 
@@ -450,22 +570,92 @@
 
 ---
 
-## US26 – Admin User Management — **Backlog**
+## US26 – Admin User Management — **Merged**
 
-**As an administrator, I want to manage user accounts from the admin dashboard so that I can keep the user base accurate and up to date.**
+This story has been consolidated into **US6 – Admin User Management** (backend + frontend). See US6 for the combined acceptance criteria and frontend tasks.
+
+---
+
+## US27 – Password View Toggle — **In Review**
+
+**As a User, I want to be able to click a button to reveal my password while I login or register.**
 
 ### Assumptions and Details
 
-- Admin is signed in and on the admin dashboard  
-- System exposes CRUD operations over users via the frontend  
-- Role-based access control enforces that only admins can perform these actions  
+- The user is on the login or register page
+- The user has begun typing
+
+### Capabilities and Acceptance Criteria
+- [ ] Given the user is on the login or registration page
+- [ ] There is a clickable button next to the password field
+- [ ] When the button is clicked, the password becomes visible/invisible
+- [ ] Button cannot be clicked if password field is empty
+- [ ] Password criteria is displayed below the password field
+- [ ] Password criteria updates as password is entered
+
+---
+
+## US28 – Course-Level Group Management — **Complete**
+
+**As an instructor, I want to create and manage student groups at the course level, so that I can organize students into teams for group assignments and peer evaluations.**
+
+### Assumptions and Details
+
+- Instructor is signed in and owns the course  
+- Students are enrolled in the course (via roster upload or manual enrollment)  
+- Groups are scoped to the **course**, not individual assignments — all assignments in a course share the same groups  
+- Group management UI is accessible from the class dashboard and assignment pages  
 
 ### Capabilities and Acceptance Criteria
 
-- [ ] Admin can view a paginated or filterable list of all users  
-- [ ] Admin can create a new user and assign an initial role  
-- [ ] Admin can edit an existing user’s name, email, or role  
-- [ ] Admin can deactivate or delete a user, with safeguards against self-deletion  
-- [ ] Admin receives success or error feedback for each action  
-- [ ] All actions go through the frontend admin page and persist to the backend
+- [x] Instructor can create named groups within a course  
+- [x] Instructor can rename or delete groups  
+- [x] Duplicate group names within the same course are rejected (case-insensitive, whitespace-trimmed) with a clear error  
+- [x] The same group name is allowed in different courses  
+- [x] Instructor can assign students to groups from an unassigned student pool  
+- [x] Assigning a student already in another group moves them automatically  
+- [x] Instructor can remove students from a group (returns them to unassigned pool)  
+- [x] Deleting a group removes all memberships (cascade delete) and returns students to unassigned  
+- [x] Instructor can randomize group assignments with even distribution (minimum 2 per group)  
+- [x] If there are too few students for all groups, only enough groups are filled to maintain the minimum size  
+- [x] Students can view their group and group members but cannot modify groups  
+- [x] Unenrolled students and unauthorized teachers cannot access group endpoints  
+- [x] Password/hash fields are never exposed in member list responses  
+- [x] Groups tab is visible to teachers on class and assignment pages  
+- [x] A confirmation dialog appears before destructive actions (delete, randomize)  
 
+### Implementation Notes
+
+- **Backend**: `group_controller.py` — RESTful endpoints under `/classes/{id}/groups`  
+- **Frontend**: `ClassGroupManagement.tsx` (class-level), `AssignmentGroups.tsx` (assignment-level, same course groups)  
+- **Model**: `CourseGroup` with `courseID` foreign key; `Group_Members` join table  
+- **Tests**: 43 tests in `flask_backend/tests/test_groups.py` — all passing  
+
+---
+
+## US29 – Peer Evaluation Settings & Assignments— **Backlog**
+
+**As an instructor, I want to configure peer evaluation options (anonymity, scope, deadline) per assignment and have a polished assignment experience, so that I can control how students evaluate each other.**
+
+### Assumptions and Details
+
+- Instructor is signed in and has assignments (see US9)  
+- Assignment management interface is complete (US9)  
+- Peer evaluation settings are per-assignment configuration  
+- These settings feed into US1 (auto-assign reviews), US2 (scope), and US3 (anonymity)  
+
+### Capabilities and Acceptance Criteria
+
+**Peer Evaluation Settings**
+- [ ] Settings tab: anonymous / non-anonymous review toggle (see US3)  
+- [ ] Settings tab: evaluation scope — own group vs. other groups (see US2)  
+- [ ] Settings tab: separate peer evaluation deadline (distinct from assignment due date)  
+- [ ] Backend: `anonymous_review`, `evaluation_scope`, `peer_eval_deadline` fields added to Assignment model  
+- [ ] Backend: endpoint to update peer evaluation settings  
+- [ ] Settings are saved and reflected when viewing the assignment  
+
+**Assignment Polish**
+- [ ] Assignment tab shows a dedicated description field (currently only rubric text)  
+- [ ] Replace remaining `alert()` calls with toast notifications  
+
+---

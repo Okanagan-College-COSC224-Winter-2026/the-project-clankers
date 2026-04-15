@@ -88,12 +88,14 @@ def ensure_admin_command():
     """Ensure a default admin exists using environment variables.
 
     Requires DEFAULT_ADMIN_NAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD.
+    Optional: DEFAULT_ADMIN_ROLE (defaults to "teacher" for presentation, use "admin" for actual admin)
     Safe to run repeatedly; updates role/password if the user already exists.
     """
 
     name = os.environ.get("DEFAULT_ADMIN_NAME")
     email = os.environ.get("DEFAULT_ADMIN_EMAIL")
     password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+    role = os.environ.get("DEFAULT_ADMIN_ROLE", "teacher")  # Default to teacher for demo
 
     if not all([name, email, password]):
         click.echo(
@@ -109,18 +111,18 @@ def ensure_admin_command():
     hashed = generate_password_hash(password, method="pbkdf2:sha256")
 
     if existing_user:
-        if existing_user.role != "admin" or existing_user.hash_pass != hashed:
-            existing_user.role = "admin"
+        if existing_user.role != role or existing_user.hash_pass != hashed:
+            existing_user.role = role
             existing_user.hash_pass = hashed
             existing_user.update()
-            click.echo(f"Updated existing user '{email}' to admin role")
+            click.echo(f"Updated existing user '{email}' to role '{role}'")
         else:
-            click.echo(f"Admin user '{email}' already exists; no changes made")
+            click.echo(f"User '{email}' already exists with role '{role}'; no changes made")
         return
 
-    admin = User(name=name, email=email, hash_pass=hashed, role="admin")
-    User.create_user(admin)
-    click.echo(f"Admin user '{email}' created successfully")
+    user = User(name=name, email=email, hash_pass=hashed, role=role)
+    User.create_user(user)
+    click.echo(f"User '{email}' created successfully with role '{role}'")
 
 
 @click.command("add_sample_courses")
@@ -166,6 +168,29 @@ def add_sample_courses_command():
     click.echo("Sample courses and assignments created successfully")
 
 
+@click.command("migrate_add_start_date")
+@with_appcontext
+def migrate_add_start_date_command():
+    """Add start_date column to Assignment table (migration for existing databases)"""
+    from sqlalchemy import inspect, text
+    
+    inspector = inspect(db.engine)
+    columns = [col['name'] for col in inspector.get_columns('Assignment')]
+    
+    if 'start_date' in columns:
+        click.echo("Column 'start_date' already exists in Assignment table")
+        return
+    
+    try:
+        # Add the start_date column - using raw SQL for SQLite compatibility
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE Assignment ADD COLUMN start_date DATETIME"))
+            conn.commit()
+        click.echo("Successfully added 'start_date' column to Assignment table")
+    except Exception as e:
+        click.echo(f"Error adding start_date column: {e}", err=True)
+
+
 def init_app(app):
     """Register CLI commands with the Flask app"""
     app.cli.add_command(init_db_command)
@@ -174,3 +199,4 @@ def init_app(app):
     app.cli.add_command(create_admin_command)
     app.cli.add_command(ensure_admin_command)
     app.cli.add_command(add_sample_courses_command)
+    app.cli.add_command(migrate_add_start_date_command)

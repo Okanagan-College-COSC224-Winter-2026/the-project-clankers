@@ -13,11 +13,13 @@ class User(db.Model):
     __tablename__ = "User"
 
     id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(50), nullable=True, unique=True, index=True)
     name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True, index=True)
     hash_pass = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), default="student", nullable=False)
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+    profile_picture_url = db.Column(db.String(500), nullable=True)
 
     __table_args__ = (
         CheckConstraint("role IN ('student', 'teacher', 'admin')", name="check_valid_role"),
@@ -49,8 +51,14 @@ class User(db.Model):
     group_memberships = db.relationship(
         "Group_Members", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
     )
+    enrollment_requests = db.relationship(
+        "EnrollmentRequest", back_populates="student", cascade="all, delete-orphan", lazy="dynamic"
+    )
+    notifications = db.relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan", lazy="dynamic"
+    )
 
-    def __init__(self, name, email, hash_pass, role="student", must_change_password=False):
+    def __init__(self, name, email, hash_pass, role="student", must_change_password=False, student_id=None, profile_picture_url=None):
         valid_roles = ["student", "teacher", "admin"]
         if role not in valid_roles:
             raise ValueError(f"Invalid role '{role}'. Must be one of: {', '.join(valid_roles)}")
@@ -59,6 +67,8 @@ class User(db.Model):
         self.hash_pass = hash_pass
         self.role = role
         self.must_change_password = must_change_password
+        self.student_id = student_id
+        self.profile_picture_url = profile_picture_url
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"
@@ -71,6 +81,11 @@ class User(db.Model):
     def get_by_email(cls, email):
         """Get user by email"""
         return cls.query.filter_by(email=email).first()
+
+    @classmethod
+    def get_by_student_id(cls, student_id):
+        """Get user by student_id"""
+        return cls.query.filter_by(student_id=student_id).first()
 
     @classmethod
     def create_user(cls, user):

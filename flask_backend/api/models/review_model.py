@@ -16,6 +16,8 @@ class Review(db.Model):
     assignmentID = db.Column(db.Integer, db.ForeignKey("Assignment.id"), nullable=False, index=True)
     reviewerID = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False, index=True)
     revieweeID = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False, index=True)
+    reviewee_type = db.Column(db.String(10), nullable=False, default='user', server_default='user')
+    reviewer_type = db.Column(db.String(10), nullable=False, default='user', server_default='user')
 
     # relationships - using lazy='joined' for commonly accessed foreign entities
     assignment = db.relationship("Assignment", back_populates="reviews", lazy="joined")
@@ -29,10 +31,12 @@ class Review(db.Model):
         "Criterion", back_populates="review", cascade="all, delete-orphan", lazy="dynamic"
     )
 
-    def __init__(self, assignmentID, reviewerID, revieweeID):
+    def __init__(self, assignmentID, reviewerID, revieweeID, reviewee_type='user', reviewer_type='user'):
         self.assignmentID = assignmentID
         self.reviewerID = reviewerID
         self.revieweeID = revieweeID
+        self.reviewee_type = reviewee_type
+        self.reviewer_type = reviewer_type
 
     def __repr__(self):
         return f"<Review id={self.id} assignmentID={self.assignmentID}>"

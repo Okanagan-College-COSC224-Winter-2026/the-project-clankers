@@ -1,17 +1,31 @@
-import { useEffect, useState, ChangeEvent } from "react";
-import { useParams } from "react-router-dom";
-import "./Assignment.css";
-import RubricCreator from "../components/RubricCreator";
-import RubricDisplay from "../components/RubricDisplay";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useLocation, Link } from "react-router-dom";
+import { parseUTC } from "../util/dates";
+import { Settings, FileStack, Upload, ChevronRight, ClipboardList } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import TabNavigation from "../components/TabNavigation";
+import AssignmentSettings from "../components/AssignmentSettings";
+import AssignmentFileUpload from "../components/AssignmentFileUpload";
+import AssignmentFileDisplay from "../components/AssignmentFileDisplay";
+import StudentSubmissionUpload from "../components/StudentSubmissionUpload";
+import TeacherSubmissionView from "../components/TeacherSubmissionView";
+import ViewSubmissionModal from "../components/ViewSubmissionModal";
+import AssignmentGradebookView from "../components/AssignmentGradebookView";
+import RubricDisplay from "../components/RubricDisplay";
+import RubricCreator from "../components/RubricCreator";
+import PeerReviews from "./PeerReviews";
 import { isTeacher } from "../util/login";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 
-import { 
-  listStuGroup,
-  getUserId,
-  createReview,
-  createCriterion,
-  getReview
+import {
+  getAssignmentDetails,
+  getStudentSubmissions,
+  getCurrentUserProfile,
+  downloadStudentSubmission,
+  getMyGroup,
+  getClassDetails
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -21,40 +35,113 @@ interface SelectedCriterion {
 
 export default function Assignment() {
   const { id } = useParams();
-  const [stuGroup, setStuGroup] = useState<StudentGroups[]>([]);
-  const [revieweeID, setRevieweeID] = useState<number>(0);
-  const [stuID, setStuID] = useState<number>(0);
+  const location = useLocation();
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
   const [review, setReview] = useState<number[]>([]);
+  // const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
+  const [assignmentName, setAssignmentName] = useState<string>("");
+  const [assignmentDescription, setAssignmentDescription] = useState<string | null>(null);
+  const [courseId, setCourseId] = useState<number | null>(null);
+  const [courseName, setCourseName] = useState<string>("");
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState<string | null>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [groupInfo, setGroupInfo] = useState<any>(null);
+  const [isGroupAssignment, setIsGroupAssignment] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [selectedTextSubmission, setSelectedTextSubmission] = useState<any>(null);
+  const [isViewTextModalOpen, setIsViewTextModalOpen] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
+  const [internalReview, setInternalReview] = useState(false);
+  const [externalReview, setExternalReview] = useState(false);
+
+  // Determine which tab is active based on URL path
+  const isManageTab = location.pathname.includes('/manage');
+  const isRubricTab = location.pathname.includes('/rubric');
+  const isSubmissionTab = location.pathname.includes('/submission');
+  const isStudentSubmissionsTab = location.pathname.includes('/student-submissions');
+  const isGradebookTab =
+    location.pathname.includes('/gradebook') || location.pathname.includes('/grades');
+  const isPeerReviewsTab = location.pathname.includes('/peer-reviews');
+
+  // Fetch assignment details to get the name
+  const fetchAssignment = useCallback(async () => {
+      try {
+        // Get current user info
+        const userProfile = await getCurrentUserProfile();
+        setCurrentUserId(userProfile.id);
+
+        const assignmentData = await getAssignmentDetails(Number(id));
+        if (assignmentData) {
+          setAssignmentName(assignmentData.name || "");
+          setAssignmentDescription(assignmentData.description || null);
+          setStartDate(assignmentData.start_date || null);
+          setDueDate(assignmentData.due_date || null);
+          setInternalReview(assignmentData.internal_review || false);
+          setExternalReview(assignmentData.external_review || false);
+        }
+        if (assignmentData && assignmentData.courseID) {
+          setCourseId(assignmentData.courseID);
+          // Fetch the course name and archived status
+          const { listClasses } = await import("../util/api");
+          const classes = await listClasses();
+          const course = classes.find((c: { id: number }) => c.id === assignmentData.courseID);
+          if (course) {
+            setCourseName(course.name);
+            setIsArchived(course.is_archived || false);
+          }
+        }
+
+        // Fetch student submissions and group info if not a teacher
+        if (!isTeacher() && userProfile.id) {
+          try {
+            const submissionsData = await getStudentSubmissions(Number(id));
+            setSubmissions(submissionsData);
+
+            // Check if it's a group assignment
+            if (assignmentData.submission_type === 'group') {
+              setIsGroupAssignment(true);
+              const groupData = await getMyGroup(assignmentData.courseID);
+              setGroupInfo(groupData);
+            }
+          } catch (error) {
+            console.error('Error fetching submission details:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching assignment details:', error);
+      }
+  }, [id]);
 
   useEffect(() => {
-      (async () => {
-        const stuID = await getUserId();
-      setStuID(stuID);
-      const stus = await listStuGroup(Number(id), stuID);
-      setStuGroup(stus);
-        try {
-          const reviewResponse = await getReview(Number(id), stuID, revieweeID);
-          const reviewData = await reviewResponse.json();
-          setReview(reviewData.grades);
-          console.log("Review data:", reviewData);
-        } catch (error) {
-          console.error('Error fetching review:', error);
-        }
-      })();
-  }, [revieweeID, id, stuID]);
+    fetchAssignment();
+  }, [fetchAssignment]);
+
+  useEffect(() => {
+    const handleFocus = () => fetchAssignment();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchAssignment]);
+
 
   const handleCriterionSelect = (row: number, column: number) => {
     // Check if this criterion is already selected
     const existingIndex = selectedCriteria.findIndex(
       criterion => criterion.row === row && criterion.column === column
     );
-    
+
     if (existingIndex >= 0) {
       // If already selected, remove it (toggle off)
-      setSelectedCriteria(prev => 
+      setSelectedCriteria(prev =>
         prev.filter((_, index) => index !== existingIndex)
       );
+      // Also update the review grades array
+      setReview(prev => {
+        const newReview = [...prev];
+        newReview[row] = 0;
+        return newReview;
+      });
     } else {
       // Add the new criterion, removing any other selection in the same row
       setSelectedCriteria(prev => {
@@ -63,75 +150,362 @@ export default function Assignment() {
         // Add the new selection
         return [...filteredCriteria, { row, column }];
       });
+      // Also update the review grades array
+      setReview(prev => {
+        const newReview = [...prev];
+        newReview[row] = column;
+        return newReview;
+      });
     }
   };
 
-  function handleRadioChange(event: ChangeEvent<HTMLInputElement>): void {
-    const selectedID = Number(event.target.value);
-    setRevieweeID(selectedID);
-    console.log(`Selected group member ID: ${selectedID}`);
-  }
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    const localDate = parseUTC(dateString);
+
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return localDate.toLocaleString('en-US', options);
+  };
+
+  const calculateTimeRemaining = (dueDate: string | null) => {
+    if (!dueDate) return "N/A";
+    const due = parseUTC(dueDate);
+    const now = new Date();
+    const diff = due.getTime() - now.getTime();
+
+    if (diff < 0) {
+      const absDiff = Math.abs(diff);
+      const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((absDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (days > 0) return `Overdue by ${days} day${days > 1 ? 's' : ''} ${hours} hour${hours > 1 ? 's' : ''}`;
+      if (hours > 0) return `Overdue by ${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''}`;
+      return `Overdue by ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ${hours} hour${hours > 1 ? 's' : ''} remaining`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''} remaining`;
+    return `${minutes} minute${minutes > 1 ? 's' : ''} remaining`;
+  };
+
+  const handleDownload = async (submissionId: number, filename: string) => {
+    try {
+      setDownloadError(null);
+      const blob = await downloadStudentSubmission(submissionId);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Download failed");
+    }
+  };
 
   return (
-    <>
-      <div className="AssignmentHeader">
-        <h2>Assignment {id}</h2>
+    <div className="flex flex-1 flex-col">
+      <div className="flex h-16 items-center border-b bg-background px-6">
+        <nav className="flex items-center gap-1 text-sm">
+          {courseId ? (
+            <Link to={`/classes/${courseId}/home`} className="text-muted-foreground hover:text-foreground transition-colors">{courseName || '...'}</Link>
+          ) : (
+            <span className="text-muted-foreground">...</span>
+          )}
+          {isArchived && (
+            <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+              VIEW ONLY
+            </span>
+          )}
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">{assignmentName || '...'}</span>
+        </nav>
       </div>
 
       <TabNavigation
-        tabs={[
-          {
-            label: "Home",
-            path: `/assignment/${id}`,
-          },
-          {
-            label: "Group",
-            path: `/assignment/${id}/group`,
-          }
-        ]}
+        tabs={
+          isTeacher() 
+            ? [
+                {
+                  label: "Home",
+                  path: `/assignments/${id}`,
+                },
+                {
+                  label: "Rubric",
+                  path: `/assignments/${id}/rubric`,
+                },
+                {
+                  label: "Submissions",
+                  path: `/assignments/${id}/student-submissions`,
+                },
+                {
+                  label: "Manage",
+                  path: `/assignments/${id}/manage`,
+                }
+              ]
+            : [
+                {
+                  label: "Home",
+                  path: `/assignments/${id}`,
+                },
+                {
+                  label: "Submission",
+                  path: `/assignments/${id}/submission`,
+                },
+                {
+                  label: "Peer Reviews",
+                  path: `/assignments/${id}/peer-reviews`,
+                },
+              ]
+        }
       />
 
-      <div className='assignmentRubricDisplay'>
-        <RubricDisplay rubricId={Number(id)} onCriterionSelect={handleCriterionSelect} grades={review} />
-      </div>
-      {
-        isTeacher() && 
-          <div className='assignmentRubric'>
-            <RubricCreator id={Number(id)}/>
+      {isRubricTab ? (
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <ClipboardList className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Rubric</h3>
           </div>
-      }
+          <Card>
+            <CardContent className="p-4">
+              <RubricDisplay
+                rubricId={Number(id)}
+                onCriterionSelect={() => {}}
+                grades={[]}
+                internalReviewEnabled={internalReview}
+                externalReviewEnabled={externalReview}
+              />
+            </CardContent>
+          </Card>
+          {isTeacher() && <RubricCreator id={Number(id)} />}
+        </div>
+      ) : isManageTab && isTeacher() ? (
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Assignment Management</h3>
+          </div>
+          <AssignmentSettings assignmentId={Number(id)} />
+        </div>
+      ) : isSubmissionTab && !isTeacher() ? (
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Submission</h3>
+          </div>
+          <StudentSubmissionUpload assignmentId={Number(id)} />
+        </div>
+      ) : isStudentSubmissionsTab && isTeacher() ? (
+        <div className="flex-1 space-y-6 p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <FileStack className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Assignment Submissions</h3>
+          </div>
+          <TeacherSubmissionView assignmentId={Number(id)} />
+        </div>
+      ) : isGradebookTab && isTeacher() ? (
+        <AssignmentGradebookView assignmentId={Number(id)} />
+      ) : isPeerReviewsTab && !isTeacher() ? (
+        /* Student peer reviews tab */
+        <div className="flex-1 space-y-6 p-6">
+          <PeerReviews />
+        </div>
+      ) : (
+        /* Home tab - default view */
+        <div className="flex-1 space-y-6 p-6">
+          {/* Date Information Note - Student Only */}
+          {!isTeacher() && (startDate || dueDate) && (
+            <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+              <CardContent className="p-4">
+                <div className="text-sm space-y-1">
+                  {startDate && (
+                    <div>
+                      <span className="font-semibold">Start date:</span> {formatDate(startDate)}
+                    </div>
+                  )}
+                  {dueDate && (
+                    <div>
+                      <span className="font-semibold">Due:</span> {formatDate(dueDate)}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-{
-      //List group members as radio buttons to select for given review
-      !isTeacher() && <div className='groupMembers'>
-        <h3>Select a group member to review</h3>
-          {stuGroup.map((stus) => {
-                return (
-                  <>
-                  <input type='radio' id={stus.userID.toString()} value={stus.userID} name='groupMembers' onChange={handleRadioChange}></input>
-                  <label htmlFor={stus.userID.toString()}>{stus.userID}</label>
-                  <br></br>
-                  </>
-                )
-              }
-            )
-          }
-          <button className='submitReview' onClick={async () => {
-            console.log("Submitting review with selected criteria:", selectedCriteria);
-            try {
-              const reviewResponse = await createReview(Number(id), stuID, revieweeID);
-              const reviewData = await reviewResponse.json();
-              console.log("Review response:", reviewData);
-              for (const criterion of selectedCriteria) {
-                await createCriterion(reviewData.id, criterion.row, criterion.column, "");
-              }
-              console.log('Review submitted successfully');
-            } catch (error) {
-              console.error('Error submitting review:', error);
-            }
-          }}>Submit Review</button>
-      </div>}
-    </>
+          {assignmentDescription && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-lg mb-2">Assignment Details</h3>
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                    components={{
+                      p: ({node, ...props}) => <p className="my-2" {...props} />,
+                      ul: ({node, ...props}) => <ul className="my-2 ml-6" {...props} />,
+                      ol: ({node, ...props}) => <ol className="my-2 ml-6" {...props} />,
+                      li: ({node, ...props}) => <li className="my-1" {...props} />,
+                      h1: ({node, ...props}) => <h1 className="text-2xl font-semibold mt-4 mb-2" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mt-4 mb-2" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-3 mb-2" {...props} />,
+                    }}
+                  >
+                    {assignmentDescription}
+                  </ReactMarkdown>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {downloadError && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
+              <CardContent className="p-4">
+                <p className="text-sm text-red-800 dark:text-red-200">❌ Download error: {downloadError}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* File upload/display section */}
+          {isTeacher() ? (
+            <AssignmentFileUpload
+              assignmentId={Number(id)}
+            />
+          ) : (
+            <AssignmentFileDisplay
+              assignmentId={Number(id)}
+            />
+          )}
+
+          {/* Submission Details Table - Student Only */}
+          {!isTeacher() && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-lg mb-4">Submission Details</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {isGroupAssignment && (
+                        <tr className="border-b">
+                          <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Group</td>
+                          <td className="py-2 px-2">{groupInfo?.groupName || "Not assigned to a group"}</td>
+                        </tr>
+                      )}
+                      <tr className="border-b">
+                        <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Submission status</td>
+                        <td className="py-2 px-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                            {submissions.length > 0 ? "Submitted for grading" : "Not submitted"}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Grading status</td>
+                        <td className="py-2 px-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                            {submissions.length > 0 && submissions[0].grade != null ? "Graded" : "Not graded"}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Time remaining</td>
+                        <td className="py-2 px-2">{calculateTimeRemaining(dueDate)}</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40">Last modified</td>
+                        <td className="py-2 px-2">{submissions.length > 0 ? formatDate(submissions[0].submitted_at) : "-"}</td>
+                      </tr>
+                      {submissions.length > 0 && (
+                        <>
+                          {submissions.some(s => s.submission_text) && (
+                            <tr className="border-b">
+                              <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">Text submission</td>
+                              <td className="py-2 px-2">
+                                <div className="space-y-2">
+                                  {submissions
+                                    .filter(s => s.submission_text)
+                                    .map((submission, idx) => (
+                                      <div key={idx} className="flex flex-col gap-2">
+                                        <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 whitespace-pre-wrap break-words">
+                                          {submission.submission_text.substring(0, 150)}
+                                          {submission.submission_text.length > 150 && '...'}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => {
+                                              setSelectedTextSubmission(submission);
+                                              setIsViewTextModalOpen(true);
+                                            }}
+                                            className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-sm"
+                                          >
+                                            View full text
+                                          </button>
+                                          <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {submissions.some(s => s.filename) && (
+                            <tr>
+                              <td className="font-medium py-2 px-2 bg-gray-50 dark:bg-gray-900 w-40 align-top">File submission</td>
+                              <td className="py-2 px-2">
+                                <div className="space-y-2">
+                                  {submissions
+                                    .filter(s => s.filename)
+                                    .map((submission, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => handleDownload(submission.id, submission.filename)}
+                                          className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                        >
+                                          {submission.filename}
+                                        </button>
+                                        <span className="text-gray-500 text-xs">{formatDate(submission.submitted_at)}</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+      {selectedTextSubmission && (
+        <ViewSubmissionModal
+          isOpen={isViewTextModalOpen}
+          onClose={() => {
+            setIsViewTextModalOpen(false);
+            setSelectedTextSubmission(null);
+          }}
+          submission={selectedTextSubmission}
+          entityName="My Submission"
+        />
+      )}
+    </div>
   );
 }
-

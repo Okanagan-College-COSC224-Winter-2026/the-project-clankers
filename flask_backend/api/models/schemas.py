@@ -1,14 +1,19 @@
-from marshmallow import fields, validate
+from datetime import timezone
+from marshmallow import fields, validate, pre_dump
 
 from .assignment_model import Assignment
+from .assignment_file_model import AssignmentFile
 from .course_group_model import CourseGroup
 from .course_model import Course
 from .criteria_description_model import CriteriaDescription
 from .criterion_model import Criterion
 from .db import db, ma
+from .enrollment_request_model import EnrollmentRequest
 from .group_members_model import Group_Members
+from .notification_model import Notification
 from .review_model import Review
 from .rubric_model import Rubric
+from .student_submission_model import StudentSubmission
 from .submission_model import Submission
 from .user_course_model import User_Course
 from .user_model import User
@@ -30,12 +35,14 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
 
     # Explicit fields for clarity and validation
     id = fields.Int(dump_only=True)
+    student_id = fields.Str(allow_none=True, validate=validate.Length(max=50))
     name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     email = fields.Email(required=True)
     role = fields.Str(
         dump_default="student", validate=validate.OneOf(["student", "teacher", "admin"])
     )
     must_change_password = fields.Bool(dump_default=False)
+    profile_picture_url = fields.Str(allow_none=True, validate=validate.Length(max=500))
 
 
 class UserRegistrationSchema(ma.Schema):
@@ -105,10 +112,80 @@ class AssignmentSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Assignment
         load_instance = True
-        include_fk = False
+        include_fk = True  # Include courseID for assignment → course navigation
+        sqla_session = db.session
+        datetimeformat = "iso"
+
+    course = fields.Nested(CourseListSchema, dump_only=True, allow_none=True)
+    description = fields.Str(allow_none=True)
+    start_date = fields.DateTime(format="iso", allow_none=True)
+    due_date = fields.DateTime(format="iso", allow_none=True)
+    peer_review_start_date = fields.DateTime(format="iso", allow_none=True)
+    peer_review_due_date = fields.DateTime(format="iso", allow_none=True)
+
+    @pre_dump
+    def ensure_course_loaded(self, obj, **kwargs):
+        """Ensure course is properly loaded and datetimes are UTC-aware before serialization"""
+        if obj and hasattr(obj, 'course'):
+            try:
+                _ = obj.course
+            except Exception:
+                obj.course = None
+
+        # Ensure datetime fields have UTC timezone so serialized ISO strings include '+00:00'.
+        # SQLite can strip timezone info, producing naive datetimes that the frontend
+        # would misinterpret as local time.
+        for attr in ('start_date', 'due_date', 'peer_review_start_date', 'peer_review_due_date'):
+            dt = getattr(obj, attr, None)
+            if dt is not None and dt.tzinfo is None:
+                setattr(obj, attr, dt.replace(tzinfo=timezone.utc))
+
+        return obj
+
+
+class AssignmentFileSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for assignment file attachments"""
+
+    class Meta:
+        model = AssignmentFile
+        load_instance = True
+        include_fk = True
         sqla_session = db.session
 
-    course = fields.Nested(CourseListSchema, dump_only=True)
+    uploaded_at = fields.DateTime(dump_only=True, format='iso')
+
+    @pre_dump
+    def ensure_timezone_aware(self, obj, **kwargs):
+        """Ensure datetime is timezone-aware before serialization"""
+        if obj and hasattr(obj, 'uploaded_at') and obj.uploaded_at and obj.uploaded_at.tzinfo is None:
+            from datetime import timezone
+            obj.uploaded_at = obj.uploaded_at.replace(tzinfo=timezone.utc)
+        return obj
+
+
+class StudentSubmissionSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for student submissions"""
+
+    class Meta:
+        model = StudentSubmission
+        load_instance = True
+        include_fk = True
+        sqla_session = db.session
+
+    submitted_at = fields.DateTime(dump_only=True, format='iso')
+    student_name = fields.Method("get_student_name")
+
+    def get_student_name(self, obj):
+        """Get the student's name for display"""
+        return obj.student.name if obj.student else "Unknown"
+
+    @pre_dump
+    def ensure_timezone_aware(self, obj, **kwargs):
+        """Ensure datetime is timezone-aware before serialization"""
+        if obj and hasattr(obj, 'submitted_at') and obj.submitted_at and obj.submitted_at.tzinfo is None:
+            from datetime import timezone
+            obj.submitted_at = obj.submitted_at.replace(tzinfo=timezone.utc)
+        return obj
 
 
 # ============================================================
@@ -130,6 +207,9 @@ class CriteriaDescriptionSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = False
         sqla_session = db.session
+
+    criteria_type = fields.Str(data_key='criteriaType', dump_default='both')
+    allow_comments = fields.Bool(data_key='canComment', dump_default=False)
 
 
 class CriterionSchema(ma.SQLAlchemyAutoSchema):
@@ -192,7 +272,7 @@ class CourseGroupSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = CourseGroup
         load_instance = True
-        include_fk = False
+        include_fk = True  # Include courseID
         sqla_session = db.session
 
 
@@ -223,3 +303,47 @@ class SubmissionSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = False
         sqla_session = db.session
+
+
+# ============================================================
+# ENROLLMENT & NOTIFICATION SCHEMAS
+# ============================================================
+
+
+class EnrollmentRequestSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for enrollment requests"""
+
+    class Meta:
+        model = EnrollmentRequest
+        load_instance = True
+        include_fk = True
+        sqla_session = db.session
+
+    id = fields.Int(dump_only=True)
+    studentID = fields.Int()
+    courseID = fields.Int()
+    status = fields.Str(validate=validate.OneOf(["pending", "approved", "rejected"]))
+    created_at = fields.DateTime(dump_only=True)
+    resolved_at = fields.DateTime(dump_only=True, allow_none=True)
+    teacher_notes = fields.Str(allow_none=True)
+    student = fields.Nested(UserListSchema, dump_only=True)
+    course = fields.Nested(CourseListSchema, dump_only=True)
+
+
+class NotificationSchema(ma.SQLAlchemyAutoSchema):
+    """Schema for notifications"""
+
+    class Meta:
+        model = Notification
+        load_instance = True
+        include_fk = True
+        sqla_session = db.session
+
+    id = fields.Int(dump_only=True)
+    userID = fields.Int()
+    type = fields.Str()
+    related_id = fields.Int()
+    message = fields.Str()
+    is_read = fields.Bool()
+    created_at = fields.DateTime(dump_only=True)
+

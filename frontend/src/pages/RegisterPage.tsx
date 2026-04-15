@@ -1,88 +1,109 @@
-import { useState } from 'react';
-import './RegisterPage.css';
-import Textbox from '../components/Textbox';
-import Button from '../components/Button';
-import StatusMessage from '../components/StatusMessage';
-import { tryRegister } from '../util/api';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import PasswordInput from '../components/PasswordInput'
+import PasswordCriteria from '../components/PasswordCriteria'
+import StatusMessage from '../components/StatusMessage'
+import { tryRegister } from '../util/api'
 
 export default function RegisterPage() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const navigate = useNavigate();
-  const [error, setError] = useState('');
+  const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
 
-  
   const attemptRegister = async () => {
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+      setError('Passwords do not match')
+      return
     }
 
     if (await tryRegister(name, email, password)) {
-      navigate('/');
+      navigate('/')
     }
   }
 
   return (
-    <div className="RegisterPage">
-      {error && <StatusMessage message={error} type="error" className="RegisterError" />}
-      <div className="RegisterBlock">
-        <h1>Register</h1>
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
+          <CardDescription className="text-center">
+            Enter your information to get started
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && <StatusMessage message={error} type="error" className="mb-4" />}
 
-        <div className="RegisterInner">
-          <div className="RegisterInputs">
-            <div className="RegisterInputChunk">
-              <span>Name</span>
-              <Textbox
-                placeholder='Name...'
-                onInput={setName}
-                className='RegisterInput'
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              attemptRegister()
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
 
-            <div className="RegisterInputChunk">
-              <span>Email</span>
-              <Textbox
-                type='email'
-                placeholder='Email...'
-                onInput={setEmail}
-                className='RegisterInput'
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
-            <div className="RegisterInputChunk">
-              <span>Password</span>
-              <Textbox
-                type='password'
-                placeholder='Password...'
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <PasswordInput
+                value={password}
+                placeholder="Create a password"
                 onInput={setPassword}
-                className='RegisterInput'
               />
+              {password && <PasswordCriteria password={password} />}
             </div>
 
-            <div className="RegisterInputChunk">
-              <span>Confirm Password</span>
-              <Textbox
-                type='password'
-                placeholder='Confirm Password...'
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <PasswordInput
+                value={confirmPassword}
+                placeholder="Confirm your password"
                 onInput={setConfirmPassword}
-                className='RegisterInput'
               />
             </div>
 
-          </div>
+            <Button type="submit" className="w-full">
+              Register
+            </Button>
 
-        </div>
-
-        <Button
-          onClick={()=> attemptRegister()}
-          children="Register"
-        />
-
-      </div>
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <a
+                href="/"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Login
+              </a>
+            </p>
+          </form>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
