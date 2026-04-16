@@ -41,9 +41,9 @@ cp flask_backend/.env.example .env   # or copy the template in docs/GETTING_STAR
 #    Minimum values required:
 #    SECRET_KEY=<random-string>
 #    JWT_SECRET_KEY=<random-string>
-#    DEFAULT_ADMIN_NAME="Example Admin"
+#    DEFAULT_ADMIN_NAME="Admin User"
 #    DEFAULT_ADMIN_EMAIL="admin@example.com"
-#    DEFAULT_ADMIN_PASSWORD="ChangeMe123!"
+#    DEFAULT_ADMIN_PASSWORD="123456"
 #    # Remaining entries already fall back to sensible defaults
 
 # 3. Start all services (initial build may take several minutes)

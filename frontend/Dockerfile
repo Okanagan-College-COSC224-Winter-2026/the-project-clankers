@@ -6,12 +6,11 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files for dependency installation
-COPY package*.json ./
+# Copy package file for dependency installation
+COPY package.json ./
 
 # Install dependencies
-# Use --frozen-lockfile equivalent for npm (ci for clean install)
-RUN npm ci
+RUN npm install
 
 # Copy source code and configuration files
 COPY . .
