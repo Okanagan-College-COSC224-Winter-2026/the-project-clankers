@@ -239,6 +239,18 @@ export default function Home() {
       <div className="flex-1 p-6">
 
       <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {isTeacher() && (
+          <Card
+            className="cursor-pointer overflow-hidden border-2 border-dashed transition-all hover:border-primary hover:bg-accent hover:shadow-lg hover:-translate-y-1 flex items-center justify-center"
+            onClick={() => (window.location.href = '/classes/create')}
+            style={{ minHeight: '100%' }}
+          >
+            <CardContent className="flex flex-col items-center justify-center p-4">
+              <Plus className="mb-2 h-8 w-8 text-muted-foreground" />
+              <span className="font-semibold text-lg">Create Class</span>
+            </CardContent>
+          </Card>
+        )}
         {(() => {
           const filtered = courses.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
           return filtered.length === 0 && !isTeacher() ? (
@@ -298,18 +310,6 @@ export default function Home() {
           })
         )
         })()}
-
-        {isTeacher() && (
-          <Card
-            className="flex cursor-pointer items-center justify-center border-2 border-dashed transition-colors hover:border-primary hover:bg-accent"
-            onClick={() => (window.location.href = '/classes/create')}
-          >
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Plus className="mb-2 h-8 w-8 text-muted-foreground" />
-              <span className="font-medium">Create Class</span>
-            </CardContent>
-          </Card>
-        )}
 
         {isAdmin() && (
           <Card
