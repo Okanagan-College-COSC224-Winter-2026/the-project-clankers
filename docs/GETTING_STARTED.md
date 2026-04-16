@@ -29,8 +29,8 @@ Before you begin, ensure you have these installed:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/COSC470Fall2025/Peer-Evaluation-App-V1.git
-cd Peer-Evaluation-App-V1
+git clone https://github.com/Okanagan-College-COSC224-Winter-2026/the-project-clankers.git
+cd the-project-clankers
 ```
 
 ### Step 2: Set Up and Start the Flask Backend
