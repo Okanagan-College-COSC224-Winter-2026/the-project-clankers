@@ -17,7 +17,7 @@ const toDatetimeLocal = (iso: string): string => {
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
-import { isTeacher, isAdmin } from '../util/login'
+import { isTeacher } from '../util/login'
 import { Plus, FileText } from 'lucide-react'
 
 interface Assignment {

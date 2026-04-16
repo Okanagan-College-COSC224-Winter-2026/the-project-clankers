@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { parseUTC } from "../util/dates";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import RubricViewModal from "../components/RubricViewModal";
 import ViewSubmissionModal from "../components/ViewSubmissionModal";
-import { Loader2, Paperclip, FileText, Eye, Download, ChevronDown, MessageSquare, AlertCircle, Clock, Users } from "lucide-react";
+import { Loader2, Paperclip, FileText, Eye, ChevronDown, MessageSquare, AlertCircle, Clock, Users } from "lucide-react";
 import {
   getAssignmentDetails,
   getUserId,
@@ -24,11 +25,9 @@ import {
   SubmittedReviewData,
   ReceivedReviewData,
   getPeerReviewSubmissions,
-  downloadStudentSubmission,
   ReviewTarget,
   listClasses,
 } from "../util/api";
-
 interface PeerReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -155,7 +154,8 @@ function PeerReviewModal({
     }
   };
 
-  const loadExistingReview = async (userId: number | null, targetId: number, revieweeType: 'user' | 'group', reviewType?: 'internal' | 'external') => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const loadExistingReview = async (userId: number | null, targetId: number, revieweeType: 'user' | 'group', _reviewType?: 'internal' | 'external') => {
     if (!userId) return;
     try {
       let reviewerId = userId;
@@ -242,8 +242,8 @@ function PeerReviewModal({
 
         // Refresh rubric to ensure we have latest criteria (in case teacher added new ones)
         let currentCriteria = criteria;
-        let finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
-        let finalComments = [...comments];
+        const finalGrades = grades.map(g => g === null ? 0 : g);  // Convert nulls to 0s
+        const finalComments = [...comments];
         try {
           const freshRubric = await getRubric(assignmentId, true);
           const freshCriteria = await getCriteria(freshRubric.id);
@@ -263,6 +263,7 @@ function PeerReviewModal({
         }
 
         // Filter criteria based on review type
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const filteredCriteria = filterCriteriaByType(currentCriteria, selectedTarget.type);
 
         // Create criterion entries for each visible criterion
@@ -454,7 +455,7 @@ function PeerReviewModal({
                         <>
                           {/* Rubric Scoring Section */}
                           <div className="w-full border rounded-md p-4 bg-gray-50 flex flex-col gap-5">
-                            {filteredCriteria.map((criterion, displayIndex) => {
+                            {filteredCriteria.map((criterion) => {
                               // Find the actual index in the full criteria array
                               const actualIndex = criteria.findIndex(c => c.id === criterion.id);
                               const maxScore = (!criterion.hasScore || criterion.scoreMax === 0) ? 100 : criterion.scoreMax;

@@ -25,7 +25,6 @@ import {
   getCurrentUserProfile,
   downloadStudentSubmission,
   getMyGroup,
-  getClassDetails
 } from "../util/api";
 
 interface SelectedCriterion {
@@ -37,6 +36,7 @@ export default function Assignment() {
   const { id } = useParams();
   const location = useLocation();
   const [selectedCriteria, setSelectedCriteria] = useState<SelectedCriterion[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [review, setReview] = useState<number[]>([]);
   // const [criteriaDescriptions, setCriteriaDescriptions] = useState<Criterion[]>([]);
   const [assignmentName, setAssignmentName] = useState<string>("");
@@ -45,12 +45,12 @@ export default function Assignment() {
   const [courseName, setCourseName] = useState<string>("");
   const [startDate, setStartDate] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [groupInfo, setGroupInfo] = useState<any>(null);
+  const [submissions, setSubmissions] = useState<{ student_id: number; filename?: string; id: number }[]>([]);
+  const [groupInfo, setGroupInfo] = useState<{ groupId: number; groupName: string } | null>(null);
   const [isGroupAssignment, setIsGroupAssignment] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [, setCurrentUserId] = useState<number | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [selectedTextSubmission, setSelectedTextSubmission] = useState<any>(null);
+  const [selectedTextSubmission, setSelectedTextSubmission] = useState<{ submission_text?: string; student_name?: string } | null>(null);
   const [isViewTextModalOpen, setIsViewTextModalOpen] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
   const [internalReview, setInternalReview] = useState(false);
@@ -125,6 +125,7 @@ export default function Assignment() {
   }, [fetchAssignment]);
 
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCriterionSelect = (row: number, column: number) => {
     // Check if this criterion is already selected
     const existingIndex = selectedCriteria.findIndex(
@@ -357,13 +358,13 @@ export default function Assignment() {
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeSanitize]}
                     components={{
-                      p: ({node, ...props}) => <p className="my-2" {...props} />,
-                      ul: ({node, ...props}) => <ul className="my-2 ml-6" {...props} />,
-                      ol: ({node, ...props}) => <ol className="my-2 ml-6" {...props} />,
-                      li: ({node, ...props}) => <li className="my-1" {...props} />,
-                      h1: ({node, ...props}) => <h1 className="text-2xl font-semibold mt-4 mb-2" {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mt-4 mb-2" {...props} />,
-                      h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-3 mb-2" {...props} />,
+                      p: ({...props}) => <p className="my-2" {...props} />,
+                      ul: ({...props}) => <ul className="my-2 ml-6" {...props} />,
+                      ol: ({...props}) => <ol className="my-2 ml-6" {...props} />,
+                      li: ({...props}) => <li className="my-1" {...props} />,
+                      h1: ({...props}) => <h1 className="text-2xl font-semibold mt-4 mb-2" {...props} />,
+                      h2: ({...props}) => <h2 className="text-xl font-semibold mt-4 mb-2" {...props} />,
+                      h3: ({...props}) => <h3 className="text-lg font-semibold mt-3 mb-2" {...props} />,
                     }}
                   >
                     {assignmentDescription}

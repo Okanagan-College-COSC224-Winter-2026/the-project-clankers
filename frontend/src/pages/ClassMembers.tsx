@@ -4,7 +4,6 @@ import { parseUTC } from '../util/dates'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -13,7 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { Upload, Users, UserPlus, ClipboardList, Trash2, Check, X, LayoutList, Search } from 'lucide-react'
+import { Upload, Users, UserPlus, ClipboardList, Check, X, LayoutList, Search } from 'lucide-react'
 import MembersListPanel from '../components/MembersListPanel'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
@@ -24,7 +23,6 @@ import { importCSV } from '../util/csv'
 import {
   listCourseMembers,
   listClasses,
-  getProfilePictureUrl,
   getRegisteredStudentsForCourse,
   enrollDirectStudents,
   unenrollStudent,
@@ -77,12 +75,6 @@ interface CourseGroup {
   name: string
   courseID: number
   member_count?: number
-}
-
-const roleColors = {
-  teacher: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  student: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
 }
 
 export default function ClassMembers() {
@@ -323,13 +315,10 @@ export default function ClassMembers() {
     }
   }
 
-  const getInitials = (name: string) =>
-    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-
   const toggleSelect = (sid: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      next.has(sid) ? next.delete(sid) : next.add(sid)
+      if (next.has(sid)) { next.delete(sid) } else { next.add(sid) }
       return next
     })
   }

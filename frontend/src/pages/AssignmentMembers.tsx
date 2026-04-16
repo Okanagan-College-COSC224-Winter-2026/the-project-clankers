@@ -1,20 +1,18 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { parseUTC } from '../util/dates'
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, Users, UserPlus, Upload, ClipboardList, Check, X, LayoutList, Search, Trash2 } from 'lucide-react'
+import { ChevronRight, Users, UserPlus, Upload, ClipboardList, Check, X, LayoutList, Search } from 'lucide-react'
 import TabNavigation from '../components/TabNavigation'
 import StatusMessage from '../components/StatusMessage'
 import ConfirmDialog from '../components/ConfirmDialog'
 import RosterUploadResult from '../components/RosterUploadResult'
 import MembersListPanel from '../components/MembersListPanel'
 import { importCSV } from '../util/csv'
-import { listCourseMembers, getAssignmentDetails, listClasses, getProfilePictureUrl, getCourseEnrollmentRequests, approveEnrollmentRequest, rejectEnrollmentRequest, getRegisteredStudentsForCourse, enrollDirectStudents, unenrollStudent } from '../util/api'
+import { listCourseMembers, getAssignmentDetails, listClasses, getCourseEnrollmentRequests, approveEnrollmentRequest, rejectEnrollmentRequest, getRegisteredStudentsForCourse, enrollDirectStudents, unenrollStudent } from '../util/api'
 import { isTeacher } from '../util/login'
 
 interface User {
@@ -61,12 +59,6 @@ interface RosterUploadResultData {
 }
 
 type EnrollTab = 'csv' | 'registered' | 'requests'
-
-const roleColors = {
-  teacher: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  student: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-}
 
 export default function AssignmentMembers() {
   const { id } = useParams()
@@ -442,18 +434,9 @@ export default function AssignmentMembers() {
   const toggleSelect = (sid: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      next.has(sid) ? next.delete(sid) : next.add(sid)
+      if (next.has(sid)) { next.delete(sid) } else { next.add(sid) }
       return next
     })
-  }
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
   }
 
   return (

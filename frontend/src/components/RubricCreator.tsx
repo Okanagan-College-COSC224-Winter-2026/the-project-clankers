@@ -49,7 +49,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
     const [externalReview, setExternalReview] = useState(false);
     const [courseId, setCourseId] = useState<number | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
-    const [pastAssignments, setPastAssignments] = useState<Array<any>>([]);
+    const [pastAssignments, setPastAssignments] = useState<Array<{ id: number; name: string; [key: string]: unknown }>>([]);
     const [pastRubrics, setPastRubrics] = useState<Map<number, Criterion[]>>(new Map());
     const [importPreview, setImportPreview] = useState<{ rubric: Criterion[], assignmentId: number } | null>(null);
 
@@ -174,7 +174,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         if (!['internal', 'external', 'both'].includes(value)) return;
         // Validate that the selected value is in available options
         const availableValues = getAvailableCriteriaTypeOptions().map(opt => opt.value);
-        if (!availableValues.includes(value as any)) return;
+        if (!availableValues.includes(value as 'internal' | 'external' | 'both')) return;
         const updatedCriteria = [...newCriteria];
         updatedCriteria[index].criteriaType = value as 'internal' | 'external' | 'both';
         setNewCriteria(updatedCriteria);
@@ -254,7 +254,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
                 // Load past assignments from the same course
                 const assignments = await getAssignmentsByClass(courseId);
                 // Filter out the current assignment and assignments without rubrics
-                const otherAssignments = assignments.filter((a: any) => a.id !== id);
+                const otherAssignments = assignments.filter((a: { id: number }) => a.id !== id);
                 setPastAssignments(otherAssignments);
 
                 // Load rubrics for each assignment
@@ -297,7 +297,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
 
         // Check if criteria type is in available types
-        if (availableTypes.includes(criteriaType as any)) {
+        if (availableTypes.includes(criteriaType as 'internal' | 'external' | 'both')) {
             return true;
         }
 
@@ -319,7 +319,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         const availableTypes = getAvailableCriteriaTypeOptions().map(opt => opt.value);
 
         // If the criteria type is already in available types, keep it
-        if (availableTypes.includes(criteriaType as any)) {
+        if (availableTypes.includes(criteriaType as 'internal' | 'external' | 'both')) {
             return criteriaType;
         }
 
@@ -357,7 +357,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
             importedCriteria = importPreview.rubric
                 .filter(c => {
                     // Include exact matches or 'both'
-                    return (availableTypes.includes(c.criteriaType as any) || c.criteriaType === 'both') &&
+                    return (availableTypes.includes(c.criteriaType as 'internal' | 'external' | 'both') || c.criteriaType === 'both') &&
                            !existingQuestions.has(c.question.toLowerCase().trim());
                 })
                 .map(c => ({
@@ -372,7 +372,7 @@ export default function RubricCreator({ onRubricCreated, id }: RubricCreatorProp
         } else {
             // Perfect match only - only import exact matches (exclude 'both')
             importedCriteria = importPreview.rubric
-                .filter(c => availableTypes.includes(c.criteriaType as any) &&
+                .filter(c => availableTypes.includes(c.criteriaType as 'internal' | 'external' | 'both') &&
                             !existingQuestions.has(c.question.toLowerCase().trim()))
                 .map(c => ({
                     rubricID: 0,

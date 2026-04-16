@@ -10,7 +10,6 @@ import { importCSV } from "../util/csv";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
 import { Card } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
 
 interface Assignment {
   id: number;

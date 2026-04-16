@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
@@ -51,6 +52,7 @@ export default function ClassGrades() {
   const [selectedAssignmentDetail, setSelectedAssignmentDetail] = useState<AssignmentGradebookData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [saving, setSaving] = useState(false)
   const [className, setClassName] = useState<string | null>(null)
 
@@ -132,8 +134,8 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!id) return
-    listClasses().then((classes) => {
-      const match = classes.find((c: { id: number }) => c.id === classId)
+    listClasses().then((classes: Array<{ id: number; name: string }>) => {
+      const match = classes.find((c) => c.id === classId)
       if (match) setClassName(match.name)
     }).catch(() => {})
     loadAll(false)
@@ -152,9 +154,9 @@ const [pendingEdits, setPendingEdits] = useState<Record<string, string>>({})
         .filter((m: any) => m.role === 'student')
         .map((m: any) => ({ id: m.id, name: m.name, email: m.email, student_id: m.student_id || 'N/A' }))
       const groupsWithMembers = await Promise.all(
-        courseGroups.map(async (group: any) => {
+        courseGroups.map(async (group: Record<string, unknown>) => {
           try {
-            const members = await getGroupMembers(classId, group.id)
+            const members = await getGroupMembers(classId, group.id as number)
             return { ...group, members }
           } catch {
             return { ...group, members: [] }

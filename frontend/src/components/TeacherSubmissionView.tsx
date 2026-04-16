@@ -214,7 +214,7 @@ export default function TeacherSubmissionView({
     const groupSubmissionMap = new Map<number, StudentSubmission[]>();
 
     for (const group of groupsData) {
-      const groupMemberIds = (await getGroupMembers(classId, group.id)).map((m: any) => m.id);
+      const groupMemberIds = (await getGroupMembers(classId, group.id)).map((m: { id: number }) => m.id);
       const groupSubs = submissionsData.filter((sub: StudentSubmission) =>
         groupMemberIds.includes(sub.student_id)
       );
@@ -231,7 +231,7 @@ export default function TeacherSubmissionView({
           const membersData = await getGroupMembers(classId, group.id);
 
           // Convert to Student type
-          const members: Student[] = membersData.map((member: any) => ({
+          const members: Student[] = membersData.map((member: { id: number; student_id: string; name: string; email: string }) => ({
             id: member.id,
             student_id: member.student_id,
             name: member.name,
@@ -327,14 +327,16 @@ export default function TeacherSubmissionView({
     }
   };
 
-  const handleViewSubmission = (submission: StudentSubmission, entityName: string) => {
-    setSelectedSubmission(submission);
-    setViewModalEntityName(entityName);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleViewSubmission = (_submission: StudentSubmission, _entityName: string) => {
+    setSelectedSubmission(_submission);
+    setViewModalEntityName(_entityName);
     setIsViewModalOpen(true);
   };
 
-  const handleViewProfile = (studentId: number) => {
-    navigate(`/profile/${studentId}`);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleViewProfile = (_studentId: number) => {
+    navigate(`/profile/${_studentId}`);
   };
 
   const toggleGroupExpanded = (groupId: number) => {

@@ -6,15 +6,6 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { getAssignmentDetails, listClasses } from "../util/api";
 import { isTeacher } from "../util/login";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Shuffle, Users, UserPlus } from "lucide-react";
 
 interface CourseGroup {
   id: number;

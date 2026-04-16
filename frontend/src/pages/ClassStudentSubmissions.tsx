@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
 import { isTeacher } from "../util/login";
 import { importCSV } from "../util/csv";
-import { listClasses, getAssignmentsByClass, getStudentSubmissions, downloadStudentSubmission, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
+import { listClasses, getAssignmentsByClass, getStudentSubmissions, listCourseMembers, getCourseGroups, getGroupMembers } from "../util/api";
 import RosterUploadResult from "../components/RosterUploadResult";
 import ErrorModal from "../components/ErrorModal";
 import ViewSubmissionModal from "../components/ViewSubmissionModal";
@@ -148,7 +148,7 @@ export default function ClassStudentSubmissions() {
       const classMembersData = await listCourseMembers(id as string);
       const students: Student[] = (classMembersData || [])
         .filter((member: { role: string }) => member.role === 'student')
-        .map((member: any) => ({
+        .map((member: { id: number; name: string; email: string; student_id?: string }) => ({
           id: member.id,
           name: member.name,
           email: member.email,
@@ -387,7 +387,7 @@ export default function ClassStudentSubmissions() {
         ) : (
           <div className="space-y-5">
             {submissionsByAssignment.map(({ assignment, rows, isGroupAssignment }) => {
-              const submittedCount = rows.filter((row: any) => row.status !== "Not Submitted").length;
+              const submittedCount = rows.filter((row: { status: string }) => row.status !== "Not Submitted").length;
               const total = rows.length;
               const entityType = isGroupAssignment ? 'groups' : 'students';
               const isExpanded = expandedAssignmentId === assignment.id;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import ChangePassword from '../src/pages/ChangePassword';
@@ -208,7 +208,7 @@ describe('ChangePassword Component', () => {
 
   describe('Navigation', () => {
     it('should redirect to /home after successful forced password change', async () => {
-      const user = userEvent.setup();
+      userEvent.setup();
       const mockNavigate = vi.fn();
       
       // This would require mocking useNavigate, which is a more complex setup
@@ -220,7 +220,7 @@ describe('ChangePassword Component', () => {
     });
 
     it('should redirect to /profile after successful voluntary password change', async () => {
-      const user = userEvent.setup();
+      userEvent.setup();
       const mockNavigate = vi.fn();
       
       // This would require mocking useNavigate, which is a more complex setup
@@ -274,7 +274,7 @@ describe('Profile Component - Change Password Button', () => {
   });
 
   it('should navigate to /change-password when button is clicked', async () => {
-    const user = userEvent.setup();
+    userEvent.setup();
     const mockNavigate = vi.fn();
 
     vi.mock('react-router-dom', async () => ({

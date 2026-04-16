@@ -27,10 +27,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showArchivedModal, setShowArchivedModal] = useState(false)
-  const [archivedClasses, setArchivedClasses] = useState<any[]>([])
+  const [archivedClasses, setArchivedClasses] = useState<Array<{ id: number; name: string }>>([])
   const [loadingArchived, setLoadingArchived] = useState(false)
   const [showHiddenModal, setShowHiddenModal] = useState(false)
-  const [hiddenClasses, setHiddenClasses] = useState<any[]>([])
+  const [hiddenClasses, setHiddenClasses] = useState<Array<{ id: number; name: string }>>([])
   const [loadingHidden, setLoadingHidden] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -135,7 +135,7 @@ export default function Home() {
                 courseTotalGrade,
                 gradeStatus,
             }
-          } catch (error) {
+          } catch {
             return {
               ...course,
               assignments: [],
@@ -238,7 +238,7 @@ export default function Home() {
       </div>
       <div className="flex-1 p-6">
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {(() => {
           const filtered = courses.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
           return filtered.length === 0 && !isTeacher() ? (

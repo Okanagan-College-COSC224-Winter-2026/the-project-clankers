@@ -15,7 +15,7 @@ export default function Sidebar() {
     try {
       const requests = await getEnrollmentRequests()
       const count = Array.isArray(requests)
-        ? requests.filter((r: any) => r.status === 'pending').length
+        ? requests.filter((r: { status: string }) => r.status === 'pending').length
         : 0
       setPendingCount(count)
     } catch (err) {

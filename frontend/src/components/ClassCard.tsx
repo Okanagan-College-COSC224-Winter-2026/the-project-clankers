@@ -54,7 +54,7 @@ export default function ClassCard(props: Props) {
 
   return (
     <Card
-      className="cursor-pointer overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col h-full"
+      className="cursor-pointer overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col"
       onClick={props.onclick}
     >
       <div className="aspect-video overflow-hidden">
@@ -65,7 +65,7 @@ export default function ClassCard(props: Props) {
         />
       </div>
       
-      <CardContent className="p-4 flex-1 flex flex-col justify-between">
+      <CardContent className="p-4 flex flex-col gap-2">
         <div>
           <h2 className="font-semibold text-lg truncate mb-1">{props.name}</h2>
           <p className="text-sm text-muted-foreground truncate mb-4">{props.subtitle}</p>

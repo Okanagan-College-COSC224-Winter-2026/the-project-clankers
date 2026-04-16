@@ -29,13 +29,15 @@ interface RubricInfo {
 
 export default function RubricDisplay({
     rubricId,
-    onCriterionSelect,
-    grades,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onCriterionSelect: _onCriterionSelect,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    grades: _grades,
     internalReviewEnabled = false,
     externalReviewEnabled = false
 }: RubricDisplayProps) {
     const [criteria, setCriteria] = useState<Criterion[]>([]);
-    const [rubricInfo, setRubricInfo] = useState<RubricInfo | null>(null);
+    const [, setRubricInfo] = useState<RubricInfo | null>(null);
     const [activeTab, setActiveTab] = useState<'internal' | 'external'>('internal');
     const [loading, setLoading] = useState(true);
 
