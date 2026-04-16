@@ -30,8 +30,10 @@ See [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md) for detailed explanat
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/COSC470Fall2025/Peer-Evaluation-App-V1.git
-cd Peer-Evaluation-App-V1
+
+git clone https://github.com/Okanagan-College-COSC224-Winter-2026/the-project-clankers.git
+cd the-project-clankers
+
 
 # 2. Create a root-level .env (docker compose reads this automatically)
 cp flask_backend/.env.example .env   # or copy the template in docs/GETTING_STARTED.md
